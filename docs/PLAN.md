@@ -570,7 +570,7 @@ Terminal–1 창
   "goal": "PH_K7Q2 화면에서 PH_M3X9 항목의 시간 흐름과 벗어난 구간을 한눈에 보는 사내 웹 도구를 기획해 달라",
   "context": [
     "사용자는 PH_R2D8 역할이고 하루에 여러 번 연다",
-    "항목은 PH_M3X9 하나와 범주 PH_T4W1 하나다"
+    "항목은 PH_M3X9 하나와 범주 PH_T4W5 하나다"
   ],
   "entities": [
     {"token": "PH_K7Q2", "type": "화면", "note": "목록과 그래프가 있는 화면"},
@@ -578,7 +578,7 @@ Terminal–1 창
   ],
   "fields": [
     {"token": "PH_M3X9", "kind": "숫자", "unit": "있음"},
-    {"token": "PH_T4W1", "kind": "범주", "count": 7}
+    {"token": "PH_T4W5", "kind": "범주", "count": 7}
   ],
   "constraints": ["127.0.0.1 에서만 돈다", "외부 CDN · 웹 폰트 금지", "항목은 FIELDS.<토큰> 으로만 쓴다"],
   "ask": "기획 개요 · 화면 목록 · 화면마다 구성 요소 · 열린 질문",
@@ -600,13 +600,13 @@ Terminal–1 창
   "library": {"name": "pandas", "version": "2.2"},
   "goal": "범주마다 시간 순서로 이동 평균을 구하고 싶은데 결과의 순서가 섞인다",
   "repro": "import pandas as pd\ndf = pd.DataFrame({\"a\": [\"x\", \"x\", \"y\"], \"b\": [1, 2, 3]})\nout = df.groupby(\"a\")[\"b\"].rolling(2).mean()",
-  "error": {"type": "없음", "message": ""},
   "ask": "순서를 지키는 방법 · 그 까닭",
   "route": {"difficulty": "normal", "effort": "medium"}
 }
 ```
 
-- `repro` 는 06 의 합성 재현 코드 규칙을 따른다 — 자리 이름 · 자리 글 · 허용 라이브러리 이름만, 주석 없음.
+- `repro` 는 06 의 합성 재현 코드 규칙을 따른다 — 자리 이름 · 자리 글 · 허용 라이브러리 이름만, 주석 없음. 예외가 없으면 `error` 칸을 두지 않는다.
+- 칸 · 판정의 계약은 [SPEC.md](SPEC.md) (T6) 가 정본이다. 토큰 글자는 `0 1 I L O U` 를 뺀 30자다 (SPEC › SP-04).
 
 ### B 작업표 (하위 에이전트용)
 
