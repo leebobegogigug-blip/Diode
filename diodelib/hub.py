@@ -217,8 +217,8 @@ class Hub(object):
             p.audit({"job": job.job, "direction": "dispatch", "decision": "blocked", "text": ins})
             return {"sent": False, "error": "E-01"}
         job.state = "working"
-        p.audit({"job": job.job, "direction": "dispatch", "decision": "sent", "text": ins,
-                 "sha256": sha256_text(text)})
+        # 감사 기록은 토큰 꼴의 지시만 · 해시도 그 글의 것 (진짜 단어가 든 글의 해시는 남기지 않는다 · AL-05)
+        p.audit({"job": job.job, "direction": "dispatch", "decision": "sent", "text": ins})
         return {"sent": True, "job": job.job}
 
     def t_inbox(self, args):

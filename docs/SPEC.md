@@ -125,7 +125,7 @@ ASK: <ask>
 | D4 | 숫자 | 자유 글 칸에서 정확한 꼴의 토큰을 지운 뒤, NFKC 후 유니코드 숫자 (범주 `Nd` · `No` · `Nl`) 가 하나라도 있으면 걸림 (개수는 숫자 덩어리 수) · 숫자 칸 (SP-02) 은 예외 | `온도 350` · `３５０` (전각) · 아랍 숫자 · `v2` · `2단계` · `½` |
 | D5 | 덩어리 · 코드 꼴 | 자유 글에 (토큰은 지우고) 코드 꼴 (`` ` `` · ` ``` ` · `~~~` · `def f(` · `class A(` · `from a import` · 한 칸 전체가 `import a` · `SELECT … FROM` · `#include` · `f(x) {` `f(x);` · `{` `}` · `==` `!=` `+=` `-=` `&&` `\|\|` `::` `=>` · HTML 태그 · `$(` `${`) · 식별자 꼴 (`snake_case` · `lowerCamel` — 공개 이름 목록 · 내장 이름은 뺀다) · 길이 24 이상의 base64 꼴 · 길이 16 이상의 hex · 빈칸 없는 ASCII 20자 이상 덩어리 중 셰넌 엔트로피 4.0 bit/글자 이상 (공개 이름은 뺀다) · `lib.repro` 는 D5a | 키처럼 보이는 문자열 · 해시 · 한 줄 코드 · `line_temp` · `lineTemp` |
 | D5a | 합성 재현 코드 (`lib` · Python v1) | `ast` 로 읽히고 표준 라이브러리 `tokenize` 로 쪼갠다. `NAME` 은 예약어 (+ `match` `case` `type`) · 내장 이름 · 내장 형 (`str` `list` `dict` …) 의 속성 이름 · 허용 라이브러리 이름 · 그 공개 이름 목록 · 자리 이름 (`df` `a` `b` `c` `x` `y` `z` `i` `j` `k` `n` `s` `t` `_` `item` `value` `key` `data` `result` `row` `arr` `obj` `fn` `cls` `col_1`–`col_9`) · 흔한 별칭 (`pd` `np` `plt` `sns` `tf` `nn` `F` `sp` `mpl` `pl` `xr` `dd`) · 토큰만 · `STRING` 은 자리 글 (자리 이름을 따옴표로 감싼 것 · 토큰 · `""`) 만 · 접두 `b` `r` `f` 금지 · `COMMENT` 금지 · `NUMBER` 는 세 자리 이하 정수 · 스무 개까지 [제안] · `import` 는 허용 라이브러리만 (상대 import 금지 · `as` 는 별칭 · 자리 이름만) · 40줄 이하 · 읽기 · 쪼개기 실패 → 막음. 자리는 줄 번호 (`repro:3`). `error.type` 은 내장 예외 이름 · 허용 라이브러리의 공개 이름 (`pandas.errors.ParserError`) 만 | `df["line_temp"]` (자리 글이 아님) · `# 우리 장비` (주석) · `threshold = 3500` · `0.5` · `import 사내패키지` · `as kitalias` · f-글 · 사내 예외 이름 |
-| D7 | 사내 LLM 판정 | 펼친 글만 사내 LLM 에 보낸다 (부록 A 의 고정 프롬프트 · SPEC-llm 의 `llm` 설정 · 환경 변수 덮어쓰기 없음). 답은 정확히 `{"verdict": "pass" \| "block", "reason": "<code>"}` · 그 밖의 답 · 오류 · 60초 넘김 → 막음. 판정 글은 Claude 로 가지 않는다 | 판정 모델이 꺼짐 · 답이 JSON 이 아님 |
+| D7 | 사내 LLM 판정 | 펼친 글만 사내 LLM 에 보낸다 (부록 A 의 고정 프롬프트 · SPEC-llm 의 `llm` 설정 · 환경 변수 덮어쓰기 없음 · `{env:}` 참조 없음 · 프록시는 설정에 적은 것만 · 리다이렉트를 따르지 않음 · 시간 상한 60초). 답은 정확히 `{"verdict": "pass" \| "block", "reason": "<code>"}` · `pass` 인데 reason 이 `none` 이 아니면 막음 · 그 밖의 답 · 오류 · 시간 넘김 → 막음 · 펼친 글에 `[글]` `[/글]` 이 있으면 묻지 않고 막음. 결과 꼴 `{"check": "D7", "verdict", "reason"}` (막은 까닭 번호 `unset` `config` `timeout` `error` `answer` 더함). 판정 글은 Claude 로 가지 않는다. 코드: [diodelib/judge.py](../diodelib/judge.py) | 판정 모델이 꺼짐 · 답이 JSON 이 아님 |
 | D8 | 사람 | 확정 창 (SP-09) 에서 보낼 바이트 그대로를 보고 [보내기]. 10분 동안 손대지 않으면 버림 [제안] · 건너뛰는 옵션 · 환경 변수 · 설정 없음 (AL-02) · 창을 못 띄우면 보내지 않음 | 창이 없는 환경 · 시간 초과 |
 
 - **알려진 한계**: 한글 수사 (`삼백오십`) · 풀어 쓴 수치 · 로마 숫자는 D4 가 못 잡는다 — D7 과 사람의 몫이다. 사전에 없는 새 단어 · 세 칸 넘게 차례 없이 흩어 놓은 단어 · 작은 정수 여러 개로 옮긴 수치 · `PascalCase` 이름도 같다.
@@ -257,12 +257,14 @@ ASK: <ask>
 - `diode.py --status --json [--room "<폴더>"]` — 읽기 전용 · 표준 출력에 UTF-8 JSON 하나 · `format` 1.
 - 칸 · 값 범위는 [Terminal–1 사내 작업 지침 › 04-5](https://github.com/leebobegogigug-blip/Works/blob/8df8bca44a80a8034e343f646967e2eea744a28b/docs/plans/terminal-1-claude-guide.md) 의 계약이 정본이다. 허브 도구 `status` 도 같은 칸을 돌려준다.
 - 내주지 않는 것: 사전 단어 · 봉인 글 · 답 · 가명 표 · 감사 기록 내용 · 정규식 · 모델 이름.
+- 칸의 뜻 [제안 · v0.1]: `seatbelt` — 설정 ok 이고 `raw_dirs` 가 비지 않으면 `on` · 처음 설치이거나 `raw_dirs` 가 비면 `off` · 깨졌거나 `DIODE_HOME` 이면 `unknown` (훅은 기본 자리만 본다). `room.profile` — 방이 원자료 폴더와 겹치면 `changed`. `queue.outbox` — inbox 답이 아직 없는 outbox 글 수 · `queue.inbox` — 감사 기록 `in` 이 없는 답 수 · `queue.confirm` — 허브가 생길 때까지 0. `jobs` — 감사 기록에서 (dispatch sent → `working` · 보고 sent → `reported` · 보고 discarded → `rejected`). `month` — `claude.monthly_budget_usd` 가 0 이면 내지 않음 · `estimated` 는 이번 달 기록이 없거나 못 읽은 파일이 있을 때. `worker.reachable` — 127.0.0.1 에 0.3초 TCP 연결만 (보내는 것 없음).
+- 종료 코드: `0` JSON 한 줄 · `2` 사용법 오류 · `1` 내부 실패 (JSON 을 쓰지 않는다 — Terminal–1 은 막는 쪽으로). 코드: [diodelib/status.py](../diodelib/status.py).
 
 ## SP-13 statusline 기록
 
 - `diode.py --statusline` 은 표준 입력의 JSON 에서 `session_id` · `model.id` · `effort.level` · `cost.total_cost_usd` · `context_window.total_input_tokens` · `context_window.total_output_tokens` 만 읽는다 [실험 T01 의 칸]. `transcript_path` 는 열지 않는다.
 - 세션마다 한 파일 `%LOCALAPPDATA%\diode\usage\<YYYY-MM>\<session_id 의 sha256 앞 16자>.json` 을 원자적으로 덮어쓴다 (마지막 누계). 이번 달 사용 = 그 달 파일들의 합.
-- 표준 출력은 한 줄: `DIODE  room ok  effort high  month 12%`. 200 ms 안에 끝낸다 [제안]. 실패해도 막지 않는다 (statusLine 은 보안 경계가 아니다).
+- 표준 출력은 한 줄: `DIODE  room ok  effort high  month 12%` (어림이면 `month ~12%` · 실패하면 `DIODE  -`). 200 ms 안에 끝낸다 [제안]. 실패해도 막지 않는다 (statusLine 은 보안 경계가 아니다). 방 상태는 statusLine 의 작업 폴더에서 · 입력 상한 1 MiB · usage 파일 꼴 `{format, at, month, model, effort, cost_usd, input_tokens, output_tokens}` · 더 새 format 의 파일은 덮어쓰지 않는다.
 
 ## SP-14 감사 기록
 
@@ -275,8 +277,11 @@ ASK: <ask>
  "model": "<설정의 모델>", "effort": "high"}
 ```
 
+- 파일 이름의 순번은 job 마다 방향을 가리지 않고 세는 3자리 (`J-0007-001-out.json`) · 임시 파일에 쓴 뒤 링크로 이름을 붙인다 (덮어쓰지 않음). 코드: [diodelib/audit.py](../diodelib/audit.py).
+- `checks[]` 의 칸은 `check` · `verdict` · `reason` · `count` · `where` · `code` · `lines` 만 · 값은 짧은 기호 꼴만.
 - `direction: "in"` (Claude 의 답) 은 `text` 를 남기지 않는다 — 해시 · 크기 · U1–U4 결과만 [제안].
-- 넘기기 (안쪽으로) 는 `direction: "dispatch"` · `text` 에 되돌리기 전의 지시 (토큰 꼴) 를 남긴다.
+- `sent` 인 `out` · `dispatch` 는 `text` 가 있어야 하고, `sha256` · `bytes` 가 그 글과 다르면 쓰지 않는다.
+- 넘기기 (안쪽으로) 는 `direction: "dispatch"` · `kind: "instruction"` · `transport: "worker"` · `text` 에 되돌리기 전의 지시 (토큰 꼴) 를 남기고, `sha256` 도 그 글의 것이다 (진짜 단어가 든 되돌린 글의 해시는 남기지 않는다 · AL-05).
 - 가명 표 · 원자료 · 사전 단어는 어디에도 남기지 않는다. `decision` 은 `sent` · `discarded` · `blocked` · `timeout`.
 
 ## SP-15 설정 (format 1)

@@ -32,10 +32,7 @@ PENDING = (
     ("confirm", "confirm <요청 파일>             확정 창"),
     ("lib", "lib names <이름>                허용 라이브러리의 공개 이름"),
 )
-PENDING_FLAGS = (
-    ("--statusline", "--statusline                    statusLine 기록"),
-    ("--status", "--status --json [--room 폴더]   상태 명령"),
-)
+PENDING_FLAGS = ()
 
 HELP = """%s %s — Claude Code 플러그인 (개발 중 · v0.0 · 훅만 있습니다)
 
@@ -46,6 +43,8 @@ HELP = """%s %s — Claude Code 플러그인 (개발 중 · v0.0 · 훅만 있�
   check                           자가 점검 (마지막 줄 결과: …)
   scan                            표준 입력의 글 검사 (D2 · D3 · D5 · 0 통과 · 2 막음 · 단어는 찍지 않음)
   hook <session|prompt|tool>      Claude Code 훅 (플러그인이 부른다 · 표준 입력 = 훅 입력 JSON)
+  --status --json [--room 폴더]   상태 명령 (읽기 전용 · JSON 한 줄 · 단어는 없음)
+  --statusline                    statusLine 기록 (방 설정이 부른다 · 표준 입력 = statusLine JSON)
 
 아직 없는 명령 (v0.0 — 부르면 종료 코드 2 로 끝납니다)
   %s
@@ -163,7 +162,20 @@ def run(args, out, err, inp=None):
     if args.command == "hook":
         from diodelib import hook
         return hook.main([args.event], stdin=inp if inp is not None else _stdin_bytes(), stdout=out, stderr=err)
-    name = args.command or ("--status" if args.status else "--statusline")
+    if args.status:
+        from diodelib import status
+        home, default = data_dir()
+        argv = ["--json"] if args.json else []
+        if args.room:
+            argv += ["--room", args.room]
+        return status.main_status(argv, out, home=home, home_is_default=default, err=err)
+    if args.statusline:
+        from diodelib import status
+        data = (inp if inp is not None else _stdin_bytes()).read()
+        if isinstance(data, str):
+            data = data.encode("utf-8")
+        return status.main_statusline(data, out, data_dir()[0])
+    name = args.command
     err.write("diode.py %s: 아직 없음 (v0.0) — 계약은 docs/SPEC.md (SP-16), 순서는 docs/PLAN.md › 10 로드맵\n" % name)
     return USAGE
 

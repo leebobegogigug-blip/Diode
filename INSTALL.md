@@ -118,4 +118,5 @@ v0.0 은 PC 에 남기는 것이 없다 (`check` 도 아무것도 만들지 않�
 | `python "D:\claude\diode\diode.py" check` | 자가 점검 (마지막 줄 `결과: …`) |
 | `python "D:\claude\diode\diode.py" version` · `help` | 버전 · 도움말 |
 | `python "D:\claude\diode\diode.py" scan` | 표준 입력의 글 검사 (`0` 통과 · `2` 막음 · 사전이 없으면 `2`) |
-| `mcp` · `--statusline` · `--status` · `propose` · `confirm` · `lib` | 아직 없음 (v0.0 — 종료 코드 2) |
+| `python "D:\claude\diode\diode.py" --status --json` | 상태 (JSON 한 줄 · 읽기 전용) |
+| `mcp` · `propose` · `confirm` · `lib` | 아직 없음 (v0.0 — 종료 코드 2) |

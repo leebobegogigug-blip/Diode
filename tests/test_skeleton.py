@@ -32,7 +32,7 @@ MANIFEST_FIELDS = {"$schema", "name", "displayName", "version", "description", "
                    "keywords", "metadata", "icon", "documentationUrl", "supportUrl", "privacyPolicyUrl", "termsOfServiceUrl",
                    "defaultEnabled", "dependencies", "settings", "userConfig", "types", "channels", "skills", "commands",
                    "agents", "hooks", "mcpServers", "lspServers", "outputStyles", "workflows", "experimental"}
-PENDING_CASES = (["mcp"], ["--statusline"], ["--status", "--json"], ["--status", "--json", "--room", "x"],
+PENDING_CASES = (["mcp"],
                  ["propose", "r.json"], ["confirm", "req.json"], ["lib", "names", "pkg"])
 
 

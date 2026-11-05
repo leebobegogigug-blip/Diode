@@ -217,6 +217,33 @@ class Reports(Base):
         self.assertEqual(self.h.call("inbox", {"job": "x"}), {"error": "E-04"})
 
 
+class RealParts(Base):
+    """진짜 감사 기록 (diodelib.audit) · room 건네기 (diodelib.transport) 와 이어 한 바퀴."""
+
+    def test_round_trip_with_audit_and_room(self):
+        from diodelib import audit, transport
+        home = os.path.join(self.tmp, "data")
+        self.parts.audit = audit.sink(home)
+        self.parts.confirmed = lambda: audit.confirmed_hashes(home)
+        self.parts.transport = transport.RoomTransport(self.room)
+        res = self.h.call("dispatch", {"instruction": "목록 화면을 만들어 달라"})
+        self.assertEqual(res, {"sent": True, "job": "J-0001"})
+        draft = {"format": 1, "kind": "report", "data_class": "synthetic", "job": "J-0001", "status": "done",
+                 "entities": [{"ref": "s1", "name": REAL, "type": "화면"}], "summary": ["[[s1]] 화면을 만들었다"]}
+        self.assertEqual(self.h.take_report(draft), "reported")
+        reports = self.h.call("inbox", {})["reports"]
+        self.assertEqual([r["job"] for r in reports], ["J-0001"])
+        self.assertNoInner(reports)
+        # 감사 기록 어디에도 진짜 이름이 없다
+        for root, _, files in os.walk(os.path.join(home, "audit")):
+            for fn in files:
+                with open(os.path.join(root, fn), encoding="utf-8") as f:
+                    self.assertNotIn("주간", f.read())
+        # 훅이 읽는 확정 해시와 같다
+        from diodelib import hook
+        self.assertEqual(hook._confirmed_hashes(home), audit.confirmed_hashes(home))
+
+
 class JsonRpc(Base):
     def rpc(self, *msgs):
         inp = io.StringIO("".join(json.dumps(m) + "\n" for m in msgs) + "not json\n")

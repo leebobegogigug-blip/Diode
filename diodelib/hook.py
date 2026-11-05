@@ -172,28 +172,9 @@ def _tool_paths(tool, ti, cwd):
 
 
 def _confirmed_hashes(home):
-    """감사 기록 (SP-14) 에서 사람이 확정해 보낸 글 (direction out · decision sent) 의 sha256."""
-    got = set()
-    base = os.path.join(home, "audit")
-    if not os.path.isdir(base):
-        return got
-    for month in sorted(os.listdir(base)):
-        d = os.path.join(base, month)
-        if not os.path.isdir(d):
-            continue
-        for fn in os.listdir(d):
-            if not fn.endswith("-out.json"):
-                continue
-            try:
-                with open(os.path.join(d, fn), "r", encoding="utf-8") as f:
-                    rec = json.load(f)
-                if rec.get("format") == 1 and rec.get("direction") == "out" and rec.get("decision") == "sent":
-                    h = rec.get("sha256")
-                    if isinstance(h, str):
-                        got.add(h)
-            except Exception:
-                continue
-    return got
+    """감사 기록 (SP-14) 에서 사람이 확정해 보낸 글의 sha256 — 정본은 audit.confirmed_hashes."""
+    from . import audit
+    return audit.confirmed_hashes(home)
 
 
 def on_tool(data, settings, project_dir):
