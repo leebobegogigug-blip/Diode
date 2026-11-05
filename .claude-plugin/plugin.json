@@ -2,7 +2,7 @@
   "name": "diode",
   "displayName": "Diode",
   "version": "0.0.1",
-  "description": "사내 LLM 과 Claude 사이를 한 방향으로만 흐르게 하는 Claude Code 플러그인. 개발 중 (v0.0) — 아직 아무것도 막지 않는다.",
+  "description": "사내 LLM 과 Claude 사이를 한 방향으로만 흐르게 하는 Claude Code 플러그인. 개발 중 (v0.0) — 훅만 있다 (허브 · 확정 창이 없어 아직 쓸 수 없다).",
   "author": {"name": "diode"},
   "repository": "https://github.com/leebobegogigug-blip/Diode",
   "keywords": ["diode", "security", "data-leak-prevention", "sealed-report", "opencode"]

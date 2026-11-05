@@ -2,10 +2,11 @@
 # -*- coding: utf-8 -*-
 """diode - Claude Code 플러그인 Diode 의 진입점 (표준 라이브러리만 · Python 3.8+)
 
-  diode.py version | help | check | scan
+  diode.py version | help | check | scan | hook <session|prompt|tool>
 
-개발 중 (v0.0) — 아직 아무것도 막지 않는다. 훅 · 허브 · 검사기 · 확정 창은 아직 없다 (docs/PLAN.md › 10 로드맵).
-아직 없는 명령 (mcp · hook · --statusline · --status · propose · confirm · lib) 은 종료 코드 2 로 끝난다.
+개발 중 (v0.0) — 훅 (hook) · 검사기 (scan) 는 있다. 허브 · 확정 창은 아직 없다 (docs/PLAN.md › 10 로드맵).
+아직 없는 명령 (mcp · --statusline · --status · propose · confirm · lib) 은 종료 코드 2 로 끝난다.
+hook 은 Claude Code 훅 (SP-11) — 플러그인 hooks/hooks.json 이 부른다.
 scan 은 표준 입력의 글을 검사한다 (D2 · D3 · D5) — 종료 코드 0 통과 · 2 막음 (SP-16 · 훅과 같은 뜻).
 종료 코드: 0 OK · 1 점검 실패 · 2 사용법 오류 · 3 사람 확인 필요 (RULES.md › S-03)
 점검 출력의 마지막 줄은 결과: OK · 결과: 확인 필요 · 결과: 점검 실패 중 하나 (에이전트가 이 줄로 판단한다)
@@ -27,7 +28,6 @@ ALIASES = {"-h": "help", "--help": "help", "--version": "version"}
 # 아직 없는 명령 (v0.0) — 계약은 docs/SPEC.md SP-16. (이름, 도움말의 설명)
 PENDING = (
     ("mcp", "mcp                             허브 (MCP 서버)"),
-    ("hook", "hook <session|prompt|tool>      훅"),
     ("propose", "propose <report.json>           일꾼 보고 내기"),
     ("confirm", "confirm <요청 파일>             확정 창"),
     ("lib", "lib names <이름>                허용 라이브러리의 공개 이름"),
@@ -37,7 +37,7 @@ PENDING_FLAGS = (
     ("--status", "--status --json [--room 폴더]   상태 명령"),
 )
 
-HELP = """%s %s — Claude Code 플러그인 (개발 중 · v0.0 · 아직 아무것도 막지 않습니다)
+HELP = """%s %s — Claude Code 플러그인 (개발 중 · v0.0 · 훅만 있습니다)
 
 사용법: python diode.py <명령>
 
@@ -45,6 +45,7 @@ HELP = """%s %s — Claude Code 플러그인 (개발 중 · v0.0 · 아직 아�
   help                            이 도움말 (-h · --help 도 됩니다)
   check                           자가 점검 (마지막 줄 결과: …)
   scan                            표준 입력의 글 검사 (D2 · D3 · D5 · 0 통과 · 2 막음 · 단어는 찍지 않음)
+  hook <session|prompt|tool>      Claude Code 훅 (플러그인이 부른다 · 표준 입력 = 훅 입력 JSON)
 
 아직 없는 명령 (v0.0 — 부르면 종료 코드 2 로 끝납니다)
   %s
@@ -80,6 +81,7 @@ def build_parser():
     sub = p.add_subparsers(dest="command", metavar="명령")
     for name in ("version", "help", "check", "scan"):
         sub.add_parser(name, add_help=False)
+    sub.add_parser("hook", add_help=False).add_argument("event", nargs="?", default="")
     for name, _ in PENDING:
         sub.add_parser(name, add_help=False).add_argument("rest", nargs=argparse.REMAINDER)
     return p
@@ -158,6 +160,9 @@ def run(args, out, err, inp=None):
         return check(out)
     if args.command == "scan":
         return scan_command(out, err, inp if inp is not None else _stdin_bytes())
+    if args.command == "hook":
+        from diodelib import hook
+        return hook.main([args.event], stdin=inp if inp is not None else _stdin_bytes(), stdout=out, stderr=err)
     name = args.command or ("--status" if args.status else "--statusline")
     err.write("diode.py %s: 아직 없음 (v0.0) — 계약은 docs/SPEC.md (SP-16), 순서는 docs/PLAN.md › 10 로드맵\n" % name)
     return USAGE

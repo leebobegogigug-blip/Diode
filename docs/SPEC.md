@@ -228,21 +228,25 @@ ASK: <ask>
 
 - 권한 규칙에는 경로를 쓰지 않는다 (L-31). 원자료 폴더 목록은 Diode 설정에만 있다.
 - `statusLine` 의 `python` 은 이름만 (L-30). `<플러그인 자리>` 는 `D:\claude\diode`.
-- **방 상태**: `ok` (표지 있음 · 설정의 sha256 이 표지와 같음) · `missing` (표지 · 설정 없음) · `changed` (해시가 다름 — 사람이 고쳤거나 바꿔치기).
+- **방 상태**: `ok` (표지 있음 · 설정의 sha256 이 표지와 같음 · 설정을 덮는 파일 `.claude\settings.local.json` · `.mcp.json` 이 없음) · `missing` (표지 없음 — 방이 아니다) · `changed` (표지는 있는데 해시가 다름 · 덮는 파일이 있음 · 표지가 깨짐 — 사람이 고쳤거나 바꿔치기). 방인지는 프로젝트 폴더 자체의 표지로만 본다 (위 폴더를 거슬러 찾지 않는다). 코드: [diodelib/room.py](../diodelib/room.py).
 - **만들기를 거부할 때**: 방 자리가 git 저장소 안 · 원자료 폴더 안 · 플러그인 소스 (`D:\claude\diode`) 안 · 위 폴더에 `CLAUDE.md` · `.claude\CLAUDE.md` · `AGENTS.md` 가 있음 (지우거나 옮기라고 알린다 · `claudeMdExcludes` 가 막지만 두 겹으로).
 
 ## SP-11 훅
 
 - 모든 훅은 exec 꼴 (`command` = `python` · `args` = `["${CLAUDE_PLUGIN_ROOT}/diode.py", "hook", "<이벤트>"]`) · `onFailure: "block"` [실험 S09] · `timeout` 10초 [제안].
-- **모드**: 프로젝트 폴더 (`CLAUDE_PROJECT_DIR` · 없으면 훅 입력의 `cwd`) 가 `policy.raw_dirs` 아래면 `raw` · 방 (`ok` 상태) 이면 `room` · 그 밖은 `other`. 방이 `changed` 면 `raw` 와 같이 막는다.
+- **모드**: 프로젝트 폴더 (`CLAUDE_PROJECT_DIR` · 없으면 훅 입력의 `cwd`) 가 `policy.raw_dirs` 의 어느 폴더와 **겹치면** (그 아래이거나 · 그것을 품거나) `raw` · 방 (`ok` 상태) 이면 `room` · 그 밖은 `other`. 방이 `changed` 면 `raw` 와 같이 막는다. 경로는 진짜 경로 (심볼릭 링크를 푼 것) · OS 의 대소문자 규칙으로 견준다.
+- **데이터 폴더**: 훅은 늘 기본 자리 (`%LOCALAPPDATA%\diode` · 그 밖 `~/.local/share/diode`) 를 본다. `DIODE_HOME` 은 받지 않는다 — 환경 변수로 다른 사전 · 설정을 물리지 못하게.
+- **설정 상태**: `unset` (사전 · 설정 파일이 둘 다 없음 — 처음 설치) · `ok` · `broken` (있는데 못 읽음 · 모르는 format · 사전이 빔). `unset` 이면 `other` 는 통과시키고 세션 시작 때 알린다 (지켜지지 않는다는 것) · `room` 은 막는다. `broken` 이면 막는다 — 단 `other` 에서 `/diode:` 로 시작하는 프롬프트는 고치러 가는 길이라 통과.
 
 | 이벤트 | `raw` | `room` | `other` |
 |---|---|---|---|
-| `UserPromptSubmit` | 종료 코드 2 — "원자료 폴더에서 Claude 를 열었습니다 · 방에서 여세요" | 사전 · 꼴 (D2 · D3) 에 걸리면 2 · `permission_mode` 가 `auto` 면 2 ("방은 수동 모드로 쓰세요") | 사전 · 꼴에 걸리면 2 |
-| `PreToolUse` | 모든 도구 deny | 파일 도구는 방 안만 · `Bash` · `WebFetch` · `mcp__plugin_diode_` 밖의 MCP 는 deny · `outbox` 의 Read 는 감사 기록의 확정 해시가 있어야 (AL-13) | 파일 도구가 원자료 폴더를 가리키면 deny |
-| `SessionStart` | 기록만 | 방 상태 확인 · 기록 | 기록 |
+| `UserPromptSubmit` | 종료 코드 2 — "원자료 폴더에서 Claude 를 열었습니다 · 방에서 여세요" | 사전 · 꼴 (D2 · D3) 에 걸리면 2 · `permission_mode` 가 `default` `plan` `acceptEdits` `dontAsk` 밖 (`auto` · `bypassPermissions` · 모르는 값) 이면 2 ("방은 수동 권한 모드로") | 사전 · 꼴에 걸리면 2 |
+| `PreToolUse` | 모든 도구 deny | **허용 목록**: 파일 도구 (`Read` `Write` `Edit` `MultiEdit` `NotebookEdit` `Glob` `Grep`) 는 방 안만 (Glob · Grep 의 무늬에 `..` · 절대 경로 · `~` 가 있으면 deny) · 쓰기 도구는 표지 · `.claude\` · `.mcp.json` · `outbox\` · `CLAUDE.md` · `AGENTS.md` 에 deny · `outbox` 의 Read 는 감사 기록의 확정 해시가 있어야 (AL-13) · 방 전체 Grep 은 outbox 를 읽으므로 deny · `WebSearch` (`policy.web_search`) · `ToolSearch` · 할 일 · 하위 에이전트 · 질문 · 계획 도구 · `Skill` 은 `diode` 만 · `mcp__plugin_diode_` 만. **그 밖은 모두 deny** (`Bash` · `WebFetch` · 다른 MCP · 새 도구) | 파일 도구가 원자료 폴더와 겹치는 곳을 가리키면 deny · `Bash` · `PowerShell` 명령에 원자료 폴더 경로가 있거나 cwd 가 원자료 폴더면 deny |
+| `SessionStart` | 알림 ("원자료 폴더") | `changed` 면 알림 | 설정 전 (`unset`) · `broken` 이면 알림 |
 
 - **까닭 글** (Claude 가 보는 deny 까닭 · 사람이 보는 막은 까닭) 은 고정 문구와 검사 번호 · 개수만 쓴다 (AL-11). 사전 단어 · 경로 · 원자료 폴더 이름을 쓰지 않는다.
+- **출력**: `UserPromptSubmit` 은 막을 때만 종료 코드 2 + 표준 오류 (사람에게만) — 통과면 아무것도 쓰지 않는다 (표준 출력은 Claude 의 맥락에 붙는다). `PreToolUse` 는 deny 일 때만 `hookSpecificOutput.permissionDecision: "deny"` JSON. `SessionStart` 는 `systemMessage` JSON 만. 훅 안의 예외는 막는 쪽 (프롬프트 2 · 도구 deny) 이고, 훅 밖의 고장 (Python 없음 · 시간 초과) 은 `onFailure: "block"` 이 막는다 [실험 R09].
+- **진짜 Claude CLI 재시험** (가짜 서버 · 합성 자리): [kit/run_hooks.py](../kit/run_hooks.py) · 결과는 [kit/results-linux.md](../kit/results-linux.md) › T12. 코드: [diodelib/hook.py](../diodelib/hook.py).
 
 ## SP-12 상태 명령
 

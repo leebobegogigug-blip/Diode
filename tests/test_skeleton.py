@@ -32,7 +32,7 @@ MANIFEST_FIELDS = {"$schema", "name", "displayName", "version", "description", "
                    "keywords", "metadata", "icon", "documentationUrl", "supportUrl", "privacyPolicyUrl", "termsOfServiceUrl",
                    "defaultEnabled", "dependencies", "settings", "userConfig", "types", "channels", "skills", "commands",
                    "agents", "hooks", "mcpServers", "lspServers", "outputStyles", "workflows", "experimental"}
-PENDING_CASES = (["mcp"], ["hook", "prompt"], ["--statusline"], ["--status", "--json"], ["--status", "--json", "--room", "x"],
+PENDING_CASES = (["mcp"], ["--statusline"], ["--status", "--json"], ["--status", "--json", "--room", "x"],
                  ["propose", "r.json"], ["confirm", "req.json"], ["lib", "names", "pkg"])
 
 
@@ -262,7 +262,7 @@ class TestPluginFiles(unittest.TestCase):
         front = dict(ln.split(": ", 1) for ln in m.group(1).splitlines())
         self.assertEqual(front["name"], "diode")
         self.assertIn("개발 중 (v0.0)", front["description"])
-        self.assertIn("아직 아무것도 막지 않는다", front["description"])
+        self.assertIn("훅만 있다", front["description"])
         self.assertTrue(m.group(2).strip())
         self.assertLessEqual(len(m.group(2).strip().splitlines()), 4)     # 자리표시 — 본문은 두세 줄
 
@@ -389,7 +389,7 @@ class TestDocs(unittest.TestCase):
     def test_readme_promises(self):
         text = read("README.md")
         first = next(ln for ln in text.splitlines() if ln.strip())
-        self.assertIn("개발 중 (v0.0) — 아직 아무것도 막지 않습니다. 설치하지 마세요.", first)
+        self.assertIn("개발 중 (v0.0) — 훅만 있습니다. 허브 · 확정 창이 없어 아직 쓸 수 없습니다. 설치하지 마세요.", first)
         self.assertIn("이름은 비유입니다 — 하드웨어 데이터 다이오드가 아닙니다.", text)
         self.assertIn("화면 문법은 소형 하드웨어 계측기(Teenage Engineering 류)에서 영감을 받았고, 해당 회사와는 관련이 없습니다.", text)
         self.assertIn("파이썬 3.8+ · 표준 라이브러리만", text)

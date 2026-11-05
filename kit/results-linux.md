@@ -55,3 +55,24 @@
 | MCP 자식 프로세스에서 tkinter 확정 창 — Windows | 사내 (리눅스는 S18 로 확인) |
 | opencode 일꾼에 지시 넣는 끝점 | 다음 — opencode 설치 · 가짜 사내 LLM 서버 |
 | 회사 관리형 설정 (마켓플레이스 · 플러그인 묶음) · 사내 게이트웨이의 모델 이름 | 사내 |
+
+## T12 — 진짜 훅으로 KIT-2 재시험 [2026-11-05 · Claude Code 2.1.318 · 리눅스]
+
+`kit/run_hooks.py` — 이 저장소를 `--plugin-dir` 로 싣고 (진짜 `hooks/hooks.json` · `diode.py hook`), 방은 진짜 표지 · 방 설정 (SP-10 의 다섯), 데이터 폴더는 임시 HOME 아래 기본 자리에 합성 사전 · 설정. 가짜 서버 · 빈 환경은 run_kit.py 와 같다.
+
+| # | 무엇 | 결과 |
+|---|---|---|
+| R01 | 대조: 방 · 깨끗한 말 | 모델 요청 1 — 훅이 다 막지는 않는다 |
+| R06 | 방 · 사전 단어 변형 (`kit-word alpha`) | 막힘 · 모델 요청 0 |
+| R07 | 방 · 방 밖 (원자료) Read | 훅 deny · Claude 가 본 것은 `DIODE: 방 밖 (AL-06)` 뿐 · 원자료 카나리아 0 |
+| R08 | 방 · Bash | 방 설정의 deny 가 **도구 목록에서 Bash 를 먼저 뺐다** (훅까지 가지 않음) · 카나리아 0 |
+| R09 | `python` 이 늘 실패 (훅 고장) | 막힘 · 모델 요청 0 (`onFailure: block`) |
+| R10 | 원자료 폴더에서 연 세션 | 막힘 · 모델 요청 0 |
+| R11 | 보통 폴더 · 원자료 Read | 훅 deny (안전벨트) · 카나리아 0 |
+| R12 | 방에 `settings.local.json` (changed) | 막힘 · 모델 요청 0 |
+| R13 | 방 · `--permission-mode bypassPermissions` | 막힘 · 모델 요청 0 |
+| R14 | 원자료 폴더를 **품은** 위 폴더에서 연 세션 | 막힘 · 모델 요청 0 |
+| R15 | 한계 기록: 설정 전 (데이터 폴더 없음) 보통 폴더 · 사전 단어 | **지나간다** (모델 요청 1) — 설정 전에는 지켜지지 않는다 (MANUAL › 알려진 한계 · 세션 시작 때 알림) |
+
+- 방의 도구 목록에 `ListAgents` · `ReportFindings` · `ScheduleWakeup` · `Workflow` 같은 판마다 다른 도구가 보였다. 훅은 허용 목록 밖이라 deny 한다 (새 도구도 막는 쪽).
+- Windows 재시험은 사내에서 (`python run_hooks.py` — 훅의 Python 명령은 `python`).
