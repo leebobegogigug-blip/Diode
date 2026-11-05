@@ -27,6 +27,8 @@
 | S15 | 대조 — 사용자 `~/.claude/CLAUDE.md` | **방 세션에 실렸다** | 사용자 범위 안내 파일도 새는 길 (새로 · L-29) |
 | S13 | 방 설정 `autoMemoryEnabled: false` | 시스템 프롬프트에서 **HOME 경로가 빠졌다** | `/diode:room` 이 방 설정에 쓴다 (새로) |
 | S14 | 방 설정 `claudeMdExcludes` (+ 자동 메모리 끔) | 위 폴더 · 사용자 `CLAUDE.md` 가 **모두 빠졌다** · 남은 것은 방 경로 (작업 폴더) 뿐 | `/diode:room` 이 방 설정에 쓴다 (새로) · 방 이름에 사내 말을 쓰지 않는다 (7판 그대로) |
+| S18 | 허브 (MCP 자식) 가 `dispatch` 때 tkinter 창 프로세스를 띄움 · Xvfb | **창이 떴다** (199×62 · viewable) · 도구 결과는 그대로 고정 꼴 · Python 3.12 + 배포판 tkinter | 확정 창을 허브가 띄우는 구조가 선다 (리눅스) — Windows 는 사내 |
+| S09′ | 같은 훅 고장을 훅 명령에 **절대 경로** (`/root/…/python3.8`) 를 적어 다시 | Claude 가 본 고장 글에 **훅 명령의 경로가 그대로** 실렸다 (사용자 이름 `root` 가 든 경로) · 명령을 이름만 (`python3.12`) 적으면 경로가 없다 | 훅 · 허브의 Python 명령은 **이름만** 적는다 — Windows 에서 `C:\Users\<이름>\…` 가 새지 않게 (새로 · L-30) |
 | S16 | 방 설정 `permissions.blockReadsOutsideWorkingDirectories: true` · 플러그인 없이 | 방 밖 Read 가 **권한 층에서 막혔다** | 훅과 별개의 두 번째 벽 — 방 설정에 넣는다 (새로) |
 
 ## 02 기획에 주는 것 (8판 원고)
@@ -35,7 +37,10 @@
 2. **새는 길 L-29**: 사용자 범위 `~/.claude/CLAUDE.md` 가 모든 세션에 실린다 — 방에서는 `claudeMdExcludes` 로 빼고, 방 밖 세션을 위해 `/diode:setup` 이 그 파일을 사전으로 검사한다.
 3. **허브 구조 (A′) 는 선다** (S04 · S05). 남은 확인은 Windows · 대화형 · tkinter 창.
 4. **스킬**: 다이오드 도구는 지연 로딩이라 `ToolSearch` 로 먼저 불러야 한다는 것을 적는다.
-5. **보안 부서 설명**: 바깥으로 가는 기계 정보 (Claude Code 판 · OS · CPU 종류 · 세션 id · 사용자 해시 id · 작업 폴더 경로 · OS 판) 를 적는다.
+5. **새는 길 L-30**: 훅이 고장 나면 훅 명령 글이 Claude 에게 간다 — 훅 · 허브의 Python 명령은 이름만 (`python`) 적고, 절대 경로를 쓰지 않는다. `/diode:setup` 이 그 이름으로 Python 3.8 이상을 찾는지 본다.
+6. **확정 창은 따로 된 프로세스로** — 허브가 창 프로세스를 띄우고 결과를 받는다 (S18). 허브의 표준 입출력 고리와 tkinter 고리를 한 프로세스에 섞지 않는다.
+7. **Python 판**: 훅 · 허브는 Python 3.8.20 (uv) 에서도 같은 결과였다. 다만 그 판의 tkinter 는 이 컨테이너의 Xvfb 와 맞지 않아 (xcb 오류 · 허브 밖에서도 같음) 창 시험은 Python 3.12 + 배포판 tkinter 로 했다 — 사내 Windows 의 Python 판으로 다시 본다.
+8. **보안 부서 설명**: 바깥으로 가는 기계 정보 (Claude Code 판 · OS · CPU 종류 · 세션 id · 사용자 해시 id · 작업 폴더 경로 · OS 판) 를 적는다.
 
 ## 03 아직 못 본 것
 
@@ -43,7 +48,7 @@
 |---|---|
 | 대화형 TUI 세션 (print 모드와 시스템 프롬프트 · 폴더 신뢰 대화가 다를 수 있다) | 다음 — 리눅스 의사 터미널로 시도 · 사내 |
 | Windows — exec 꼴 훅 (`python`) · 경로 꼴 · PowerShell 기본 셸 | 사내 (`python run_kit.py --python python`) |
-| MCP 자식 프로세스에서 tkinter 확정 창 | 다음 — 리눅스 (Xvfb) · Windows 는 사내 |
+| MCP 자식 프로세스에서 tkinter 확정 창 — Windows | 사내 (리눅스는 S18 로 확인) |
 | statusLine 입력 칸 (대화형에서만 돈다) | 대화형과 같이 |
 | opencode 일꾼에 지시 넣는 끝점 | 다음 — opencode 설치 · 가짜 사내 LLM 서버 |
 | 회사 관리형 설정 (마켓플레이스 · 플러그인 묶음) · 사내 게이트웨이의 모델 이름 | 사내 |

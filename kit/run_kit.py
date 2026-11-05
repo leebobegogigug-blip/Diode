@@ -264,6 +264,12 @@ def scenarios(lay):
         {"id": "S15", "what": "대조: 사용자 CLAUDE.md 가 방 세션에 실리나 (빼는 설정 없음)", "cwd": "room", "prompt": "안녕", "user_md": True},
         {"id": "S17", "what": "KIT-1 방 설정 effortLevel medium → 요청의 effort", "cwd": "room", "prompt": "안녕",
          "room_settings": {"effortLevel": "medium"}},
+        {"id": "S18", "what": "KIT-7 허브 (MCP 자식) 가 tkinter 창을 띄우는가 · Python 3.8 로 훅 · 허브 (DISPLAY 필요)", "cwd": "room",
+         "prompt": "일을 넘겨", "plugin": True, "server": "steps",
+         "vars": {"dispatch": r"mcp__plugin_[\w\-]+__dispatch"},
+         "steps": [{"tool": "ToolSearch", "input": {"query": "select:{dispatch}", "max_results": 1}},
+                   {"tool": "{dispatch}", "input": {"instruction": "PH_K7Q2 화면을 만들어"}}],
+         "args": ["--allowedTools", "mcp__plugin_diode-probe_hub__dispatch"], "env": {"DIODE_PROBE_TK": "1"}, "needs_display": True},
         {"id": "S16", "what": "KIT-2 권한 층: 방 설정 blockReadsOutsideWorkingDirectories · 플러그인 없이 방 밖 Read", "cwd": "room",
          "prompt": "읽어", "server": "tool", "tool": "Read", "tool_input": {"file_path": secret}, "args": ["--allowedTools", "Read"],
          "room_settings": {"permissions": {"blockReadsOutsideWorkingDirectories": True}}},
@@ -299,6 +305,9 @@ def main(argv=None):
     try:
         for sc in scenarios(lay):
             if only and sc["id"] not in only:
+                continue
+            if sc.get("needs_display") and not os.environ.get("DISPLAY") and os.name != "nt":
+                print("%s 건너뜀 — DISPLAY 없음 (Xvfb 를 띄우고 DISPLAY 를 주면 돈다)" % sc["id"])
                 continue
             if sc.get("git"):
                 git_init(lay["claude"], CANARY["git_branch"])
