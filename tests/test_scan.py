@@ -356,5 +356,48 @@ class ScanCommand(unittest.TestCase):
         self.assertEqual(scan.main_scan(self.home, b"x")[0], 2)
 
 
+class ScanCli(unittest.TestCase):
+    """diode.py scan — 표준 입력 → 종료 코드 0 · 2 · 출력에 단어 없음."""
+
+    def setUp(self):
+        self.home = tempfile.mkdtemp(prefix="diode-test-")
+        with open(os.path.join(self.home, "dictionary.json"), "w", encoding="utf-8") as f:
+            json.dump({"format": 1, "words": ["KITWORDALPHA"]}, f)
+
+    def tearDown(self):
+        shutil.rmtree(self.home, ignore_errors=True)
+
+    def _run(self, data, home=None):
+        import subprocess
+        env = dict(os.environ)
+        env["DIODE_HOME"] = home or self.home
+        env["PYTHONIOENCODING"] = "utf-8"
+        p = subprocess.run([sys.executable, os.path.join(ROOT, "diode.py"), "scan"], input=data,
+                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, timeout=60)
+        return p.returncode, p.stdout.decode("utf-8"), p.stderr.decode("utf-8")
+
+    def test_pass(self):
+        code, out, err = self._run("화면 초안을 그려 달라".encode("utf-8"))
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(out), {"ok": True, "hits": []})
+        self.assertEqual(err.strip(), "DIODE OK")
+
+    def test_block_without_words(self):
+        code, out, err = self._run("Kit-Word Alpha 를 D:\\x 에서".encode("utf-8"))
+        self.assertEqual(code, 2)
+        self.assertEqual([h["check"] for h in json.loads(out)["hits"]], ["D2", "D3"])
+        for w in ("KIT", "Kit", "kit", "D:"):
+            self.assertNotIn(w, out + err)
+
+    def test_missing_dictionary_blocks(self):
+        empty = tempfile.mkdtemp(prefix="diode-test-")
+        try:
+            code, out, err = self._run(b"x", home=empty)
+        finally:
+            shutil.rmtree(empty, ignore_errors=True)
+        self.assertEqual(code, 2)
+        self.assertEqual(json.loads(out), scan.e20())
+
+
 if __name__ == "__main__":
     unittest.main()

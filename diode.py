@@ -2,10 +2,11 @@
 # -*- coding: utf-8 -*-
 """diode - Claude Code 플러그인 Diode 의 진입점 (표준 라이브러리만 · Python 3.8+)
 
-  diode.py version | help | check
+  diode.py version | help | check | scan
 
 개발 중 (v0.0) — 아직 아무것도 막지 않는다. 훅 · 허브 · 검사기 · 확정 창은 아직 없다 (docs/PLAN.md › 10 로드맵).
-아직 없는 명령 (mcp · hook · --statusline · --status · propose · confirm · scan · lib) 은 종료 코드 2 로 끝난다.
+아직 없는 명령 (mcp · hook · --statusline · --status · propose · confirm · lib) 은 종료 코드 2 로 끝난다.
+scan 은 표준 입력의 글을 검사한다 (D2 · D3 · D5) — 종료 코드 0 통과 · 2 막음 (SP-16 · 훅과 같은 뜻).
 종료 코드: 0 OK · 1 점검 실패 · 2 사용법 오류 · 3 사람 확인 필요 (RULES.md › S-03)
 점검 출력의 마지막 줄은 결과: OK · 결과: 확인 필요 · 결과: 점검 실패 중 하나 (에이전트가 이 줄로 판단한다)
 """
@@ -29,7 +30,6 @@ PENDING = (
     ("hook", "hook <session|prompt|tool>      훅"),
     ("propose", "propose <report.json>           일꾼 보고 내기"),
     ("confirm", "confirm <요청 파일>             확정 창"),
-    ("scan", "scan                            표준 입력의 글 검사 (D2 · D3 · D5)"),
     ("lib", "lib names <이름>                허용 라이브러리의 공개 이름"),
 )
 PENDING_FLAGS = (
@@ -44,6 +44,7 @@ HELP = """%s %s — Claude Code 플러그인 (개발 중 · v0.0 · 아직 아�
   version                         버전
   help                            이 도움말 (-h · --help 도 됩니다)
   check                           자가 점검 (마지막 줄 결과: …)
+  scan                            표준 입력의 글 검사 (D2 · D3 · D5 · 0 통과 · 2 막음 · 단어는 찍지 않음)
 
 아직 없는 명령 (v0.0 — 부르면 종료 코드 2 로 끝납니다)
   %s
@@ -77,7 +78,7 @@ def build_parser():
     p.add_argument("--json", action="store_true")
     p.add_argument("--room", metavar="폴더")
     sub = p.add_subparsers(dest="command", metavar="명령")
-    for name in ("version", "help", "check"):
+    for name in ("version", "help", "check", "scan"):
         sub.add_parser(name, add_help=False)
     for name, _ in PENDING:
         sub.add_parser(name, add_help=False).add_argument("rest", nargs=argparse.REMAINDER)
@@ -126,7 +127,19 @@ def check(out, version_info=None):
     return code
 
 
-def run(args, out, err):
+def scan_command(out, err, inp):
+    """scan — 표준 입력 (바이트) 을 데이터 폴더의 사전 · 설정으로 검사한다. 출력에 단어는 없다 (AL-11)"""
+    from diodelib import scan
+    data = inp.read()
+    if isinstance(data, str):
+        data = data.encode("utf-8")
+    code, line_json, line_human = scan.main_scan(data_dir()[0], data)
+    out.write(line_json + "\n")
+    err.write(line_human + "\n")
+    return code
+
+
+def run(args, out, err, inp=None):
     if (args.json or args.room) and not args.status:
         raise UsageError("--json · --room 은 --status 와 같이 씁니다")
     if args.command is None and not (args.status or args.statusline):
@@ -143,19 +156,25 @@ def run(args, out, err):
         return OK
     if args.command == "check":
         return check(out)
+    if args.command == "scan":
+        return scan_command(out, err, inp if inp is not None else _stdin_bytes())
     name = args.command or ("--status" if args.status else "--statusline")
     err.write("diode.py %s: 아직 없음 (v0.0) — 계약은 docs/SPEC.md (SP-16), 순서는 docs/PLAN.md › 10 로드맵\n" % name)
     return USAGE
 
 
-def main(argv=None, out=None, err=None):
+def _stdin_bytes():
+    return getattr(sys.stdin, "buffer", sys.stdin)
+
+
+def main(argv=None, out=None, err=None, inp=None):
     out = out or sys.stdout
     err = err or sys.stderr
     argv = list(sys.argv[1:] if argv is None else argv)
     if len(argv) == 1 and argv[0] in ALIASES:
         argv = [ALIASES[argv[0]]]
     try:
-        return run(build_parser().parse_args(argv), out, err)
+        return run(build_parser().parse_args(argv), out, err, inp)
     except UsageError as e:
         err.write("사용법 오류: %s\n  python diode.py help 를 보세요\n" % e)
         return USAGE
