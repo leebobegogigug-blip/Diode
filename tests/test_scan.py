@@ -91,7 +91,7 @@ class BriefVectors(unittest.TestCase):
     def test_d1_stops_before_text_checks(self):
         p = policy()
         b = dict(_load("brief.json")["pass"][0]["brief"])
-        b["extra"] = "KITWORDALPHA 10.0.0.1"
+        b["extra"] = "KITWORDALPHA 127.0.0.1"
         self.assertEqual(checks_of(scan.check_brief(b, p)), ["D1"])
 
     def test_real_data_policy(self):
@@ -337,7 +337,7 @@ class ScanCommand(unittest.TestCase):
         self._write("dictionary.json", {"format": 1, "words": ["KITWORDALPHA"]})
         code, out, line = scan.main_scan(self.home, "화면 초안을 그려 달라".encode("utf-8"))
         self.assertEqual((code, line), (0, "DIODE OK"))
-        code, out, line = scan.main_scan(self.home, "kit word alpha\n둘째 줄 10.0.0.1".encode("utf-8"))
+        code, out, line = scan.main_scan(self.home, "kit word alpha\n둘째 줄 127.0.0.1".encode("utf-8"))
         self.assertEqual(code, 2)
         self.assertEqual(line, "DIODE D2 x1 @L1 · D3 x1 @L2")
         self.assertNotIn("KITWORD", out.upper())

@@ -1,0 +1,30 @@
+name: diode
+
+# 모든 push · PR 에서 저장소 전체를 본다 (RULES.md › W-11)
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        # README 약속: Python 3.8+ · Windows 가 본 무대 (3.8 은 ubuntu-24.04 에 없어서 22.04)
+        os: [windows-latest, ubuntu-22.04]
+        python: ["3.8", "3.13"]
+    runs-on: ${{ matrix.os }}
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: 개발 시험용 패키지 (스키마 시험에만 쓴다 · 실행에는 쓰지 않는다)
+        run: python -m pip install jsonschema
+      - name: 단위 테스트
+        run: python -m unittest discover -s tests -v
+      - name: diode 규칙 검사 (차단 모드 — 위반이 하나라도 있으면 실패)
+        run: python tools/diode_check.py --strict
