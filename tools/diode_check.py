@@ -43,7 +43,7 @@ PLUGIN_FILES = (".claude-plugin/plugin.json", ".claude-plugin/marketplace.json",
 SKIP_PREFIX = ("kit/out/",)                       # M0 정찰 산출물 — 커밋하지 않는다 (AGENTS.md)
 DEV_TOP = ("tests", "tools", "kit")               # 개발 자리 — 실행 코드가 아니다
 EXEC_EXT = (".py", ".ps1", ".cmd", ".bat", ".js", ".html", ".htm", ".css")
-PRIVATE_IP_OK = ("docs/SPEC.md", "tests/vectors/")   # D3 의 반례를 적은 곳 — 지어낸 값이다
+PRIVATE_IP_OK = ("docs/SPEC.md", "tests/vectors/", "kit/corpus/")   # D3 의 반례 · 합성 말뭉치 (T3) 의 원자료 — 지어낸 값이다
 MAX_READ = 4 * 1024 * 1024
 # 3.10 미만에는 sys.stdlib_module_names 가 없다 — 이 PC 에서 못 찾을 수 있는 플랫폼 전용 표준 모듈만 따로 허락한다
 PLATFORM_STDLIB = frozenset(("msvcrt", "winreg", "winsound", "_winapi", "nt", "_msi", "posix", "pwd", "grp", "fcntl",

@@ -163,6 +163,7 @@ _D3_PATTERNS = (
     re.compile(r"(?i)(?<![\w.])/(?:home|users|root|tmp|var|etc|opt|mnt|srv|data)/"),
     re.compile(r"(?<![\w/.~])/(?:[\w.\-]+/)+"),                 # /a/b/ 꼴의 절대 경로
     re.compile(r"~[/\\]"),
+    re.compile(r"(?<![:\w/])//[^\s/]+/"),                     # //서버/공유 (빗금으로 쓴 UNC · //host/ 꼴)
     re.compile(r"%[A-Za-z_][A-Za-z0-9_]*%"),                   # %USERPROFILE%
     re.compile(r"\$(?:\{|[A-Za-z_])"),                         # $HOME · ${X}
     re.compile(r"://"),                                         # URL
