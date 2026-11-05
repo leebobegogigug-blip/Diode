@@ -146,7 +146,7 @@ class Prompt(Base):
         self.assertEqual(self.prompt("화면 초안을 그려 달라", self.room), (0, "", ""))
         code, out, err = self.prompt("kit-word alpha 를 그려 달라", self.room)
         self.assertEqual(code, 2)
-        self.assertTrue(err.startswith("DIODE D2 x1 @L1"), err)
+        self.assertTrue(err.startswith("DIODE V<Vth 막힘 · D2 x1 @L1"), err)
         code, _, err = self.prompt("파일은 D:\\work\\a", self.room)
         self.assertEqual(code, 2)
         self.assertIn("D3", err)

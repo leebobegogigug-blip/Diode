@@ -623,10 +623,10 @@ class TestPanels(unittest.TestCase):
         self.assertIn("effort -", blank)
 
     def test_the_check_line_is_the_scan_line(self):
-        self.assertEqual(confirm.build_panels(parse()).check_line, "DIODE OK")
+        self.assertEqual(confirm.build_panels(parse()).check_line, "DIODE V>Vth 통과")
         p = confirm.build_panels(parse(checks=HIT))
         self.assertEqual(p.check_line, scan.format_line(HIT))
-        self.assertEqual(p.check_line, "DIODE D2 x2 @context[1], ask")
+        self.assertEqual(p.check_line, "DIODE V<Vth 막힘 · D2 x2 @context[1], ask")
         self.assertFalse(p.check_ok)
 
     def test_attachments_and_the_text_line(self):
@@ -938,7 +938,7 @@ class TestRealWindow(Base):
 
     def test_the_lines_of_the_window(self):
         self.open(attachments=["a.html"], effort_env_override=True, month={"pct": 12, "estimated": True})
-        self.assertEqual(self.w["check"]["text"], "DIODE OK")
+        self.assertEqual(self.w["check"]["text"], "DIODE V>Vth 통과")
         self.assertEqual(self.w["files"]["text"], "a.html")
         self.assertIn("이번 달 ~12%", self.w["route"]["text"])
         labels = [wd["text"] for wd in all_widgets(self.view.root) if wd.winfo_class() == "Label"]
@@ -1019,8 +1019,8 @@ class TestRealWindow(Base):
         self.assertEqual(str(self.w["send"]["state"]), "disabled")
         self.w["send"].invoke()
         self.assertIsNone(s.decision)
-        self.assertEqual(self.w["check"]["text"], "DIODE D2 x2 @context[1], ask")
-        self.assertIn(" ERR ", [wd["text"] for wd in all_widgets(self.view.root) if wd.winfo_class() == "Label"])
+        self.assertEqual(self.w["check"]["text"], "DIODE V<Vth 막힘 · D2 x2 @context[1], ask")
+        self.assertIn(" V<Vth ", [wd["text"] for wd in all_widgets(self.view.root) if wd.winfo_class() == "Label"])
         self.assertIn("검사에 걸린", self.w["message"]["text"])
 
     def test_clipboard_copy_comes_after_send_and_puts_the_exact_text_on_the_clipboard(self):

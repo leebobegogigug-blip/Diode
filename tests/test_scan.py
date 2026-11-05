@@ -139,9 +139,11 @@ class NoWordsInOutput(unittest.TestCase):
 
     def test_format_line(self):
         res = {"ok": False, "hits": [{"check": "D2", "count": 2, "where": ["context[1]", "ask"]}]}
-        self.assertEqual(scan.format_line(res), "DIODE D2 x2 @context[1], ask")
-        self.assertEqual(scan.format_line({"ok": True, "hits": []}), "DIODE OK")
-        self.assertEqual(scan.format_line(scan.e20()), "DIODE E-20")
+        self.assertEqual(scan.format_line(res), "DIODE V<Vth 막힘 · D2 x2 @context[1], ask")
+        self.assertEqual(scan.format_line({"ok": True, "hits": []}), "DIODE V>Vth 통과")
+        self.assertEqual(scan.format_line(scan.e20()), "DIODE V<Vth 막힘 · E-20")
+        self.assertEqual(scan.format_line(None), "DIODE V<Vth 막힘 · E-20")
+        self.assertEqual(scan.format_line({"ok": False, "hits": []}), "DIODE V<Vth 막힘 · E-20")
 
 
 class FailClosed(unittest.TestCase):
@@ -336,10 +338,10 @@ class ScanCommand(unittest.TestCase):
     def test_pass_and_block(self):
         self._write("dictionary.json", {"format": 1, "words": ["KITWORDALPHA"]})
         code, out, line = scan.main_scan(self.home, "화면 초안을 그려 달라".encode("utf-8"))
-        self.assertEqual((code, line), (0, "DIODE OK"))
+        self.assertEqual((code, line), (0, "DIODE V>Vth 통과"))
         code, out, line = scan.main_scan(self.home, "kit word alpha\n둘째 줄 127.0.0.1".encode("utf-8"))
         self.assertEqual(code, 2)
-        self.assertEqual(line, "DIODE D2 x1 @L1 · D3 x1 @L2")
+        self.assertEqual(line, "DIODE V<Vth 막힘 · D2 x1 @L1 · D3 x1 @L2")
         self.assertNotIn("KITWORD", out.upper())
         self.assertEqual(scan.main_scan(self.home, b"\xff")[0], 2)
 
@@ -380,7 +382,7 @@ class ScanCli(unittest.TestCase):
         code, out, err = self._run("화면 초안을 그려 달라".encode("utf-8"))
         self.assertEqual(code, 0)
         self.assertEqual(json.loads(out), {"ok": True, "hits": []})
-        self.assertEqual(err.strip(), "DIODE OK")
+        self.assertEqual(err.strip(), "DIODE V>Vth 통과")
 
     def test_block_without_words(self):
         code, out, err = self._run("Kit-Word Alpha 를 D:\\x 에서".encode("utf-8"))

@@ -37,16 +37,16 @@ DIODE_MCP_PREFIX = "mcp__plugin_diode_"
 ROOM_PERMISSION_MODES = frozenset(["default", "plan", "acceptEdits", "dontAsk"])
 
 MSG = {
-    "raw_prompt": "DIODE: 원자료 폴더에서 Claude 를 열었습니다 · 방에서 여세요",
-    "raw_tool": "DIODE: 원자료 폴더 - 모든 도구를 막습니다",
-    "changed": "DIODE: 방 설정이 바뀌었습니다 (changed) · 방 밖에서 /diode:room 을 다시 하세요",
-    "auto": "DIODE: 방은 수동 권한 모드로 쓰세요 (auto 막음)",
-    "room_outside": "DIODE: 방 밖 (AL-06)",
-    "room_tool": "DIODE: 방에서 쓰지 않는 도구 (AL-06)",
-    "room_protected": "DIODE: 방 설정 · 표지 · outbox 는 고치지 않습니다 (SP-10)",
-    "outbox": "DIODE: 확정되지 않은 outbox (AL-13)",
-    "belt_tool": "DIODE: 원자료 폴더 (안전벨트)",
-    "e20": "DIODE E-20 - 사전 · 설정을 읽지 못해 막았습니다 · /diode:setup",
+    "raw_prompt": "DIODE V<Vth: 원자료 폴더에서 Claude 를 열었습니다 · 방에서 여세요",
+    "raw_tool": "DIODE V<Vth: 원자료 폴더 - 모든 도구를 막습니다",
+    "changed": "DIODE V<Vth: 방 설정이 바뀌었습니다 (changed) · 방 밖에서 /diode:room 을 다시 하세요",
+    "auto": "DIODE V<Vth: 방은 수동 권한 모드로 쓰세요 (auto 막음)",
+    "room_outside": "DIODE V<Vth: 방 밖 (AL-06)",
+    "room_tool": "DIODE V<Vth: 방에서 쓰지 않는 도구 (AL-06)",
+    "room_protected": "DIODE V<Vth: 방 설정 · 표지 · outbox 는 고치지 않습니다 (SP-10)",
+    "outbox": "DIODE V<Vth: 확정되지 않은 outbox (AL-13)",
+    "belt_tool": "DIODE V<Vth: 원자료 폴더 (안전벨트)",
+    "e20": "DIODE V<Vth 막힘 · E-20 - 사전 · 설정을 읽지 못해 막았습니다 · /diode:setup",
     "unset": "DIODE: 아직 설정하지 않았습니다 - 이 세션은 지켜지지 않습니다 · /diode:setup",
     "hint": " - 사내 말은 말 봉인 칸을 쓰세요",
 }

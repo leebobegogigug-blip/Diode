@@ -746,12 +746,21 @@ def _check_text(text, policy, checks):
 
 # ---------------------------------------------------------------- 사람에게 보이는 한 줄
 
+# 다이오드의 문턱 전압 (BLUEPRINT › 1) 으로 읽는다 — 검사를 모두 통과하면 문턱을 넘어 흐르고 (통과),
+# 하나라도 걸리면 문턱을 못 넘어 막힌다.
+PASS_LINE = "DIODE V>Vth 통과"
+BLOCK_HEAD = "DIODE V<Vth 막힘"
+
+
 def format_line(result):
-    """{"ok": false, "hits": [...]} → "DIODE D2 x2 @context[1], ask · D4 x1 @goal" (단어 없음)."""
+    """{"ok": false, "hits": [...]} → "DIODE V<Vth 막힘 · D2 x2 @context[1], ask · D4 x1 @goal" (단어 없음).
+
+    통과면 "DIODE V>Vth 통과" · 막는 쪽 실패면 "DIODE V<Vth 막힘 · E-20".
+    """
     if not isinstance(result, dict):
-        return "DIODE E-20"
+        return BLOCK_HEAD + " · E-20"
     if result.get("ok"):
-        return "DIODE OK"
+        return PASS_LINE
     parts = []
     for h in result.get("hits", []):
         if h.get("check") == "E":
@@ -761,7 +770,7 @@ def format_line(result):
         if len(h.get("where", [])) > 6:
             where += ", ..."
         parts.append("%s x%d @%s" % (h.get("check"), h.get("count", 0), where))
-    return "DIODE " + " · ".join(parts) if parts else "DIODE E-20"
+    return BLOCK_HEAD + " · " + " · ".join(parts if parts else ["E-20"])
 
 
 # ---------------------------------------------------------------- 데이터 폴더의 정책 (scan 명령 · 훅)

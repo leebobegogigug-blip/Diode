@@ -698,7 +698,7 @@ class TkView(object):
             w[key] = self._label(cell, value, "body", c["navy1"], fg, side=170, padx=8)
             w[key].pack(side="left")
             if key == "check" and not p.check_ok:
-                self._chip(cell, "ERR", c["white"], c["black"]).pack(side="left", padx=4)
+                self._chip(cell, "V<Vth", c["white"], c["black"]).pack(side="left", padx=4)   # 문턱을 못 넘음
 
         # 05 알림 · 단추
         foot = tk.Frame(root, bg=c["navy"], padx=16, pady=10)
