@@ -7,6 +7,7 @@ M0 (앱 코드 0줄 · 합성 자료만) 동안만 쓰는 폴더다. M0 가 끝�
 | `security-brief.md` | 보안 부서에 보일 한 장 (T4 · KIT-5) |
 | `results-linux.md` | 리눅스판 결과 (KIT-1 · KIT-2 · KIT-7) |
 | `run_kit.py` | 시나리오 S01–S17 을 돌린다 — 합성 자리 · 가짜 서버 · 빈 환경의 Claude CLI |
+| `run_tui.py` | 대화형 (TUI) 세션 한 번 — 의사 터미널 (리눅스 · macOS) · statusLine 입력 칸 · `safeguards` 칸 |
 | `fake_anthropic.py` | 가짜 Anthropic Messages API 서버 (127.0.0.1 · 요청을 덤프 · 키는 남기지 않음) |
 | `probe_plugin/` | 최소 플러그인 — 허브 (`hub_min.py` · 표준 입출력 MCP) · 훅 (`hook_min.py` · 모드 셋) |
 

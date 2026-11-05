@@ -29,11 +29,15 @@
 | S14 | 방 설정 `claudeMdExcludes` (+ 자동 메모리 끔) | 위 폴더 · 사용자 `CLAUDE.md` 가 **모두 빠졌다** · 남은 것은 방 경로 (작업 폴더) 뿐 | `/diode:room` 이 방 설정에 쓴다 (새로) · 방 이름에 사내 말을 쓰지 않는다 (7판 그대로) |
 | S18 | 허브 (MCP 자식) 가 `dispatch` 때 tkinter 창 프로세스를 띄움 · Xvfb | **창이 떴다** (199×62 · viewable) · 도구 결과는 그대로 고정 꼴 · Python 3.12 + 배포판 tkinter | 확정 창을 허브가 띄우는 구조가 선다 (리눅스) — Windows 는 사내 |
 | S09′ | 같은 훅 고장을 훅 명령에 **절대 경로** (`/root/…/python3.8`) 를 적어 다시 | Claude 가 본 고장 글에 **훅 명령의 경로가 그대로** 실렸다 (사용자 이름 `root` 가 든 경로) · 명령을 이름만 (`python3.12`) 적으면 경로가 없다 | 훅 · 허브의 Python 명령은 **이름만** 적는다 — Windows 에서 `C:\Users\<이름>\…` 가 새지 않게 (새로 · L-30) |
+| T01 | **대화형 (TUI)** 방 세션 (`run_tui.py` · 의사 터미널) · 방 설정에 statusLine · 자동 메모리 끔 · `claudeMdExcludes` · 권한 모드는 기본값 | 기본 권한 모드가 `auto` 였고, 요청 본문에 **`safeguards.classifier_context`** 가 실렸다 — 권한 모드 · 플랫폼 · 작업 폴더 · **HOME 경로** · 사용자 설정 자리 · 신뢰한 폴더 · **권한 규칙 내용** (deny 규칙에 넣은 카나리아 경로가 그대로) · git 상태. print 모드 (S01) 에는 이 칸이 없다 | 대화형 auto 모드는 HOME (= Windows 사용자 이름) · 권한 규칙의 경로를 내보낸다 (새로 · L-31) |
+| T02 | T01 + 방 설정 `permissions.defaultMode: "default"` | **`safeguards` 칸이 없어졌다** · HOME 경로 · 규칙 카나리아 없음 · 남은 것은 방 경로뿐 | 방 설정은 권한 모드를 수동 (`default`) 으로 둔다 · 세션 중 auto 로 바꾸면 훅이 막는다 (훅 입력에 `permission_mode` 가 온다 [문헌]) · 권한 규칙에 원자료 폴더 이름을 쓰지 않는다 (원자료 폴더 목록은 Diode 설정에만) |
+| T01 | statusLine 입력 JSON (칸 이름만 기록) | `effort.level` (= 방 설정의 `medium`) · `cost.total_cost_usd` · `context_window.total_input_tokens` · `total_output_tokens` · `model.id` · `session_id` · `transcript_path` · `workspace.*` · `prompt_cache.*` 등 | 방 statusLine 으로 실제 사용량 · 걸린 effort 를 받는 설계 (4판) 가 선다 |
 | S16 | 방 설정 `permissions.blockReadsOutsideWorkingDirectories: true` · 플러그인 없이 | 방 밖 Read 가 **권한 층에서 막혔다** | 훅과 별개의 두 번째 벽 — 방 설정에 넣는다 (새로) |
 
 ## 02 기획에 주는 것 (8판 원고)
 
-1. **방 설정 (`/diode:room` 이 쓰는 `.claude/settings.json`) 에 넷을 더한다** — `autoMemoryEnabled: false` · `claudeMdExcludes` (방 위 · 사용자 범위 `CLAUDE.md` · `AGENTS.md` · rules) · `permissions.blockReadsOutsideWorkingDirectories: true` · 권한 deny 규칙. 셋은 플러그인을 꺼도 방 설정으로 남는 벽이다.
+1. **방 설정 (`/diode:room` 이 쓰는 `.claude/settings.json`) 에 다섯을 더한다** — `autoMemoryEnabled: false` · `claudeMdExcludes` (방 위 · 사용자 범위 `CLAUDE.md` · `AGENTS.md` · rules) · `permissions.blockReadsOutsideWorkingDirectories: true` · `permissions.defaultMode: "default"` (T02) · 경로가 없는 권한 deny 규칙 (Bash · WebFetch). 넷은 플러그인을 꺼도 방 설정으로 남는 벽이다.
+2′. **새는 길 L-31**: 대화형 auto 모드는 HOME 경로 · 권한 규칙 · 신뢰한 폴더 · git 상태를 요청에 싣는다 (T01) — 방은 수동 모드로 열고 (T02), 훅이 `permission_mode` 가 `auto` 인 프롬프트를 막는다. 회사 IT 가 관리형 설정으로 auto 모드를 끌 수 있는지 보안 부서 질문에 더한다.
 2. **새는 길 L-29**: 사용자 범위 `~/.claude/CLAUDE.md` 가 모든 세션에 실린다 — 방에서는 `claudeMdExcludes` 로 빼고, 방 밖 세션을 위해 `/diode:setup` 이 그 파일을 사전으로 검사한다.
 3. **허브 구조 (A′) 는 선다** (S04 · S05). 남은 확인은 Windows · 대화형 · tkinter 창.
 4. **스킬**: 다이오드 도구는 지연 로딩이라 `ToolSearch` 로 먼저 불러야 한다는 것을 적는다.
@@ -46,9 +50,8 @@
 
 | 무엇 | 어디서 |
 |---|---|
-| 대화형 TUI 세션 (print 모드와 시스템 프롬프트 · 폴더 신뢰 대화가 다를 수 있다) | 다음 — 리눅스 의사 터미널로 시도 · 사내 |
+| 대화형 TUI 세션 — Windows | 사내 (리눅스는 T01 · T02 로 확인 · Windows 에는 pty 가 없어 손으로) |
 | Windows — exec 꼴 훅 (`python`) · 경로 꼴 · PowerShell 기본 셸 | 사내 (`python run_kit.py --python python`) |
 | MCP 자식 프로세스에서 tkinter 확정 창 — Windows | 사내 (리눅스는 S18 로 확인) |
-| statusLine 입력 칸 (대화형에서만 돈다) | 대화형과 같이 |
 | opencode 일꾼에 지시 넣는 끝점 | 다음 — opencode 설치 · 가짜 사내 LLM 서버 |
 | 회사 관리형 설정 (마켓플레이스 · 플러그인 묶음) · 사내 게이트웨이의 모델 이름 | 사내 |
