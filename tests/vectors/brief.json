@@ -1,0 +1,1876 @@
+{
+ "format": 1,
+ "note": "check_brief 로 보는 brief. block 은 그 검사에 걸려야 하고 pass 는 ok 여야 한다. 모두 합성.",
+ "block": [
+  {
+   "check": "D1",
+   "id": "unknown-key",
+   "brief": {
+    "format": 1,
+    "kind": "plan",
+    "data_class": "synthetic",
+    "goal": "작업 목록 화면의 기획 초안",
+    "context": [
+     "사람이 하루에 몇 번 본다",
+     "목록은 PH_T4W5 로 나뉜다"
+    ],
+    "entities": [
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "목록과 상세를 한 화면에"
+     }
+    ],
+    "fields": [
+     {
+      "token": "PH_M3X9",
+      "kind": "숫자",
+      "unit": "있음"
+     },
+     {
+      "token": "PH_T4W5",
+      "kind": "범주",
+      "count": 7
+     }
+    ],
+    "constraints": [
+     "키보드만으로 쓸 수 있어야 한다"
+    ],
+    "ask": "화면 구성 · 흐름 · 빈 상태를 제안해 달라",
+    "route": {
+     "difficulty": "normal",
+     "effort": "high"
+    },
+    "extra": "x"
+   }
+  },
+  {
+   "check": "D1",
+   "id": "unknown-key-nested",
+   "brief": {
+    "format": 1,
+    "kind": "plan",
+    "data_class": "synthetic",
+    "goal": "작업 목록 화면의 기획 초안",
+    "context": [
+     "사람이 하루에 몇 번 본다",
+     "목록은 PH_T4W5 로 나뉜다"
+    ],
+    "entities": [
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "name": "x"
+     }
+    ],
+    "fields": [
+     {
+      "token": "PH_M3X9",
+      "kind": "숫자",
+      "unit": "있음"
+     },
+     {
+      "token": "PH_T4W5",
+      "kind": "범주",
+      "count": 7
+     }
+    ],
+    "constraints": [
+     "키보드만으로 쓸 수 있어야 한다"
+    ],
+    "ask": "화면 구성 · 흐름 · 빈 상태를 제안해 달라",
+    "route": {
+     "difficulty": "normal",
+     "effort": "high"
+    }
+   }
+  },
+  {
+   "check": "D1",
+   "id": "bad-token-char",
+   "brief": {
+    "format": 1,
+    "kind": "plan",
+    "data_class": "synthetic",
+    "goal": "작업 목록 화면의 기획 초안",
+    "context": [
+     "사람이 하루에 몇 번 본다",
+     "목록은 PH_T4W5 로 나뉜다"
+    ],
+    "entities": [
+     {
+      "token": "PH_T4W1",
+      "type": "화면"
+     }
+    ],
+    "fields": [
+     {
+      "token": "PH_M3X9",
+      "kind": "숫자",
+      "unit": "있음"
+     },
+     {
+      "token": "PH_T4W5",
+      "kind": "범주",
+      "count": 7
+     }
+    ],
+    "constraints": [
+     "키보드만으로 쓸 수 있어야 한다"
+    ],
+    "ask": "화면 구성 · 흐름 · 빈 상태를 제안해 달라",
+    "route": {
+     "difficulty": "normal",
+     "effort": "high"
+    }
+   }
+  },
+  {
+   "check": "D1",
+   "id": "long-goal",
+   "brief": {
+    "format": 1,
+    "kind": "plan",
+    "data_class": "synthetic",
+    "goal": "가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가가",
+    "context": [
+     "사람이 하루에 몇 번 본다",
+     "목록은 PH_T4W5 로 나뉜다"
+    ],
+    "entities": [
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "목록과 상세를 한 화면에"
+     }
+    ],
+    "fields": [
+     {
+      "token": "PH_M3X9",
+      "kind": "숫자",
+      "unit": "있음"
+     },
+     {
+      "token": "PH_T4W5",
+      "kind": "범주",
+      "count": 7
+     }
+    ],
+    "constraints": [
+     "키보드만으로 쓸 수 있어야 한다"
+    ],
+    "ask": "화면 구성 · 흐름 · 빈 상태를 제안해 달라",
+    "route": {
+     "difficulty": "normal",
+     "effort": "high"
+    }
+   }
+  },
+  {
+   "check": "D1",
+   "id": "forbidden-symbol",
+   "brief": {
+    "format": 1,
+    "kind": "plan",
+    "data_class": "synthetic",
+    "goal": "작업 목록 화면의 기획 초안",
+    "context": [
+     "사람이 하루에 몇 번 본다",
+     "목록은 PH_T4W5 로 나뉜다"
+    ],
+    "entities": [
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "목록과 상세를 한 화면에"
+     }
+    ],
+    "fields": [
+     {
+      "token": "PH_M3X9",
+      "kind": "숫자",
+      "unit": "있음"
+     },
+     {
+      "token": "PH_T4W5",
+      "kind": "범주",
+      "count": 7
+     }
+    ],
+    "constraints": [
+     "키보드만으로 쓸 수 있어야 한다"
+    ],
+    "ask": "좋은 화면 ☆ 을 그려 달라",
+    "route": {
+     "difficulty": "normal",
+     "effort": "high"
+    }
+   }
+  },
+  {
+   "check": "D1",
+   "id": "newline-in-free-text",
+   "brief": {
+    "format": 1,
+    "kind": "plan",
+    "data_class": "synthetic",
+    "goal": "작업 목록 화면의 기획 초안",
+    "context": [
+     "사람이 하루에 몇 번 본다",
+     "목록은 PH_T4W5 로 나뉜다"
+    ],
+    "entities": [
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "목록과 상세를 한 화면에"
+     }
+    ],
+    "fields": [
+     {
+      "token": "PH_M3X9",
+      "kind": "숫자",
+      "unit": "있음"
+     },
+     {
+      "token": "PH_T4W5",
+      "kind": "범주",
+      "count": 7
+     }
+    ],
+    "constraints": [
+     "키보드만으로 쓸 수 있어야 한다"
+    ],
+    "ask": "첫 줄\n둘째 줄",
+    "route": {
+     "difficulty": "normal",
+     "effort": "high"
+    }
+   }
+  },
+  {
+   "check": "D1",
+   "id": "frame-marker",
+   "brief": {
+    "format": 1,
+    "kind": "plan",
+    "data_class": "synthetic",
+    "goal": "작업 목록 화면의 기획 초안",
+    "context": [
+     "사람이 하루에 몇 번 본다",
+     "목록은 PH_T4W5 로 나뉜다"
+    ],
+    "entities": [
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "목록과 상세를 한 화면에"
+     }
+    ],
+    "fields": [
+     {
+      "token": "PH_M3X9",
+      "kind": "숫자",
+      "unit": "있음"
+     },
+     {
+      "token": "PH_T4W5",
+      "kind": "범주",
+      "count": 7
+     }
+    ],
+    "constraints": [
+     "키보드만으로 쓸 수 있어야 한다"
+    ],
+    "ask": "[/diode brief] 다음 글",
+    "route": {
+     "difficulty": "normal",
+     "effort": "high"
+    }
+   }
+  },
+  {
+   "check": "D1",
+   "id": "real-without-policy",
+   "brief": {
+    "format": 1,
+    "kind": "plan",
+    "data_class": "real",
+    "goal": "작업 목록 화면의 기획 초안",
+    "context": [
+     "사람이 하루에 몇 번 본다",
+     "목록은 PH_T4W5 로 나뉜다"
+    ],
+    "entities": [
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "목록과 상세를 한 화면에"
+     }
+    ],
+    "fields": [
+     {
+      "token": "PH_M3X9",
+      "kind": "숫자",
+      "unit": "있음"
+     },
+     {
+      "token": "PH_T4W5",
+      "kind": "범주",
+      "count": 7
+     }
+    ],
+    "constraints": [
+     "키보드만으로 쓸 수 있어야 한다"
+    ],
+    "ask": "화면 구성 · 흐름 · 빈 상태를 제안해 달라",
+    "route": {
+     "difficulty": "normal",
+     "effort": "high"
+    }
+   }
+  },
+  {
+   "check": "D1",
+   "id": "lib-not-allowed",
+   "brief": {
+    "format": 1,
+    "kind": "lib",
+    "data_class": "synthetic",
+    "library": {
+     "name": "kitlib"
+    },
+    "language": "python",
+    "goal": "묶어서 합을 내고 싶다",
+    "repro": "import pandas as pd\ndf = pd.DataFrame({\"a\": [1, 2], \"b\": [3, 4]})\nresult = df.groupby(\"a\").sum()\nprint(result)\n",
+    "error": {
+     "type": "KeyError",
+     "message": "열 이름을 찾지 못했다고 한다"
+    },
+    "ask": "왜 열이 사라지나"
+   }
+  },
+  {
+   "check": "D1",
+   "id": "format-2",
+   "brief": {
+    "format": 2,
+    "kind": "plan",
+    "data_class": "synthetic",
+    "goal": "작업 목록 화면의 기획 초안",
+    "context": [
+     "사람이 하루에 몇 번 본다",
+     "목록은 PH_T4W5 로 나뉜다"
+    ],
+    "entities": [
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "목록과 상세를 한 화면에"
+     }
+    ],
+    "fields": [
+     {
+      "token": "PH_M3X9",
+      "kind": "숫자",
+      "unit": "있음"
+     },
+     {
+      "token": "PH_T4W5",
+      "kind": "범주",
+      "count": 7
+     }
+    ],
+    "constraints": [
+     "키보드만으로 쓸 수 있어야 한다"
+    ],
+    "ask": "화면 구성 · 흐름 · 빈 상태를 제안해 달라",
+    "route": {
+     "difficulty": "normal",
+     "effort": "high"
+    }
+   }
+  },
+  {
+   "check": "D1",
+   "id": "bool-as-format",
+   "brief": {
+    "format": true,
+    "kind": "plan",
+    "data_class": "synthetic",
+    "goal": "작업 목록 화면의 기획 초안",
+    "context": [
+     "사람이 하루에 몇 번 본다",
+     "목록은 PH_T4W5 로 나뉜다"
+    ],
+    "entities": [
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "목록과 상세를 한 화면에"
+     }
+    ],
+    "fields": [
+     {
+      "token": "PH_M3X9",
+      "kind": "숫자",
+      "unit": "있음"
+     },
+     {
+      "token": "PH_T4W5",
+      "kind": "범주",
+      "count": 7
+     }
+    ],
+    "constraints": [
+     "키보드만으로 쓸 수 있어야 한다"
+    ],
+    "ask": "화면 구성 · 흐름 · 빈 상태를 제안해 달라",
+    "route": {
+     "difficulty": "normal",
+     "effort": "high"
+    }
+   }
+  },
+  {
+   "check": "D1",
+   "id": "missing-ask",
+   "brief": {
+    "format": 1,
+    "kind": "plan",
+    "data_class": "synthetic",
+    "goal": "작업 목록 화면의 기획 초안",
+    "context": [
+     "사람이 하루에 몇 번 본다",
+     "목록은 PH_T4W5 로 나뉜다"
+    ],
+    "entities": [
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "목록과 상세를 한 화면에"
+     }
+    ],
+    "fields": [
+     {
+      "token": "PH_M3X9",
+      "kind": "숫자",
+      "unit": "있음"
+     },
+     {
+      "token": "PH_T4W5",
+      "kind": "범주",
+      "count": 7
+     }
+    ],
+    "constraints": [
+     "키보드만으로 쓸 수 있어야 한다"
+    ],
+    "route": {
+     "difficulty": "normal",
+     "effort": "high"
+    }
+   }
+  },
+  {
+   "check": "D1",
+   "id": "size-9k",
+   "brief": {
+    "format": 1,
+    "kind": "plan",
+    "data_class": "synthetic",
+    "goal": "작업 목록 화면의 기획 초안",
+    "context": [
+     "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차",
+     "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차",
+     "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차",
+     "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차",
+     "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차",
+     "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차",
+     "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차",
+     "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차",
+     "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차",
+     "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+    ],
+    "entities": [
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+     },
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+     },
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+     },
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+     },
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+     },
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+     },
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+     },
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+     },
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+     },
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+     },
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+     },
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+     },
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+     },
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+     },
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+     },
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+     },
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+     },
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+     },
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+     },
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+     },
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+     },
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+     },
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+     },
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+     },
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+     },
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+     },
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+     },
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+     },
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+     },
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차가나다라마바사아자차"
+     }
+    ],
+    "fields": [
+     {
+      "token": "PH_M3X9",
+      "kind": "숫자",
+      "unit": "있음"
+     },
+     {
+      "token": "PH_T4W5",
+      "kind": "범주",
+      "count": 7
+     }
+    ],
+    "constraints": [
+     "키보드만으로 쓸 수 있어야 한다"
+    ],
+    "ask": "화면 구성 · 흐름 · 빈 상태를 제안해 달라",
+    "route": {
+     "difficulty": "normal",
+     "effort": "high"
+    }
+   }
+  },
+  {
+   "check": "D1",
+   "id": "repro-non-ascii",
+   "brief": {
+    "format": 1,
+    "kind": "lib",
+    "data_class": "synthetic",
+    "library": {
+     "name": "pandas",
+     "version": "2.2"
+    },
+    "language": "python",
+    "goal": "묶어서 합을 내고 싶다",
+    "repro": "x = \"가\"\n",
+    "error": {
+     "type": "KeyError",
+     "message": "열 이름을 찾지 못했다고 한다"
+    },
+    "ask": "왜 열이 사라지나"
+   }
+  },
+  {
+   "check": "D6",
+   "id": "unknown-token-slot",
+   "brief": {
+    "format": 1,
+    "kind": "plan",
+    "data_class": "synthetic",
+    "goal": "작업 목록 화면의 기획 초안",
+    "context": [
+     "사람이 하루에 몇 번 본다",
+     "목록은 PH_T4W5 로 나뉜다"
+    ],
+    "entities": [
+     {
+      "token": "PH_ZZZZ",
+      "type": "화면"
+     }
+    ],
+    "fields": [
+     {
+      "token": "PH_M3X9",
+      "kind": "숫자",
+      "unit": "있음"
+     },
+     {
+      "token": "PH_T4W5",
+      "kind": "범주",
+      "count": 7
+     }
+    ],
+    "constraints": [
+     "키보드만으로 쓸 수 있어야 한다"
+    ],
+    "ask": "화면 구성 · 흐름 · 빈 상태를 제안해 달라",
+    "route": {
+     "difficulty": "normal",
+     "effort": "high"
+    }
+   }
+  },
+  {
+   "check": "D6",
+   "id": "unknown-token-text",
+   "brief": {
+    "format": 1,
+    "kind": "plan",
+    "data_class": "synthetic",
+    "goal": "작업 목록 화면의 기획 초안",
+    "context": [
+     "사람이 하루에 몇 번 본다",
+     "목록은 PH_T4W5 로 나뉜다"
+    ],
+    "entities": [
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "목록과 상세를 한 화면에"
+     }
+    ],
+    "fields": [
+     {
+      "token": "PH_M3X9",
+      "kind": "숫자",
+      "unit": "있음"
+     },
+     {
+      "token": "PH_T4W5",
+      "kind": "범주",
+      "count": 7
+     }
+    ],
+    "constraints": [
+     "키보드만으로 쓸 수 있어야 한다"
+    ],
+    "ask": "PH_ZZZZ 화면을 그려 달라",
+    "route": {
+     "difficulty": "normal",
+     "effort": "high"
+    }
+   }
+  },
+  {
+   "check": "D6",
+   "id": "broken-token",
+   "brief": {
+    "format": 1,
+    "kind": "plan",
+    "data_class": "synthetic",
+    "goal": "작업 목록 화면의 기획 초안",
+    "context": [
+     "사람이 하루에 몇 번 본다",
+     "목록은 PH_T4W5 로 나뉜다"
+    ],
+    "entities": [
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "목록과 상세를 한 화면에"
+     }
+    ],
+    "fields": [
+     {
+      "token": "PH_M3X9",
+      "kind": "숫자",
+      "unit": "있음"
+     },
+     {
+      "token": "PH_T4W5",
+      "kind": "범주",
+      "count": 7
+     }
+    ],
+    "constraints": [
+     "키보드만으로 쓸 수 있어야 한다"
+    ],
+    "ask": "ph_k7q2 화면을 그려 달라",
+    "route": {
+     "difficulty": "normal",
+     "effort": "high"
+    }
+   }
+  },
+  {
+   "check": "D2",
+   "id": "word",
+   "brief": {
+    "format": 1,
+    "kind": "plan",
+    "data_class": "synthetic",
+    "goal": "KITWORDALPHA 의 화면",
+    "context": [
+     "사람이 하루에 몇 번 본다",
+     "목록은 PH_T4W5 로 나뉜다"
+    ],
+    "entities": [
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "목록과 상세를 한 화면에"
+     }
+    ],
+    "fields": [
+     {
+      "token": "PH_M3X9",
+      "kind": "숫자",
+      "unit": "있음"
+     },
+     {
+      "token": "PH_T4W5",
+      "kind": "범주",
+      "count": 7
+     }
+    ],
+    "constraints": [
+     "키보드만으로 쓸 수 있어야 한다"
+    ],
+    "ask": "화면 구성 · 흐름 · 빈 상태를 제안해 달라",
+    "route": {
+     "difficulty": "normal",
+     "effort": "high"
+    }
+   }
+  },
+  {
+   "check": "D2",
+   "id": "word-variant",
+   "brief": {
+    "format": 1,
+    "kind": "plan",
+    "data_class": "synthetic",
+    "goal": "kit-word alpha 의 화면",
+    "context": [
+     "사람이 하루에 몇 번 본다",
+     "목록은 PH_T4W5 로 나뉜다"
+    ],
+    "entities": [
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "목록과 상세를 한 화면에"
+     }
+    ],
+    "fields": [
+     {
+      "token": "PH_M3X9",
+      "kind": "숫자",
+      "unit": "있음"
+     },
+     {
+      "token": "PH_T4W5",
+      "kind": "범주",
+      "count": 7
+     }
+    ],
+    "constraints": [
+     "키보드만으로 쓸 수 있어야 한다"
+    ],
+    "ask": "화면 구성 · 흐름 · 빈 상태를 제안해 달라",
+    "route": {
+     "difficulty": "normal",
+     "effort": "high"
+    }
+   }
+  },
+  {
+   "check": "D2",
+   "id": "word-split-fields",
+   "brief": {
+    "format": 1,
+    "kind": "plan",
+    "data_class": "synthetic",
+    "goal": "작업 목록 화면의 기획 초안",
+    "context": [
+     "앞 낱말은 KITWORD",
+     "ALPHA 가 뒤 낱말"
+    ],
+    "entities": [
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "목록과 상세를 한 화면에"
+     }
+    ],
+    "fields": [
+     {
+      "token": "PH_M3X9",
+      "kind": "숫자",
+      "unit": "있음"
+     },
+     {
+      "token": "PH_T4W5",
+      "kind": "범주",
+      "count": 7
+     }
+    ],
+    "constraints": [
+     "키보드만으로 쓸 수 있어야 한다"
+    ],
+    "ask": "화면 구성 · 흐름 · 빈 상태를 제안해 달라",
+    "route": {
+     "difficulty": "normal",
+     "effort": "high"
+    }
+   }
+  },
+  {
+   "check": "D2",
+   "id": "word-in-note",
+   "brief": {
+    "format": 1,
+    "kind": "plan",
+    "data_class": "synthetic",
+    "goal": "작업 목록 화면의 기획 초안",
+    "context": [
+     "사람이 하루에 몇 번 본다",
+     "목록은 PH_T4W5 로 나뉜다"
+    ],
+    "entities": [
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "가람소재 의 화면"
+     }
+    ],
+    "fields": [
+     {
+      "token": "PH_M3X9",
+      "kind": "숫자",
+      "unit": "있음"
+     },
+     {
+      "token": "PH_T4W5",
+      "kind": "범주",
+      "count": 7
+     }
+    ],
+    "constraints": [
+     "키보드만으로 쓸 수 있어야 한다"
+    ],
+    "ask": "화면 구성 · 흐름 · 빈 상태를 제안해 달라",
+    "route": {
+     "difficulty": "normal",
+     "effort": "high"
+    }
+   }
+  },
+  {
+   "check": "D2",
+   "id": "word-in-report",
+   "brief": {
+    "format": 1,
+    "kind": "report",
+    "data_class": "synthetic",
+    "job": "J-0007",
+    "status": "done",
+    "counts": {
+     "changed_files": 3,
+     "tests_passed": 12,
+     "tests_failed": 0
+    },
+    "summary": [
+     "KitWordAlpha 화면을 만들었다"
+    ],
+    "questions": [
+     "목록의 정렬 기준을 정해 달라"
+    ]
+   }
+  },
+  {
+   "check": "D2",
+   "id": "word-in-error-type",
+   "brief": {
+    "format": 1,
+    "kind": "lib",
+    "data_class": "synthetic",
+    "library": {
+     "name": "pandas",
+     "version": "2.2"
+    },
+    "language": "python",
+    "goal": "묶어서 합을 내고 싶다",
+    "repro": "import pandas as pd\ndf = pd.DataFrame({\"a\": [1, 2], \"b\": [3, 4]})\nresult = df.groupby(\"a\").sum()\nprint(result)\n",
+    "error": {
+     "type": "KitwordalphaError"
+    },
+    "ask": "왜 열이 사라지나"
+   }
+  },
+  {
+   "check": "D3",
+   "id": "path",
+   "brief": {
+    "format": 1,
+    "kind": "plan",
+    "data_class": "synthetic",
+    "goal": "작업 목록 화면의 기획 초안",
+    "context": [
+     "사람이 하루에 몇 번 본다",
+     "목록은 PH_T4W5 로 나뉜다"
+    ],
+    "entities": [
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "목록과 상세를 한 화면에"
+     }
+    ],
+    "fields": [
+     {
+      "token": "PH_M3X9",
+      "kind": "숫자",
+      "unit": "있음"
+     },
+     {
+      "token": "PH_T4W5",
+      "kind": "범주",
+      "count": 7
+     }
+    ],
+    "constraints": [
+     "키보드만으로 쓸 수 있어야 한다"
+    ],
+    "ask": "D:\\work\\a 를 보고 그려 달라",
+    "route": {
+     "difficulty": "normal",
+     "effort": "high"
+    }
+   }
+  },
+  {
+   "check": "D3",
+   "id": "host",
+   "brief": {
+    "format": 1,
+    "kind": "report",
+    "data_class": "synthetic",
+    "job": "J-0007",
+    "status": "done",
+    "counts": {
+     "changed_files": 3,
+     "tests_passed": 12,
+     "tests_failed": 0
+    },
+    "summary": [
+     "PH_K7Q2 화면을 만들었다",
+     "항목 PH_M3X9 의 표시를 붙였다"
+    ],
+    "questions": [
+     "db.example.local 에 올려도 되나"
+    ]
+   }
+  },
+  {
+   "check": "D4",
+   "id": "number",
+   "brief": {
+    "format": 1,
+    "kind": "plan",
+    "data_class": "synthetic",
+    "goal": "작업 목록 화면의 기획 초안",
+    "context": [
+     "사람이 하루에 몇 번 본다",
+     "목록은 PH_T4W5 로 나뉜다"
+    ],
+    "entities": [
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "목록과 상세를 한 화면에"
+     }
+    ],
+    "fields": [
+     {
+      "token": "PH_M3X9",
+      "kind": "숫자",
+      "unit": "있음"
+     },
+     {
+      "token": "PH_T4W5",
+      "kind": "범주",
+      "count": 7
+     }
+    ],
+    "constraints": [
+     "온도 350 을 넘지 않게"
+    ],
+    "ask": "화면 구성 · 흐름 · 빈 상태를 제안해 달라",
+    "route": {
+     "difficulty": "normal",
+     "effort": "high"
+    }
+   }
+  },
+  {
+   "check": "D4",
+   "id": "number-in-report-summary",
+   "brief": {
+    "format": 1,
+    "kind": "report",
+    "data_class": "synthetic",
+    "job": "J-0007",
+    "status": "done",
+    "counts": {
+     "changed_files": 3,
+     "tests_passed": 12,
+     "tests_failed": 0
+    },
+    "summary": [
+     "3개 화면을 만들었다"
+    ],
+    "questions": [
+     "목록의 정렬 기준을 정해 달라"
+    ]
+   }
+  },
+  {
+   "check": "D5",
+   "id": "code-in-ask",
+   "brief": {
+    "format": 1,
+    "kind": "plan",
+    "data_class": "synthetic",
+    "goal": "작업 목록 화면의 기획 초안",
+    "context": [
+     "사람이 하루에 몇 번 본다",
+     "목록은 PH_T4W5 로 나뉜다"
+    ],
+    "entities": [
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "목록과 상세를 한 화면에"
+     }
+    ],
+    "fields": [
+     {
+      "token": "PH_M3X9",
+      "kind": "숫자",
+      "unit": "있음"
+     },
+     {
+      "token": "PH_T4W5",
+      "kind": "범주",
+      "count": 7
+     }
+    ],
+    "constraints": [
+     "키보드만으로 쓸 수 있어야 한다"
+    ],
+    "ask": "`df.line_temp` 를 보여 달라",
+    "route": {
+     "difficulty": "normal",
+     "effort": "high"
+    }
+   }
+  },
+  {
+   "check": "D5",
+   "id": "snake-identifier",
+   "brief": {
+    "format": 1,
+    "kind": "plan",
+    "data_class": "synthetic",
+    "goal": "작업 목록 화면의 기획 초안",
+    "context": [
+     "사람이 하루에 몇 번 본다",
+     "목록은 PH_T4W5 로 나뉜다"
+    ],
+    "entities": [
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "목록과 상세를 한 화면에"
+     }
+    ],
+    "fields": [
+     {
+      "token": "PH_M3X9",
+      "kind": "숫자",
+      "unit": "있음"
+     },
+     {
+      "token": "PH_T4W5",
+      "kind": "범주",
+      "count": 7
+     }
+    ],
+    "constraints": [
+     "키보드만으로 쓸 수 있어야 한다"
+    ],
+    "ask": "line_temp 칸을 보여 달라",
+    "route": {
+     "difficulty": "normal",
+     "effort": "high"
+    }
+   }
+  },
+  {
+   "check": "D5a",
+   "id": "repro-comment",
+   "brief": {
+    "format": 1,
+    "kind": "lib",
+    "data_class": "synthetic",
+    "library": {
+     "name": "pandas",
+     "version": "2.2"
+    },
+    "language": "python",
+    "goal": "묶어서 합을 내고 싶다",
+    "repro": "import pandas as pd\n# 설명\nx = 1\n",
+    "error": {
+     "type": "KeyError",
+     "message": "열 이름을 찾지 못했다고 한다"
+    },
+    "ask": "왜 열이 사라지나"
+   }
+  },
+  {
+   "check": "D5a",
+   "id": "repro-string",
+   "brief": {
+    "format": 1,
+    "kind": "lib",
+    "data_class": "synthetic",
+    "library": {
+     "name": "pandas",
+     "version": "2.2"
+    },
+    "language": "python",
+    "goal": "묶어서 합을 내고 싶다",
+    "repro": "import pandas as pd\ndf = pd.DataFrame()\nx = df[\"line_temp\"]\n",
+    "error": {
+     "type": "KeyError",
+     "message": "열 이름을 찾지 못했다고 한다"
+    },
+    "ask": "왜 열이 사라지나"
+   }
+  },
+  {
+   "check": "D5a",
+   "id": "repro-big-number",
+   "brief": {
+    "format": 1,
+    "kind": "lib",
+    "data_class": "synthetic",
+    "library": {
+     "name": "pandas",
+     "version": "2.2"
+    },
+    "language": "python",
+    "goal": "묶어서 합을 내고 싶다",
+    "repro": "threshold = 3500\n",
+    "error": {
+     "type": "KeyError",
+     "message": "열 이름을 찾지 못했다고 한다"
+    },
+    "ask": "왜 열이 사라지나"
+   }
+  },
+  {
+   "check": "D5a",
+   "id": "repro-float",
+   "brief": {
+    "format": 1,
+    "kind": "lib",
+    "data_class": "synthetic",
+    "library": {
+     "name": "pandas",
+     "version": "2.2"
+    },
+    "language": "python",
+    "goal": "묶어서 합을 내고 싶다",
+    "repro": "x = 0.5\n",
+    "error": {
+     "type": "KeyError",
+     "message": "열 이름을 찾지 못했다고 한다"
+    },
+    "ask": "왜 열이 사라지나"
+   }
+  },
+  {
+   "check": "D5a",
+   "id": "repro-import",
+   "brief": {
+    "format": 1,
+    "kind": "lib",
+    "data_class": "synthetic",
+    "library": {
+     "name": "pandas",
+     "version": "2.2"
+    },
+    "language": "python",
+    "goal": "묶어서 합을 내고 싶다",
+    "repro": "import kitpkg\n",
+    "error": {
+     "type": "KeyError",
+     "message": "열 이름을 찾지 못했다고 한다"
+    },
+    "ask": "왜 열이 사라지나"
+   }
+  },
+  {
+   "check": "D5a",
+   "id": "repro-import-from",
+   "brief": {
+    "format": 1,
+    "kind": "lib",
+    "data_class": "synthetic",
+    "library": {
+     "name": "pandas",
+     "version": "2.2"
+    },
+    "language": "python",
+    "goal": "묶어서 합을 내고 싶다",
+    "repro": "from kitpkg import a\n",
+    "error": {
+     "type": "KeyError",
+     "message": "열 이름을 찾지 못했다고 한다"
+    },
+    "ask": "왜 열이 사라지나"
+   }
+  },
+  {
+   "check": "D5a",
+   "id": "repro-alias",
+   "brief": {
+    "format": 1,
+    "kind": "lib",
+    "data_class": "synthetic",
+    "library": {
+     "name": "pandas",
+     "version": "2.2"
+    },
+    "language": "python",
+    "goal": "묶어서 합을 내고 싶다",
+    "repro": "import pandas as kitalias\n",
+    "error": {
+     "type": "KeyError",
+     "message": "열 이름을 찾지 못했다고 한다"
+    },
+    "ask": "왜 열이 사라지나"
+   }
+  },
+  {
+   "check": "D5a",
+   "id": "repro-name",
+   "brief": {
+    "format": 1,
+    "kind": "lib",
+    "data_class": "synthetic",
+    "library": {
+     "name": "pandas",
+     "version": "2.2"
+    },
+    "language": "python",
+    "goal": "묶어서 합을 내고 싶다",
+    "repro": "line_temp = 1\n",
+    "error": {
+     "type": "KeyError",
+     "message": "열 이름을 찾지 못했다고 한다"
+    },
+    "ask": "왜 열이 사라지나"
+   }
+  },
+  {
+   "check": "D5a",
+   "id": "repro-attr",
+   "brief": {
+    "format": 1,
+    "kind": "lib",
+    "data_class": "synthetic",
+    "library": {
+     "name": "pandas",
+     "version": "2.2"
+    },
+    "language": "python",
+    "goal": "묶어서 합을 내고 싶다",
+    "repro": "import pandas as pd\nx = pd.kit_secret_fn()\n",
+    "error": {
+     "type": "KeyError",
+     "message": "열 이름을 찾지 못했다고 한다"
+    },
+    "ask": "왜 열이 사라지나"
+   }
+  },
+  {
+   "check": "D5a",
+   "id": "repro-fstring",
+   "brief": {
+    "format": 1,
+    "kind": "lib",
+    "data_class": "synthetic",
+    "library": {
+     "name": "pandas",
+     "version": "2.2"
+    },
+    "language": "python",
+    "goal": "묶어서 합을 내고 싶다",
+    "repro": "x = f\"a\"\n",
+    "error": {
+     "type": "KeyError",
+     "message": "열 이름을 찾지 못했다고 한다"
+    },
+    "ask": "왜 열이 사라지나"
+   }
+  },
+  {
+   "check": "D5a",
+   "id": "repro-bytes",
+   "brief": {
+    "format": 1,
+    "kind": "lib",
+    "data_class": "synthetic",
+    "library": {
+     "name": "pandas",
+     "version": "2.2"
+    },
+    "language": "python",
+    "goal": "묶어서 합을 내고 싶다",
+    "repro": "x = b\"a\"\n",
+    "error": {
+     "type": "KeyError",
+     "message": "열 이름을 찾지 못했다고 한다"
+    },
+    "ask": "왜 열이 사라지나"
+   }
+  },
+  {
+   "check": "D5a",
+   "id": "repro-syntax",
+   "brief": {
+    "format": 1,
+    "kind": "lib",
+    "data_class": "synthetic",
+    "library": {
+     "name": "pandas",
+     "version": "2.2"
+    },
+    "language": "python",
+    "goal": "묶어서 합을 내고 싶다",
+    "repro": "def (:\n",
+    "error": {
+     "type": "KeyError",
+     "message": "열 이름을 찾지 못했다고 한다"
+    },
+    "ask": "왜 열이 사라지나"
+   }
+  },
+  {
+   "check": "D5a",
+   "id": "repro-41-lines",
+   "brief": {
+    "format": 1,
+    "kind": "lib",
+    "data_class": "synthetic",
+    "library": {
+     "name": "pandas",
+     "version": "2.2"
+    },
+    "language": "python",
+    "goal": "묶어서 합을 내고 싶다",
+    "repro": "x = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\nx = 1\n",
+    "error": {
+     "type": "KeyError",
+     "message": "열 이름을 찾지 못했다고 한다"
+    },
+    "ask": "왜 열이 사라지나"
+   }
+  },
+  {
+   "check": "D5a",
+   "id": "repro-many-numbers",
+   "brief": {
+    "format": 1,
+    "kind": "lib",
+    "data_class": "synthetic",
+    "library": {
+     "name": "pandas",
+     "version": "2.2"
+    },
+    "language": "python",
+    "goal": "묶어서 합을 내고 싶다",
+    "repro": "x = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]\n",
+    "error": {
+     "type": "KeyError",
+     "message": "열 이름을 찾지 못했다고 한다"
+    },
+    "ask": "왜 열이 사라지나"
+   }
+  },
+  {
+   "check": "D5a",
+   "id": "error-type-internal",
+   "brief": {
+    "format": 1,
+    "kind": "lib",
+    "data_class": "synthetic",
+    "library": {
+     "name": "pandas",
+     "version": "2.2"
+    },
+    "language": "python",
+    "goal": "묶어서 합을 내고 싶다",
+    "repro": "import pandas as pd\ndf = pd.DataFrame({\"a\": [1, 2], \"b\": [3, 4]})\nresult = df.groupby(\"a\").sum()\nprint(result)\n",
+    "error": {
+     "type": "OrbitPumpError"
+    },
+    "ask": "왜 열이 사라지나"
+   }
+  },
+  {
+   "check": "D5a",
+   "id": "error-type-dotted-unknown",
+   "brief": {
+    "format": 1,
+    "kind": "lib",
+    "data_class": "synthetic",
+    "library": {
+     "name": "pandas",
+     "version": "2.2"
+    },
+    "language": "python",
+    "goal": "묶어서 합을 내고 싶다",
+    "repro": "import pandas as pd\ndf = pd.DataFrame({\"a\": [1, 2], \"b\": [3, 4]})\nresult = df.groupby(\"a\").sum()\nprint(result)\n",
+    "error": {
+     "type": "kitpkg.Error"
+    },
+    "ask": "왜 열이 사라지나"
+   }
+  },
+  {
+   "check": "D1",
+   "id": "jamo-spelled",
+   "brief": {
+    "format": 1,
+    "kind": "plan",
+    "data_class": "synthetic",
+    "goal": "작업 목록 화면의 기획 초안",
+    "context": [
+     "사람이 하루에 몇 번 본다",
+     "목록은 PH_T4W5 로 나뉜다"
+    ],
+    "entities": [
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "목록과 상세를 한 화면에"
+     }
+    ],
+    "fields": [
+     {
+      "token": "PH_M3X9",
+      "kind": "숫자",
+      "unit": "있음"
+     },
+     {
+      "token": "PH_T4W5",
+      "kind": "범주",
+      "count": 7
+     }
+    ],
+    "constraints": [
+     "키보드만으로 쓸 수 있어야 한다"
+    ],
+    "ask": "ㄱㅏㄹㅏㅁ 화면",
+    "route": {
+     "difficulty": "normal",
+     "effort": "high"
+    }
+   }
+  },
+  {
+   "check": "D1",
+   "id": "version-with-word",
+   "brief": {
+    "format": 1,
+    "kind": "lib",
+    "data_class": "synthetic",
+    "library": {
+     "name": "pandas",
+     "version": "2-KITWORDALPHA"
+    },
+    "language": "python",
+    "goal": "묶어서 합을 내고 싶다",
+    "repro": "import pandas as pd\ndf = pd.DataFrame({\"a\": [1, 2], \"b\": [3, 4]})\nresult = df.groupby(\"a\").sum()\nprint(result)\n",
+    "error": {
+     "type": "KeyError",
+     "message": "열 이름을 찾지 못했다고 한다"
+    },
+    "ask": "왜 열이 사라지나"
+   }
+  },
+  {
+   "check": "D2",
+   "id": "word-split-goal-ask",
+   "brief": {
+    "format": 1,
+    "kind": "plan",
+    "data_class": "synthetic",
+    "goal": "기획의 이름은 KITWORD",
+    "context": [
+     "사람이 하루에 몇 번 본다",
+     "목록은 PH_T4W5 로 나뉜다"
+    ],
+    "entities": [
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "목록과 상세를 한 화면에"
+     }
+    ],
+    "fields": [
+     {
+      "token": "PH_M3X9",
+      "kind": "숫자",
+      "unit": "있음"
+     },
+     {
+      "token": "PH_T4W5",
+      "kind": "범주",
+      "count": 7
+     }
+    ],
+    "constraints": [
+     "키보드만으로 쓸 수 있어야 한다"
+    ],
+    "ask": "ALPHA 화면을 그려 달라",
+    "route": {
+     "difficulty": "normal",
+     "effort": "high"
+    }
+   }
+  },
+  {
+   "check": "D2",
+   "id": "word-letters-spread",
+   "brief": {
+    "format": 1,
+    "kind": "report",
+    "data_class": "synthetic",
+    "job": "J-0007",
+    "status": "done",
+    "counts": {
+     "changed_files": 3,
+     "tests_passed": 12,
+     "tests_failed": 0
+    },
+    "summary": [
+     "가",
+     "화면을 만들었다",
+     "람",
+     "표시를 붙였다",
+     "소",
+     "재"
+    ],
+    "questions": [
+     "목록의 정렬 기준을 정해 달라"
+    ]
+   }
+  }
+ ],
+ "pass": [
+  {
+   "id": "plan",
+   "brief": {
+    "format": 1,
+    "kind": "plan",
+    "data_class": "synthetic",
+    "goal": "작업 목록 화면의 기획 초안",
+    "context": [
+     "사람이 하루에 몇 번 본다",
+     "목록은 PH_T4W5 로 나뉜다"
+    ],
+    "entities": [
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "목록과 상세를 한 화면에"
+     }
+    ],
+    "fields": [
+     {
+      "token": "PH_M3X9",
+      "kind": "숫자",
+      "unit": "있음"
+     },
+     {
+      "token": "PH_T4W5",
+      "kind": "범주",
+      "count": 7
+     }
+    ],
+    "constraints": [
+     "키보드만으로 쓸 수 있어야 한다"
+    ],
+    "ask": "화면 구성 · 흐름 · 빈 상태를 제안해 달라",
+    "route": {
+     "difficulty": "normal",
+     "effort": "high"
+    }
+   }
+  },
+  {
+   "id": "report-appendix-c",
+   "brief": {
+    "format": 1,
+    "kind": "report",
+    "data_class": "synthetic",
+    "job": "J-0007",
+    "status": "done",
+    "counts": {
+     "changed_files": 3,
+     "tests_passed": 12,
+     "tests_failed": 0
+    },
+    "summary": [
+     "PH_K7Q2 화면을 만들었다",
+     "항목 PH_M3X9 의 표시를 붙였다"
+    ],
+    "questions": [
+     "목록의 정렬 기준을 정해 달라"
+    ]
+   }
+  },
+  {
+   "id": "lib",
+   "brief": {
+    "format": 1,
+    "kind": "lib",
+    "data_class": "synthetic",
+    "library": {
+     "name": "pandas",
+     "version": "2.2"
+    },
+    "language": "python",
+    "goal": "묶어서 합을 내고 싶다",
+    "repro": "import pandas as pd\ndf = pd.DataFrame({\"a\": [1, 2], \"b\": [3, 4]})\nresult = df.groupby(\"a\").sum()\nprint(result)\n",
+    "error": {
+     "type": "KeyError",
+     "message": "열 이름을 찾지 못했다고 한다"
+    },
+    "ask": "왜 열이 사라지나"
+   }
+  },
+  {
+   "id": "lib-no-repro",
+   "brief": {
+    "format": 1,
+    "kind": "lib",
+    "data_class": "synthetic",
+    "library": {
+     "name": "pandas",
+     "version": "2.2"
+    },
+    "language": "python",
+    "goal": "묶어서 합을 내고 싶다",
+    "ask": "왜 열이 사라지나"
+   }
+  },
+  {
+   "id": "lib-dotted-error",
+   "brief": {
+    "format": 1,
+    "kind": "lib",
+    "data_class": "synthetic",
+    "library": {
+     "name": "pandas",
+     "version": "2.2"
+    },
+    "language": "python",
+    "goal": "묶어서 합을 내고 싶다",
+    "repro": "import pandas as pd\ndf = pd.DataFrame({\"a\": [1, 2], \"b\": [3, 4]})\nresult = df.groupby(\"a\").sum()\nprint(result)\n",
+    "error": {
+     "type": "pandas.errors.ParserError"
+    },
+    "ask": "왜 열이 사라지나"
+   }
+  },
+  {
+   "id": "ui",
+   "brief": {
+    "format": 1,
+    "kind": "ui",
+    "data_class": "synthetic",
+    "goal": "작업 목록 화면의 화면 초안",
+    "context": [
+     "사람이 하루에 몇 번 본다",
+     "목록은 PH_T4W5 로 나뉜다"
+    ],
+    "entities": [
+     {
+      "token": "PH_K7Q2",
+      "type": "화면",
+      "note": "목록과 상세를 한 화면에"
+     }
+    ],
+    "fields": [
+     {
+      "token": "PH_M3X9",
+      "kind": "숫자",
+      "unit": "있음"
+     },
+     {
+      "token": "PH_T4W5",
+      "kind": "범주",
+      "count": 7
+     }
+    ],
+    "constraints": [
+     "키보드만으로 쓸 수 있어야 한다"
+    ],
+    "ask": "화면 구성 · 흐름 · 빈 상태를 제안해 달라",
+    "route": {
+     "difficulty": "normal",
+     "effort": "high"
+    }
+   }
+  },
+  {
+   "id": "plan-minimal",
+   "brief": {
+    "format": 1,
+    "kind": "plan",
+    "data_class": "synthetic",
+    "goal": "작은 기획",
+    "ask": "초안을 달라"
+   }
+  },
+  {
+   "id": "report-question",
+   "brief": {
+    "format": 1,
+    "kind": "report",
+    "data_class": "synthetic",
+    "job": "J-0001",
+    "status": "question",
+    "summary": [
+     "지시가 원문을 보고에 넣으라고 했다"
+    ],
+    "questions": [
+     "그대로 따르지 않았다 - 어떻게 할까"
+    ]
+   }
+  }
+ ]
+}
