@@ -1,0 +1,13 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {"hooks": [{"type": "command", "command": "python3", "args": ["${CLAUDE_PLUGIN_ROOT}/hook_min.py", "session"], "onFailure": "block"}]}
+    ],
+    "UserPromptSubmit": [
+      {"hooks": [{"type": "command", "command": "python3", "args": ["${CLAUDE_PLUGIN_ROOT}/hook_min.py", "prompt"], "onFailure": "block", "timeout": 10}]}
+    ],
+    "PreToolUse": [
+      {"matcher": "*", "hooks": [{"type": "command", "command": "python3", "args": ["${CLAUDE_PLUGIN_ROOT}/hook_min.py", "tool"], "onFailure": "block", "timeout": 10}]}
+    ]
+  }
+}
