@@ -33,7 +33,7 @@ MANIFEST_FIELDS = {"$schema", "name", "displayName", "version", "description", "
                    "defaultEnabled", "dependencies", "settings", "userConfig", "types", "channels", "skills", "commands",
                    "agents", "hooks", "mcpServers", "lspServers", "outputStyles", "workflows", "experimental"}
 PENDING_CASES = (["mcp"],
-                 ["propose", "r.json"], ["confirm", "req.json"], ["lib", "names", "pkg"])
+                 ["propose", "r.json"], ["lib", "names", "pkg"])
 
 
 def read_path(path):

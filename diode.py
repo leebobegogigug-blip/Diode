@@ -29,7 +29,6 @@ ALIASES = {"-h": "help", "--help": "help", "--version": "version"}
 PENDING = (
     ("mcp", "mcp                             허브 (MCP 서버)"),
     ("propose", "propose <report.json>           일꾼 보고 내기"),
-    ("confirm", "confirm <요청 파일>             확정 창"),
     ("lib", "lib names <이름>                허용 라이브러리의 공개 이름"),
 )
 PENDING_FLAGS = ()
@@ -45,6 +44,7 @@ HELP = """%s %s — Claude Code 플러그인 (개발 중 · v0.0 · 훅만 있�
   hook <session|prompt|tool>      Claude Code 훅 (플러그인이 부른다 · 표준 입력 = 훅 입력 JSON)
   --status --json [--room 폴더]   상태 명령 (읽기 전용 · JSON 한 줄 · 단어는 없음)
   --statusline                    statusLine 기록 (방 설정이 부른다 · 표준 입력 = statusLine JSON)
+  confirm <요청 파일>             확정 창 (허브가 부른다 · 결과는 JSON 한 줄 · 0 보냄 · 3 사람이 안 보냄 · 2 꼴 오류 · 1 창 없음)
 
 아직 없는 명령 (v0.0 — 부르면 종료 코드 2 로 끝납니다)
   %s
@@ -80,6 +80,7 @@ def build_parser():
     sub = p.add_subparsers(dest="command", metavar="명령")
     for name in ("version", "help", "check", "scan"):
         sub.add_parser(name, add_help=False)
+    sub.add_parser("confirm", add_help=False).add_argument("rest", nargs=argparse.REMAINDER)
     sub.add_parser("hook", add_help=False).add_argument("event", nargs="?", default="")
     for name, _ in PENDING:
         sub.add_parser(name, add_help=False).add_argument("rest", nargs=argparse.REMAINDER)
@@ -140,6 +141,17 @@ def scan_command(out, err, inp):
     return code
 
 
+def confirm_command(out, rest):
+    """confirm — 확정 창 (SP-09). 표준 출력은 결과 한 줄뿐 (ASCII · 글 · 단어 없음). 어떤 실패도 보내지 않는 쪽으로"""
+    try:
+        from diodelib import confirm            # import 실패도 보내지 않는 쪽으로
+        code, line = confirm.main_confirm(rest[0] if len(rest) == 1 else None)
+    except Exception:
+        code, line = 1, '{"decision": "error", "code": "E-20"}'
+    out.write(line + "\n")
+    return code
+
+
 def run(args, out, err, inp=None):
     if (args.json or args.room) and not args.status:
         raise UsageError("--json · --room 은 --status 와 같이 씁니다")
@@ -159,6 +171,8 @@ def run(args, out, err, inp=None):
         return check(out)
     if args.command == "scan":
         return scan_command(out, err, inp if inp is not None else _stdin_bytes())
+    if args.command == "confirm":
+        return confirm_command(out, args.rest)
     if args.command == "hook":
         from diodelib import hook
         return hook.main([args.event], stdin=inp if inp is not None else _stdin_bytes(), stdout=out, stderr=err)

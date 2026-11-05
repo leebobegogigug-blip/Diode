@@ -244,6 +244,32 @@ class RealParts(Base):
         self.assertEqual(hook._confirmed_hashes(home), audit.confirmed_hashes(home))
 
 
+class ProcessConfirmPart(Base):
+    """진짜 확정 창 프로세스 (diode.py confirm) — 화면이 없는 환경에서는 E-07 로 보내지 않는다."""
+
+    def test_headless_is_e07_and_temp_removed(self):
+        home = os.path.join(self.tmp, "data")
+        self.parts.confirm = hub.ProcessConfirm(home)
+        saved = {k: os.environ.pop(k) for k in ("DISPLAY", "WAYLAND_DISPLAY") if k in os.environ}
+        try:
+            res = self.h.call("dispatch", {"instruction": "목록 화면을 만들어 달라"})
+        finally:
+            os.environ.update(saved)
+        if os.name == "nt":
+            self.skipTest("Windows 는 화면이 있다고 본다")
+        self.assertEqual(res, {"sent": False, "error": "E-07"})
+        self.assertEqual(self.worker.sent, [])
+        self.assertEqual(os.listdir(os.path.join(home, "tmp")), [])     # 요청 파일은 지운다
+
+    def test_bad_output_is_not_send(self):
+        from diodelib import confirm
+        want = confirm.text_sha256("x")
+        for code, out in ((0, ""), (0, '{"decision": "send", "sha256": "%s"}\n{}' % want),
+                          (0, '{"decision": "send", "sha256": "%s"}' % ("0" * 64)), (3, '{"decision": "send", "sha256": "%s"}' % want)):
+            self.assertNotEqual(confirm.parse_result(code, out, want)[0], "send", (code, out))
+        self.assertEqual(confirm.parse_result(0, '{"decision": "send", "sha256": "%s"}' % want, want), ("send", None))
+
+
 class JsonRpc(Base):
     def rpc(self, *msgs):
         inp = io.StringIO("".join(json.dumps(m) + "\n" for m in msgs) + "not json\n")

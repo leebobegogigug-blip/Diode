@@ -100,6 +100,50 @@ class Parts(object):
         self.propose_cmd = propose_cmd or 'python "diode.py" propose <report.json>'
 
 
+class ProcessConfirm(object):
+    """확정 창 부품 — 따로 된 프로세스 `python diode.py confirm <요청 파일>` (SP-09 · [실험 S18]).
+
+    요청 파일은 데이터 폴더의 tmp\ 에 (0600) 쓰고 끝나면 지운다. 가명 표는 넣지 않는다 (요청에 그런 칸이 없다).
+    결과는 confirm.parse_result 로 읽는다 — 종료 코드 · 한 줄 · sha256 이 모두 맞을 때만 send.
+    창이 timeout_s + 여유 안에 끝나지 않으면 자식을 죽이고 timeout.
+    """
+
+    GRACE_S = 30
+
+    def __init__(self, home, python=None, diode_py=None):
+        self.home = home
+        self.python = python or sys.executable
+        self.diode_py = diode_py or os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "diode.py")
+
+    def __call__(self, req):
+        import subprocess
+        import tempfile
+        from . import confirm as cf
+        tmp = os.path.join(self.home, "tmp")
+        os.makedirs(tmp, mode=0o700, exist_ok=True)
+        fd, path = tempfile.mkstemp(prefix="confirm-", suffix=".json", dir=tmp)
+        try:
+            os.chmod(path, 0o600)
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(req, f, ensure_ascii=False)
+            limit = min(max(int(req.get("timeout_s", 600)), 1), 600) + self.GRACE_S
+            try:
+                p = subprocess.run([self.python, self.diode_py, "confirm", path], stdin=subprocess.DEVNULL,
+                                   stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=limit)
+            except subprocess.TimeoutExpired:
+                return {"decision": "timeout"}
+            want = cf.text_sha256(req["text"])
+            decision, code = cf.parse_result(p.returncode, p.stdout.decode("utf-8", "replace"), want)
+            if decision == "error":
+                return {"decision": "error", "code": code}
+            return {"decision": decision, "sha256": want}
+        finally:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+
+
 class Job(object):
     __slots__ = ("job", "state", "at", "table")
 
@@ -199,7 +243,7 @@ class Hub(object):
         text = self.restore(ins)
         req = {"format": 1, "direction": "dispatch", "job": job.job, "kind": "report", "transport": "room",
                "text": text, "attachments": list(att), "checks": {"ok": True, "hits": []},
-               "model": "", "effort": "", "month": {"pct": 0, "estimated": True}}
+               "model": "", "effort": "", "month": {"pct": None, "estimated": True}}
         dec = p.confirm(req) or {}
         d = dec.get("decision")
         if d != "send" or dec.get("sha256") != sha256_text(text):
@@ -285,7 +329,7 @@ class Hub(object):
                 return "blocked"
             req = {"format": 1, "direction": "out", "job": job.job, "kind": "report", "transport": "room",
                    "text": text, "attachments": [], "checks": {"ok": True, "hits": []},
-                   "model": "", "effort": "", "month": {"pct": 0, "estimated": True}}
+                   "model": "", "effort": "", "month": {"pct": None, "estimated": True}}
             dec = p.confirm(req) or {}
             if dec.get("decision") != "send" or dec.get("sha256") != sha256_text(text):
                 if dec.get("decision") != "edit":
