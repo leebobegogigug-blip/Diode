@@ -91,6 +91,15 @@ class Send(unittest.TestCase):
         self.assertEqual(sorted(x for x in os.listdir(os.path.join(self.home, "work", "J-0004"))),
                          ["a-2.html", "a.html"])
 
+    def test_cwd_placeholder(self):
+        script = "import os, sys; open(os.path.join(sys.argv[1], 'here.txt'), 'w').write(os.getcwd())"
+        w = worker.CommandWorker([sys.executable, "-c", script, "{cwd}", "{prompt}"], self.home, self.room)
+        self.assertTrue(w.send("J-0007", "x", []))
+        d = os.path.join(self.home, "work", "J-0007")
+        self.assertTrue(wait_for(os.path.join(d, "here.txt")))
+        with open(os.path.join(d, "here.txt"), encoding="utf-8") as f:
+            self.assertEqual(os.path.realpath(f.read()), os.path.realpath(d))        # 작업 폴더와 프로세스 폴더가 같다
+
     def test_missing_executable(self):
         w = worker.CommandWorker(["diode-no-such-command-xyz", "{prompt}"], self.home, self.room)
         self.assertFalse(w.check())

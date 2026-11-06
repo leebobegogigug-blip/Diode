@@ -39,4 +39,5 @@
 - 사내 모델 이름으로 KIT-6 (effort 별 비용) 을 재고, 사내 Claude Code 판에서 KIT-7 (허브가 뜨는지 · 창 · 환경 변수 · 도구 결과 모양) 을 다시 한다.
 - `kit/run_kit.py` 를 사내 Windows 에서 `--python python` 으로 돌린다. 결과는 판정과 숫자만 공개 저장소로 가져온다.
 - 사내 CLI 에 opencode 가 어떻게 물려 있는지 (명령줄 · MCP · 하위 에이전트) 확인하고, 설정 `worker.command` (예 `["opencode", "run", "{prompt}"]`) 와 `policy.inner_tools` (사내 이름은 사내에서만 적는다) 를 맞춘다. Claude 가 안쪽 도구를 직접 부르는 길이 하나도 남지 않았는지 (훅 deny) 확인한다.
+- `kit/run_opencode.py --opencode <사내 opencode>` 를 돌려 (가짜 로컬 모델 · 밖으로 나가는 요청 없음) 사내 판에서도 일꾼 부품과 셸 권한이 같게 동작하는지 본다. 사내 모델 공급자 설정은 사내에서만 적는다.
 - 코드 전체를 최종 검토한다.

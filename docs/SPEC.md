@@ -300,7 +300,7 @@ ASK: <ask>
 | `claude.model_plan` · `claude.model_ui` | `""` | Opus 급 · Sonnet 급 이름 (사내 이름 · 이 PC 에만) |
 | `claude.monthly_budget_usd` | `0` (없음) | 확정 창의 한도 % |
 | `transport.default` | `clipboard` | `clipboard` · `room` · `adapter` |
-| `worker.command` | 없음 | 일꾼을 띄우는 인자 목록 (예 `["opencode", "run", "{prompt}"]`) · 셸 없음 · `{prompt}` 는 한 곳만 · 없으면 표준 입력 · 없거나 꼴이 틀리면 `dispatch` 는 `E-01` · `창에서만` 바꾼다 (AL-12) |
+| `worker.command` | 없음 | 일꾼을 띄우는 인자 목록 (예 `["opencode", "run", "--dir", "{cwd}", "{prompt}"]`) · 셸 없음 · `{prompt}` 는 한 곳만 · 없으면 표준 입력 · `{cwd}` 는 일꾼의 작업 폴더 [실험: 진짜 opencode 의 셸은 `--dir` 을 따른다] · 없거나 꼴이 틀리면 `dispatch` 는 `E-01` · `창에서만` 바꾼다 (AL-12) |
 | `worker.cwd` | 없음 (`<데이터 폴더>\work\<job>`) | 일꾼의 작업 폴더 |
 | `worker.url` | `http://127.0.0.1:4096` | [예정 · v0.2] 서버로 쓰는 일꾼 (127.0.0.1 만) · 지금은 읽지 않는다 |
 | `room.path` | `D:\claude\room` | |

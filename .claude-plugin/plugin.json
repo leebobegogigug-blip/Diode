@@ -5,5 +5,6 @@
   "description": "사내 LLM 과 Claude 사이를 한 방향으로만 흐르게 하는 Claude Code 플러그인. 개발 중 (v0.0) — 훅만 있다 (허브 · 확정 창이 없어 아직 쓸 수 없다).",
   "author": {"name": "diode"},
   "repository": "https://github.com/leebobegogigug-blip/Diode",
+  "license": "MIT",
   "keywords": ["diode", "security", "data-leak-prevention", "sealed-report", "opencode"]
 }

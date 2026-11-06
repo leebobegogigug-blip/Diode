@@ -6,6 +6,9 @@ opencode 를 어떻게 설치했든 (명령줄 · 서버) 같은 자리에서 �
     "worker": {"command": ["opencode", "run", "{prompt}"], "cwd": "<안쪽 작업 폴더 · 생략하면 데이터 폴더 work\\<job>>"}
 
 - 목록 안의 `{prompt}` 자리에 일꾼 안내문 + 지시를 넣는다. `{prompt}` 가 없으면 표준 입력으로 준다.
+- `{cwd}` 는 일꾼의 작업 폴더 (첨부가 복사되는 곳) 로 바뀐다 — 일꾼이 셸 명령을 돌리는 자리를 명시하려면 쓴다
+  (진짜 opencode 는 프로세스의 작업 폴더가 아니라 `--dir` 을 따랐다 [실험]):
+  `["opencode", "run", "--dir", "{cwd}", "{prompt}"]`
 - 셸을 거치지 않는다 (인자 목록 · shell=False). 환경 변수는 그대로 물려받되 `DIODE_JOB` 만 더한다.
 - 일꾼의 표준 출력 · 표준 오류는 읽지 않는다 — 버린다 (AL-14 · 일꾼의 응답은 Claude 에게 가지 않는다). 일은 백그라운드에서
   돌고, 결과는 일꾼이 `diode.py propose` 로만 낸다. 허브는 기다리지 않는다.
@@ -87,7 +90,7 @@ class CommandWorker(object):
         try:
             dest = self._work_dir(job)
             self._copy_attachments(job, attachments or [], dest)
-            argv = [x.replace("{prompt}", text) if "{prompt}" in x else x for x in self.command]
+            argv = [x.replace("{cwd}", dest).replace("{prompt}", text) for x in self.command]
             use_stdin = not any("{prompt}" in x for x in self.command)
             env = dict(os.environ)
             env["DIODE_JOB"] = job

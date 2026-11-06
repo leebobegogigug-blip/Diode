@@ -18,7 +18,7 @@ Diode 는 회사 안 (사내 LLM · 원자료) 과 회사 밖 (Claude) 사이에
 <p align="center"><sub>
 CLAUDE CODE 플러그인 · 저장소 하나 = 플러그인 하나 = 마켓플레이스 하나<br>
 파이썬 3.8+ · 표준 라이브러리만<br>
-테스트 390 · WINDOWS + UBUNTU CI
+테스트 391 · WINDOWS + UBUNTU CI
 </sub></p>
 
 <br>
@@ -62,6 +62,6 @@ CLAUDE CODE 플러그인 · 저장소 하나 = 플러그인 하나 = 마켓플�
 <br>
 
 <p align="center"><sub>
-Diode · 아직은 한쪽으로도 안 흐릅니다.<br>
+Diode · 아직은 한쪽으로도 안 흐릅니다 · MIT 라이선스<br>
 화면 문법은 소형 하드웨어 계측기(Teenage Engineering 류)에서 영감을 받았고, 해당 회사와는 관련이 없습니다.
 </sub></p>

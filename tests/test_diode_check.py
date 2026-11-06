@@ -48,6 +48,7 @@ GOOD = {
     "docs/INHOUSE.md": "x\n",
     "RULES.md": "x\n",
     "AGENTS.md": "x\n",
+    "LICENSE": "MIT License\n",
     ".gitignore": "x\n",
     ".gitattributes": "x\n",
     ".github/workflows/diode.yml": "name: diode\n",

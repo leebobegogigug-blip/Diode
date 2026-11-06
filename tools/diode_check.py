@@ -37,7 +37,7 @@ from typing import Dict, List, NamedTuple, Optional, Set, Tuple
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PLUGIN_NAME = "diode"
-REQUIRED = ("README.md", "INSTALL.md", "docs/MANUAL.md", "docs/INHOUSE.md", "RULES.md", "AGENTS.md",
+REQUIRED = ("README.md", "INSTALL.md", "docs/MANUAL.md", "docs/INHOUSE.md", "RULES.md", "AGENTS.md", "LICENSE",
             ".gitignore", ".gitattributes", ".github/workflows/diode.yml", ".claude-plugin/plugin.json")
 PLUGIN_FILES = (".claude-plugin/plugin.json", ".claude-plugin/marketplace.json", ".mcp.json", "hooks/hooks.json")
 SKIP_PREFIX = ("kit/out/",)                       # M0 정찰 산출물 — 커밋하지 않는다 (AGENTS.md)

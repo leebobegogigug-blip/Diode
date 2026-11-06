@@ -8,6 +8,7 @@ M0 (앱 코드 0줄 · 합성 자료만) 동안만 쓰는 폴더다. M0 가 끝�
 | `results-linux.md` | 리눅스판 결과 (KIT-1 · KIT-2 · KIT-7) |
 | `run_kit.py` | 시나리오 S01–S18 을 돌린다 (S18 은 DISPLAY 가 있을 때만) — 합성 자리 · 가짜 서버 · 빈 환경의 Claude CLI |
 | `corpus/` · `canary_variants.py` · `leak_rate.py` · `test_corpus.py` | KIT-3 합성 말뭉치 40과제 (plan 15 · ui 15 · lib 10 · 카나리아 361) · 카나리아 변형 · 검사기 전후 새는 비율 · 시험 — 사내 절차와 G3 채점표는 `corpus/README.md` (T3) |
+| `run_opencode.py` | 진짜 opencode 로 일꾼 부품 · 셸 권한 시험 (가짜 로컬 모델 · 선택 · `--opencode <경로>`) |
 | `run_hooks.py` | 진짜 훅 (저장소의 `hooks/hooks.json` · `diode.py hook`) 으로 KIT-2 재시험 R01–R15 (T12) |
 | `run_tui.py` | 대화형 (TUI) 세션 한 번 — 의사 터미널 (리눅스 · macOS) · statusLine 입력 칸 · `safeguards` 칸 |
 | `fake_anthropic.py` | 가짜 Anthropic Messages API 서버 (127.0.0.1 · 요청을 덤프 · 키는 남기지 않음) |
