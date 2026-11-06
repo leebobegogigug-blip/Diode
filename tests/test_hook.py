@@ -274,14 +274,14 @@ class ToolOther(Base):
         raw = ["D:\\Data\\Raw"]
         for cmd in ("cat /d/data/raw/secret.txt", "cd /D/DATA/RAW && ls", "cat /mnt/d/data/raw/a",
                     "type d:\\data\\raw\\a", "cat /cygdrive/d/data/raw/a", "cat D:/Data/Raw/a"):
-            self.assertTrue(hook._mentions_raw(cmd, raw, "/tmp"), cmd)
+            self.assertTrue(hook._mentions_raw(cmd, raw, "/nowhere-cwd"), cmd)
         for cmd in ("ls /d/data/other", "cat /d/dat", "ls /e/data/raw", "echo hi"):
-            self.assertFalse(hook._mentions_raw(cmd, raw, "/tmp"), cmd)
+            self.assertFalse(hook._mentions_raw(cmd, raw, "/nowhere-cwd"), cmd)
 
     def test_git_bash_drive_forms_for_the_data_folder(self):
         for cmd in ("cat /c/Users/x/AppData/Local/diode/dictionary.json", "ls /mnt/c/users/x/appdata/local/diode/audit"):
-            self.assertTrue(hook._mentions_data(cmd, "C:\\Users\\x\\AppData\\Local\\diode", "/tmp"), cmd)
-        self.assertFalse(hook._mentions_data("ls /c/Users/x/Documents", "C:\\Users\\x\\AppData\\Local\\diode", "/tmp"))
+            self.assertTrue(hook._mentions_data(cmd, "C:\\Users\\x\\AppData\\Local\\diode", "/nowhere-cwd"), cmd)
+        self.assertFalse(hook._mentions_data("ls /c/Users/x/Documents", "C:\\Users\\x\\AppData\\Local\\diode", "/nowhere-cwd"))
 
     def test_bash_in_raw_cwd(self):
         code, out, _ = self.call("tool", {"tool_name": "Bash", "tool_input": {"command": "cat secret.txt"},
@@ -379,6 +379,125 @@ class DataFolderGuard(Base):
     def test_before_setup_too(self):
         empty = os.path.join(self.tmp, "empty")
         self.assertDenied(self.tool("Read", {"file_path": os.path.join(empty, "dictionary.json")}, self.other, home=empty))
+
+
+class FileMentions(Base):
+    """프롬프트의 `@경로` 는 Claude Code 가 도구 호출 없이 파일 내용을 요청에 싣는다 - 훅이 그 경로를 본다 (레드팀 F-01)."""
+
+    def blocked(self, text, project=None):
+        code, out, err = self.prompt(text, project or self.other)
+        self.assertEqual((code, out), (2, ""), text)
+        return err
+
+    def test_raw_folder_files_by_every_spelling(self):
+        self.blocked("@../kitraw/secret.txt 요약해")
+        self.blocked("이걸 봐 @%s" % os.path.join(self.raw, "secret.txt"))
+        self.blocked('"quoted" @"%s" 요약' % os.path.join(self.raw, "secret.txt"))
+        self.blocked("(@../kitraw/secret.txt)")
+        self.blocked("@../kitraw/secret.txt.")                     # 문장 끝의 마침표
+        self.blocked("@../kitraw")                                   # 폴더째
+
+    def test_room_too(self):
+        self.blocked("@../../kitraw/secret.txt", self.room)
+
+    def test_a_file_outside_raw_is_read_for_dictionary_words(self):
+        bad = os.path.join(self.other, "notes.txt")
+        with open(bad, "w", encoding="utf-8") as f:
+            f.write("메모 %s 끝" % WORD)
+        good = os.path.join(self.other, "ok.txt")
+        with open(good, "w", encoding="utf-8") as f:
+            f.write("평범한 메모")
+        err = self.blocked("@notes.txt 읽어")
+        self.assertIn("D2", err)
+        self.assertEqual(self.prompt("@ok.txt 읽어", self.other), (0, "", ""))
+
+    def test_nothing_to_pull_passes(self):
+        for text in ("@nothing-here.txt 읽어", "담당은 @handle 님", "@ 혼자", "그냥 말"):
+            self.assertEqual(self.prompt(text, self.other), (0, "", ""), text)
+
+    def test_data_folder_files(self):
+        rel = os.path.relpath(os.path.join(self.home, "dictionary.json"), self.other).replace(os.sep, "/")
+        err = self.blocked("@%s" % rel)
+        self.assertIn("@파일", err)
+
+
+class ContentDecoding(Base):
+    """Read 의 내용 검사는 인코딩 · 이스케이프를 풀어서 본다 (레드팀 F-02)."""
+
+    def read(self, name, data):
+        p = os.path.join(self.other, name)
+        with open(p, "wb") as f:
+            f.write(data)
+        return self.tool("Read", {"file_path": p}, self.other)
+
+    def test_utf16_with_bom_and_without(self):
+        text = "메모 %s 끝" % WORD
+        self.assertDenied(self.read("a.txt", b"\xff\xfe" + text.encode("utf-16-le")))        # PowerShell 5.1 의 > 출력
+        self.assertDenied(self.read("b.txt", b"\xfe\xff" + text.encode("utf-16-be")))
+        self.assertDenied(self.read("c.txt", text.encode("utf-16-le")))                       # BOM 없는 UTF-16
+        self.assertDenied(self.read("d.txt", b"\xff\xfe\x00\x00" + text.encode("utf-32-le")))
+
+    def test_leading_nul_and_unknown_binary_are_refused(self):
+        self.assertDenied(self.read("e.txt", b"\x00" + ("메모 %s" % WORD).encode("utf-8")))
+        self.assertDenied(self.read("f.bin", b"\x00\x01\x02\x03\x04" * 50))
+        # 알려진 이미지 · PDF 는 내용을 보지 않는다 (알려진 한계)
+        self.assertEqual(self.read("g.png", b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR" + b"\x00" * 40), (0, "", ""))
+
+    def test_json_and_html_escapes(self):
+        esc = "".join("\\u%04x" % ord(c) for c in WORD)
+        self.assertDenied(self.read("h.ipynb", ('{"cells": [{"source": ["%s"]}]}' % esc).encode("utf-8")))
+        ent = "".join("&#%d;" % ord(c) for c in WORD)
+        self.assertDenied(self.read("i.html", ("<p>%s</p>" % ent).encode("utf-8")))
+
+    def test_cp949(self):
+        word = "사내용어가나"
+        write_json(os.path.join(self.home, "dictionary.json"), {"format": 1, "words": [WORD, word]})
+        self.assertDenied(self.read("j.txt", ("보고 %s 끝" % word).encode("cp949")))
+
+    def test_clean_text_still_passes(self):
+        self.assertEqual(self.read("k.txt", "평범한 글".encode("utf-8")), (0, "", ""))
+        self.assertEqual(self.read("l.txt", b"\xff\xfe" + "평범한 글".encode("utf-16-le")), (0, "", ""))
+
+
+class SlashCommandsWhenBroken(Base):
+    def test_only_the_bare_command_passes_a_broken_dictionary(self):
+        broken = os.path.join(self.tmp, "broken")
+        os.makedirs(broken)
+        with open(os.path.join(broken, "dictionary.json"), "w") as f:
+            f.write("{")
+        self.assertEqual(self.prompt("/diode:status", self.other, home=broken), (0, "", ""))
+        self.assertEqual(self.prompt("  /diode:setup  ", self.other, home=broken), (0, "", ""))
+        for text in ("/diode:status %s 수율" % WORD, "/diode:dict 뒤에 글", "/diode:status\n%s" % WORD):
+            code, out, _ = self.prompt(text, self.other, home=broken)
+            self.assertEqual(code, 2, text)
+
+
+class ShellRelativePaths(Base):
+    """셸은 벽이 아니지만 Claude 가 평소 쓰는 상대 경로 꼴은 본다 (레드팀 F-04)."""
+
+    def test_relative_and_cd_forms(self):
+        for cmd in ("cat ../kitraw/secret.txt", "cd ../kitraw && cat secret.txt", "grep -r x ../kitraw",
+                    "cat --file=../kitraw/secret.txt", 'cat "../kitraw/secret.txt"'):
+            self.assertDenied(self.tool("Bash", {"command": cmd}, self.other))
+        self.assertAllowed(self.tool("Bash", {"command": "ls -la ."}, self.other))
+        self.assertAllowed(self.tool("Bash", {"command": "cat ../other/a.txt"}, self.other))
+        self.assertAllowed(self.tool("Bash", {"command": "echo hello | wc -c"}, self.other))
+
+    def test_data_folder_relative(self):
+        rel = os.path.relpath(self.home, self.other).replace(os.sep, "/")
+        self.assertDenied(self.tool("Bash", {"command": "cat %s/dictionary.json" % rel}, self.other))
+
+
+class InnerToolNames(Base):
+    """안쪽 도구 이름을 구분자 · 따옴표로 쪼개도 같은 도구로 본다 (레드팀 F-05)."""
+
+    def test_split_names(self):
+        for name in ("mcp__open_code__run", "mcp__open-code__run", "mcp__OpenCode__x"):
+            self.assertDenied(self.tool(name, {}, self.other))
+        for cmd in ('o"pen"code run x', "open\\code run x", "OPENCODE run", "'opencode' run"):
+            self.assertDenied(self.tool("Bash", {"command": cmd}, self.other))
+        self.assertDenied(self.tool("Agent", {"subagent_type": "open-code", "prompt": "x"}, self.other))
+        self.assertAllowed(self.tool("Bash", {"command": "echo open code editor"}, self.other))
 
 
 class ReadScan(Base):

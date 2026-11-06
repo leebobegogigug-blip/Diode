@@ -17,6 +17,8 @@
   - 이 모듈 안의 예외는 막는 쪽으로 끝난다. 모듈 밖의 고장은 hooks.json 의 onFailure: block 이 막는다.
 """
 
+import codecs
+import html
 import json
 import os
 import re
@@ -51,6 +53,9 @@ MSG = {
     "guide": "DIODE V<Vth 막힘 · D2 x%d @안내파일 - CLAUDE.md · AGENTS.md 에 사내 단어가 있어 Claude 가 읽어 갑니다 - 지우거나 옮기세요 (/diode:status)",
     "read_big": "DIODE V<Vth: 파일이 너무 커서 검사하지 못해 읽지 않는다 - 줄이거나 원자료 폴더 목록에 넣으세요",
     "plugin": "DIODE V<Vth: 플러그인 소스는 Claude 가 고치지 않는다 (AL-12)",
+    "read_binary": "DIODE V<Vth: 이진 파일은 사전 검사를 할 수 없어 읽지 않는다 (이미지 · PDF 는 제외 - 알려진 한계)",
+    "mention_raw": "DIODE V<Vth 막힘 · @파일 - 원자료 폴더 안의 파일을 끌어오려 합니다 (안전벨트)",
+    "mention_data": "DIODE V<Vth 막힘 · @파일 - 데이터 폴더의 파일은 끌어오지 않는다 (AL-12)",
     "e20": "DIODE V<Vth 막힘 · E-20 - 사전 · 설정을 읽지 못해 막았습니다 · /diode:setup",
     "unset": "DIODE: 아직 설정하지 않았습니다 - 이 세션은 지켜지지 않습니다 · /diode:setup",
     "hint": " - 사내 말은 말 봉인 칸을 쓰세요",
@@ -161,12 +166,82 @@ def guide_hits(project_dir, user_dir, policy):
                 continue
             with open(f, "rb") as fh:
                 raw = fh.read()
-            if b"\x00" in raw[:8192]:
-                continue
-            n += scan.policy_dict_hits(raw.decode("utf-8", "replace"), policy)
+            hits = _content_hits(raw, policy)
+            n += 1 if hits is None else hits               # 이진 파일이면 검사하지 못한 것 - 막는 쪽
         except Exception:
             n += 1
     return n
+
+
+# 이미지 · PDF 는 내용을 보지 않는다 (알려진 한계) - 그 밖의 이진 파일은 막는다
+_MEDIA_MAGIC = (b"\x89PNG", b"\xff\xd8\xff", b"GIF87a", b"GIF89a", b"%PDF-", b"RIFF", b"\x00\x00\x01\x00")
+_UNICODE_ESC = re.compile(r"\\u([0-9a-fA-F]{4})|\\x([0-9a-fA-F]{2})")
+
+
+def _esc_char(m):
+    cp = int(m.group(1) or m.group(2), 16)
+    return m.group(0) if 0xD800 <= cp <= 0xDFFF else chr(cp)
+
+
+def _unescape(text):
+    """JSON \\uXXXX · \\xHH 이스케이프와 HTML 엔티티를 푼 글 (.ipynb · .json · .html 안의 단어를 본다)."""
+    return html.unescape(_UNICODE_ESC.sub(_esc_char, text))
+
+
+def _utf16_guess(head):
+    """BOM 없는 UTF-16 이면 ("utf-16-le" | "utf-16-be"), 아니면 None - NUL 이 한 칸 걸러 나오는 모양으로 본다."""
+    if len(head) < 4:
+        return None
+    even, odd = head[0::2].count(0), head[1::2].count(0)
+    half = len(head) // 2
+    if odd >= half * 0.3 and even <= half * 0.05:
+        return "utf-16-le"
+    if even >= half * 0.3 and odd <= half * 0.05:
+        return "utf-16-be"
+    return None
+
+
+def _text_variants(raw):
+    """파일 바이트 → 사전 검사에 쓸 글 후보들 (BOM 의 UTF-16/32 · BOM 없는 UTF-16 · UTF-8 · CP949 · 이스케이프를 푼 꼴).
+    알려진 이미지 · PDF 면 [] (보지 않는다) · 읽을 수 없는 이진 파일이면 None (검사하지 못함 - 막는 쪽)."""
+    head = raw[:8192]
+    texts = []
+    if raw.startswith(codecs.BOM_UTF8):
+        raw = raw[3:]
+    if raw.startswith(codecs.BOM_UTF32_LE):
+        texts.append(raw[4:].decode("utf-32-le", "replace"))
+    elif raw.startswith(codecs.BOM_UTF32_BE):
+        texts.append(raw[4:].decode("utf-32-be", "replace"))
+    elif raw.startswith(codecs.BOM_UTF16_LE):
+        texts.append(raw[2:].decode("utf-16-le", "replace"))
+    elif raw.startswith(codecs.BOM_UTF16_BE):
+        texts.append(raw[2:].decode("utf-16-be", "replace"))
+    elif b"\x00" in head:
+        if any(raw.startswith(m) for m in _MEDIA_MAGIC):
+            return []
+        enc = _utf16_guess(head)
+        if enc is None:
+            return None
+        texts.append(raw.decode(enc, "replace"))
+    if not texts:
+        t8 = raw.decode("utf-8", "replace")
+        texts.append(t8)
+        if "\ufffd" in t8:
+            texts.append(raw.decode("cp949", "replace"))       # 한글 윈도우의 기본 인코딩
+    out = list(texts)
+    for t in texts:
+        u = _unescape(t)
+        if u != t:
+            out.append(u)
+    return out
+
+
+def _content_hits(raw, policy):
+    """파일 바이트 속 사전 단어 수 (후보 중 가장 많은 것). 검사할 수 없는 이진 파일이면 None."""
+    variants = _text_variants(raw)
+    if variants is None:
+        return None
+    return max([scan.policy_dict_hits(t, policy) for t in variants] or [0])
 
 
 def mode_of(project_dir, settings):
@@ -199,6 +274,64 @@ ALLOW = (0, "", "")
 
 # ---------------------------------------------------------------- 사건마다
 
+_DIODE_CMD = re.compile(r"^\s*/diode:[a-z-]+\s*$")
+_AT = re.compile(r"""(?:^|[\s(\[{,;])@(?:"([^"\n]{1,400})"|'([^'\n]{1,400})'|([^\s"'`<>|]{1,400}))""")
+_AT_TRIM = ".,;:!?)]}"
+_POSIX_DRIVE = re.compile(r"^/(?:cygdrive/|mnt/)?([A-Za-z])(/.*)?$")
+
+
+def _from_posix_drive(p):
+    """Windows 에서 Git Bash 꼴 (/d/x) 의 경로를 드라이브 경로 (d:/x) 로 - 다른 OS 에서는 그대로."""
+    if os.name == "nt":
+        m = _POSIX_DRIVE.match(p)
+        if m:
+            return "%s:%s" % (m.group(1), m.group(2) or "/")
+    return p
+
+
+def _at_candidates(prompt):
+    out = []
+    for m in _AT.finditer(prompt):
+        p = m.group(1) or m.group(2) or m.group(3)
+        if not p:
+            continue
+        out.append(p)
+        t = p.rstrip(_AT_TRIM)
+        if t and t != p:
+            out.append(t)
+        if len(out) >= 128:
+            break
+    return out
+
+
+def _mention_problem(prompt, project_dir, cwd, settings):
+    """프롬프트의 `@경로` 가 가리키는 파일 - Claude Code 가 도구 호출 없이 내용을 요청에 싣는다. 막는 까닭 글 (없으면 None).
+
+    원자료 폴더 · 데이터 폴더 안이면 막고, 그 밖의 파일은 읽기 도구와 같은 내용 검사 (사전 단어) 를 한다.
+    """
+    if "@" not in prompt:
+        return None
+    bases = [b for b in dict.fromkeys([cwd, project_dir]) if b]
+    for tok in _at_candidates(prompt):
+        p = os.path.expandvars(os.path.expanduser(_from_posix_drive(tok)))
+        cands = [p] if os.path.isabs(p) else [os.path.join(b, p) for b in bases]
+        for c in cands:
+            try:
+                if not os.path.exists(c):
+                    continue
+                if any(inside(c, r) for r in settings.raw_dirs):
+                    return MSG["mention_raw"]
+                if settings.home and inside(c, settings.home):
+                    return MSG["mention_data"]
+                if os.path.isfile(c):
+                    why = _file_problem(c, settings.policy)
+                    if why:
+                        return why
+            except (OSError, ValueError):
+                return MSG["e20"]                                  # 검사하지 못하면 막는다
+    return None
+
+
 def on_prompt(data, settings, project_dir):
     mode, st = mode_of(project_dir, settings)
     if mode == "raw":
@@ -215,12 +348,16 @@ def on_prompt(data, settings, project_dir):
             return _block(MSG["e20"])
         return ALLOW
     if settings.state != "ok":
-        if prompt.lstrip().startswith("/diode:") and mode == "other":
+        if _DIODE_CMD.match(prompt) and mode == "other":        # 인자가 없는 정확한 명령만 (인자는 Claude 에게 붙어 간다)
             return ALLOW
         return _block(MSG["e20"])
     res = scan.check_text(prompt, settings.policy, PROMPT_CHECKS)
     if not res.get("ok"):
         return _block(scan.format_line(res) + MSG["hint"])
+    cwd = data.get("cwd") if isinstance(data.get("cwd"), str) and data.get("cwd") else project_dir
+    mp = _mention_problem(prompt, project_dir, cwd, settings)     # @파일 은 도구를 거치지 않고 내용이 실려 간다
+    if mp:
+        return _block(mp)
     if mode == "other":                      # 안내 파일은 모든 요청에 실린다 — 사내 단어가 있으면 이 프롬프트를 보내지 않는다
         n = guide_hits(project_dir, settings.user_dir, settings.policy)
         if n:
@@ -265,28 +402,51 @@ def inner_denied(tool, ti, entries):
     """안쪽 도구를 Claude 가 직접 부르는가 — 도구 이름 (MCP) · 하위 에이전트 · 스킬 · 셸 명령의 낱말. 대소문자 무시."""
     name = tool.lower()
     for e in entries:
-        if name.startswith("mcp__") and e in name:
+        es = _squash(e)                       # open_code · open-code 처럼 구분자를 넣은 이름도 같은 도구로 본다
+        if name.startswith("mcp__") and (e in name or (es and es in _squash(name))):
             return True
         for key in ("subagent_type", "skill", "name"):
             v = ti.get(key)
-            if isinstance(v, str) and e in v.lower() and tool in ("Agent", "Task", "Skill", "SlashCommand"):
+            if isinstance(v, str) and tool in ("Agent", "Task", "Skill", "SlashCommand") \
+                    and (e in v.lower() or (es and es in _squash(v))):
                 return True
         if tool in ("Bash", "PowerShell"):
             cmd = ti.get("command")
             if not isinstance(cmd, str):
                 return True
-            if re.search(r"(?<![\w-])%s(?![\w-])" % re.escape(e), cmd.lower()):
-                return True
+            low = cmd.lower()
+            for text in (low, re.sub(r"[\"'\\`]", "", low)):          # o"pen"code · open\code 처럼 따옴표 · 역슬래시로 쪼갠 꼴
+                if re.search(r"(?<![\w-])%s(?![\w-])" % re.escape(e), text):
+                    return True
     return False
 
 
-READ_SCAN_MAX = 4 * 1024 * 1024         # 이보다 큰 파일은 검사하지 못하므로 막는다 (막는 쪽으로 실패) [제안]
+def _squash(text):
+    return re.sub(r"[^a-z0-9]", "", text.lower())
+
+
+READ_SCAN_MAX = 2 * 1024 * 1024         # 이보다 큰 파일은 검사하지 못하므로 막는다 (막는 쪽으로 실패) - 인코딩마다 풀어 보므로 훅 시간 10초 안에 [제안]
+
+
+def _file_problem(p, policy):
+    """파일 하나를 Claude 가 읽어 가도 되는가 (사전 D2 · 이름이 아니라 내용) → 막는 까닭 글 (없으면 None)."""
+    if os.path.getsize(p) > READ_SCAN_MAX:
+        return MSG["read_big"]
+    with open(p, "rb") as f:
+        raw = f.read()
+    n = _content_hits(raw, policy)
+    if n is None:
+        return MSG["read_binary"]
+    if n:
+        return "DIODE V<Vth 막힘 · D2 x%d @파일 - 사내 단어가 든 파일은 읽지 않는다 (원자료 폴더 목록에 넣으세요)" % n
+    return None
 
 
 def _read_scan(tool, ti, cwd, settings):
     """`Read` 가 사내 단어가 든 파일을 읽지 않게 — 원자료 폴더 목록 밖의 파일도 내용으로 본다 (사전 D2 만 · 이름이 아니라 내용).
 
-    본 것은 개수만 알린다 (단어 · 경로 없음). 못 보는 것: 이미지 · PDF · 이진 파일 (알려진 한계) · 셸의 `cat`.
+    본 것은 개수만 알린다 (단어 · 경로 없음). 인코딩 (BOM 의 UTF-16/32 · CP949) 과 JSON/HTML 이스케이프를 풀어서 본다.
+    못 보는 것: 이미지 · PDF (알려진 한계) · 셸의 `cat`. 읽을 수 없는 이진 파일은 막는다.
     """
     if tool != "Read" or settings.state != "ok":
         return None
@@ -296,16 +456,8 @@ def _read_scan(tool, ti, cwd, settings):
     p = p if os.path.isabs(p) else os.path.join(cwd, p)
     if not os.path.isfile(p):
         return None                                   # 도구가 스스로 오류를 낸다
-    if os.path.getsize(p) > READ_SCAN_MAX:
-        return _deny(MSG["read_big"])
-    with open(p, "rb") as f:
-        raw = f.read()
-    if b"\x00" in raw[:8192]:
-        return None                                   # 이진 파일은 글로 볼 수 없다
-    n = scan.policy_dict_hits(raw.decode("utf-8", "replace"), settings.policy)
-    if n:
-        return _deny("DIODE V<Vth 막힘 · D2 x%d @파일 - 사내 단어가 든 파일은 읽지 않는다 (원자료 폴더 목록에 넣으세요)" % n)
-    return None
+    why = _file_problem(p, settings.policy)
+    return _deny(why) if why else None
 
 
 _DRIVE = re.compile(r"^([a-z]):(/.+)$")
@@ -333,12 +485,38 @@ def _path_forms(path):
 _DATA_NAMES = re.compile(r"diode[/\\]+(?:dictionary|config|audit|queue|work|usage|tmp|libnames|jobs)", re.I)
 
 
+_SHELL_TOK = re.compile(r"""[^\s;&|<>()"'`]+""")
+_SHELL_QUOTED = re.compile(r"""\"([^"\n]+)\"|'([^'\n]+)'""")
+
+
+def _shell_paths(cmd, cwd):
+    """셸 명령의 낱말들을 경로로 푼다 - 상대 경로 · ~ · 환경 변수 · Git Bash 드라이브 꼴. (셸은 벽이 아니다 - 흔한 꼴만)"""
+    toks = _SHELL_TOK.findall(cmd)[:400]
+    toks += [a or b for a, b in _SHELL_QUOTED.findall(cmd)][:100]
+    out = []
+    for raw in toks:
+        for tok in ((raw,) + ((raw.split("=", 1)[1],) if "=" in raw else ())):
+            if not tok or (tok.startswith("-") and "/" not in tok and "\\" not in tok):
+                continue
+            t = os.path.expandvars(os.path.expanduser(_from_posix_drive(tok)))
+            full = t if os.path.isabs(t) else os.path.join(cwd, t)
+            pathlike = ("/" in t or "\\" in t or t.startswith((".", "~")))
+            try:
+                if pathlike or os.path.exists(full):
+                    out.append(full)
+            except (OSError, ValueError):
+                continue
+    return out
+
+
 def _mentions_data(cmd, home, cwd):
     """셸 명령이 데이터 폴더 (사전 · 설정 · 기록) 를 건드리는가 — 경로 · 폴더 이름 · cwd. 셸은 벽이 아니다 (알려진 한계)."""
     if home and inside(cwd, home):
         return True
     c = cmd.replace("\\", "/").lower()
     if home and any(f in c for f in _path_forms(home)):
+        return True
+    if home and any(inside(p, home) for p in _shell_paths(cmd, cwd)):
         return True
     return bool(_DATA_NAMES.search(cmd.replace("\\", "/")))
 
@@ -439,7 +617,9 @@ def _mentions_raw(cmd, raw_dirs, cwd):
     if any(overlaps(cwd, r) for r in raw_dirs):
         return True
     c = cmd.replace("\\", "/").lower()
-    return any(f in c for r in raw_dirs for f in _path_forms(r))
+    if any(f in c for r in raw_dirs for f in _path_forms(r)):
+        return True
+    return any(inside(p, r) for p in _shell_paths(cmd, cwd) for r in raw_dirs)
 
 
 def on_session(data, settings, project_dir):
