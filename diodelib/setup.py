@@ -163,12 +163,20 @@ def run_setup(home, plugin_root=None, path=None, launch=None):
     if not ready:
         out.append("정책 (사전 · 원자료 폴더) 이 비어 있어 정책 창을 엽니다 — 창에서 직접 입력하고 [저장] 하세요")
         out.append("단어는 이 대화로 보내지 않습니다 (입력하면 곧바로 Claude 로 나갑니다)")
+        opened = True
         if launch is not None:
             launch()
         else:
             from . import policy_window
-            policy_window.launch_detached(sys.executable, os.path.join(plugin_root or room.PLUGIN_ROOT, "diode.py"))
-        out.append("저장한 뒤 /diode:setup 을 다시 실행하면 방을 만들고 점검합니다")
+            if policy_window.can_open():
+                policy_window.launch_detached(sys.executable, os.path.join(plugin_root or room.PLUGIN_ROOT, "diode.py"))
+            else:
+                opened = False
+        if opened:
+            out.append("저장한 뒤 /diode:setup 을 다시 실행하면 방을 만들고 점검합니다")
+        else:
+            out[:] = ["정책 (사전 · 원자료 폴더) 이 비어 있는데 정책 창을 띄울 수 없습니다 (E-07) - 화면이 없거나 이 파이썬에 tkinter 가 없습니다",
+                      "정책은 정책 창에서만 바뀌므로 화면이 있는 PC 에서 /diode:dict 를 여세요"]
         lines, code = check(home, plugin_root)
         return out + lines, (code if code else 3)
     mlines, mcode = make_room(home, path, plugin_root)

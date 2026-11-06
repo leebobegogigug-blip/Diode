@@ -314,6 +314,19 @@ ASK: <ask>
 | `policy.web_search` | `true` | 방 세션의 웹 검색 (Q9) |
 | `policy.inner_tools` | `[]` (코드의 기본 `opencode` 는 늘 포함) | 안쪽 도구의 이름 조각 — 어느 폴더에서 열었든 Claude 가 직접 부르면 막는다 (SP-11) · 창에서만 |
 
+### 정책 창 (`diode.py policy` · `/diode:dict`)
+
+- 사전 · 원자료 폴더 · 안쪽 도구 · 라이브러리 허용 · 정규식 · 일꾼 · 선택 (웹 검색 · 실데이터 · 월 예산 · 방 자리 · `llm`) 은 **사람이 이 창에서만** 바꾼다 (AL-10 · AL-12). 사내 단어를 대화에 치면 곧바로 Claude 로 나가므로 슬래시 명령은 단어를 묻지도 받지도 않는다 — 창을 열어 줄 뿐이다. 코드: [diodelib/policy_window.py](../diodelib/policy_window.py) (논리 `PolicySession` + 화면 `TkView`) · 저장은 [diodelib/config.py](../diodelib/config.py).
+- **쓰는 길은 하나**: 사람이 [저장] 을 누르면 검증을 거쳐 `config.apply_state` 가 원자적으로 쓴다. 환경 변수 · 명령줄 인자 · 파일로 값을 밀어 넣는 길 · 조용한 저장 · 시험 전용 우회가 없다 (읽는 환경 변수는 `DISPLAY` · `WAYLAND_DISPLAY` 뿐). 시험은 `create_view` 를 바꿔 끼워서만 한다.
+- **칸 ↔ 글**: 여러 줄 칸은 한 줄에 하나 (`#` 로 시작해도 단어다 — 주석이 아니다) · 일꾼 명령은 한 줄 JSON 목록 · `llm` 은 JSON 객체. 틀리면 칸 이름과 줄 번호만 알리고 아무것도 쓰지 않는다 (틀린 값은 쓰지 않는다).
+- **보이지 않는 글자** (제어 · 서식 · 영폭 공백 · 변이 선택자) 는 모든 글 칸에서 `[U+XXXX]` 로 알리고 막는다 (확정 창과 같은 판정).
+- **실데이터**: 새로 켜려면 확인 글 칸에 정확히 `보안 승인 받음` 을 쳐야 한다 (끄는 데는 필요 없다).
+- **저장된 `llm` 키 · 헤더 값은 화면에 가려서** `설정됨 (n자 · 값은 표시 안 함)` 으로만 보이고 저장해도 그대로 남는다. 새로 글자 그대로 적은 키는 막고 `{file:경로}` 참조만 받는다 (`{env:}` 는 받지 않는다). 칸을 비우면 지우는 것이 아니라 그대로 둔다.
+- **깨진 파일**: 사전 · 설정을 따로 읽는다 (`config.load_state_tolerant`) — 한쪽만 깨졌으면 멀쩡한 쪽의 값은 살려서 열고, 저장하면 깨진 파일은 `.broken` 으로 옮긴다. 더 새 format 이면 열지 않는다 (`E-20` · `newer`).
+- **결과** (표준 출력 한 줄 · 코드 · 개수 · 참거짓뿐): `{"saved": true, "counts": {…}, "warnings": [<코드>]}` 종료 `0` · `{"saved": false}` `3` (저장 없이 닫음) · `{"saved": false, "error": "E-07"}` `1` (화면 · tkinter 없음) · `{"saved": false, "error": "E-20", "code": "newer"}` · `{"saved": false, "error": "E-20"}` `1`. 경고 코드: `short` `raw_missing` `words_empty` `raw_empty`.
+- `/diode:dict` 는 창을 **따로 떼어** 열고 기다리지 않는다 (`launch_detached`). 띄우기 전에 화면 · tkinter 를 확인해 못 띄우면 `E-07` 로 알린다 (열었다고 거짓말하지 않는다). 저장했는지는 `/diode:status` 의 개수로 본다.
+- 창을 둘 띄우면 나중에 저장한 쪽이 이긴다 (파일 하나하나는 원자적이라 깨지지 않는다 · 잠금은 두지 않는다).
+
 - 사전은 따로 된 파일 `%LOCALAPPDATA%\diode\dictionary.json` (`{"format": 1, "words": [..]}`) · 창 · `/diode:dict` 로만 바꾼다 · 비면 seal 을 막는다.
 - `--set` 으로 바꿀 수 없는 키: `policy.*` · `llm.*` · 사전 (AL-12). 테스트는 `DIODE_HOME` 으로 데이터 폴더를 옮기되, 기본 자리가 아니면 보내기 · 넘기기를 막는다 (`E-20`).
 

@@ -119,11 +119,38 @@ def _sub(cfg, name):
 
 
 def load_state(home):
-    """창이 보여 줄 현재 값 (안쪽 PC 안에서만 쓴다 — 단어 · 경로가 든다). 처음이면 기본값."""
-    cfg = read_config(home)
+    """창이 보여 줄 현재 값 (안쪽 PC 안에서만 쓴다 — 단어 · 경로가 든다). 처음이면 기본값. 깨졌으면 ConfigError."""
+    return _state_from(read_config(home), read_words(home))
+
+
+def load_state_tolerant(home):
+    """파일마다 따로 읽는다 — 하나만 깨졌으면 멀쩡한 쪽의 값은 살린다 → (상태, 깨진 파일 목록 ["config" · "dictionary"]).
+
+    정책 창이 쓴다: 한쪽이 깨졌다고 모든 칸을 비워 열면 저장할 때 멀쩡한 파일의 값을 빈 값으로 덮어 잃는다.
+    더 새 format (newer) 은 어느 쪽이든 ConfigError 그대로 — 창을 열지 않는다.
+    """
+    broken = []
+    try:
+        cfg = read_config(home)
+    except ConfigError as e:
+        if e.code != "broken":
+            raise
+        cfg = {"format": FORMAT}
+        broken.append("config")
+    try:
+        words = read_words(home)
+    except ConfigError as e:
+        if e.code != "broken":
+            raise
+        words = []
+        broken.append("dictionary")
+    return _state_from(cfg, words), broken
+
+
+def _state_from(cfg, words):
     pol, wk, cl, rm = _sub(cfg, "policy"), _sub(cfg, "worker"), _sub(cfg, "claude"), _sub(cfg, "room")
     return {
-        "words": read_words(home),
+        "words": words,
         "raw_dirs": list(pol.get("raw_dirs") or []),
         "inner_tools": list(pol.get("inner_tools") or []),
         "lib_allow": list(pol.get("lib_allow") or []),

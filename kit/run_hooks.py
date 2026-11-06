@@ -118,14 +118,71 @@ def scenarios(lay):
          "tool_input": {"file_path": os.path.join(lay["other"], "internal-note.txt")},
          "write": {os.path.join(lay["other"], "internal-note.txt"): "메모: %s 프로젝트 일정\n" % word},
          "args": ["--allowedTools", "Read"], "expect": "deny_nodict"},
+        {"id": "R21", "what": "슬래시 명령 /diode:dict — 정책 창이 따로 떼어져 뜨고 (기다리지 않음) 단어 없는 한 줄이 Claude 에게 간다", "cwd": "other",
+         "prompt": "/diode:dict", "expect": "window", "needs_display": True, "python_tk": True},
+        {"id": "R23", "what": "슬래시 명령 /diode:dict — tkinter 가 없는 파이썬이면 창을 열었다고 하지 않고 E-07 로 실패 (모델 요청 0)", "cwd": "other",
+         "prompt": "/diode:dict", "expect": "window_unavailable", "needs_display": True},
+        {"id": "R22", "what": "슬래시 명령 /diode:setup 첫 실행 (정책 없음) — 정책 창이 뜨고 방은 만들지 않으며 점검 결과가 Claude 에게 간다", "cwd": "other",
+         "prompt": "/diode:setup", "no_data": True, "expect": "window", "needs_display": True, "python_tk": True},
         {"id": "R17", "what": "슬래시 명령 /diode:status — ${CLAUDE_PLUGIN_ROOT} 가 풀리고 점검 결과가 Claude 에게 가며 사전 단어는 없다", "cwd": "other",
          "prompt": "/diode:status", "expect": "cmd_status"},
     ]
 
 
+def python_tk_dir(work):
+    """`python` 이 tkinter 가 있는 파이썬을 가리키는 PATH 앞자리 (없으면 그냥 빈 폴더)."""
+    d = os.path.join(work, "tkbin")
+    os.makedirs(d, exist_ok=True)
+    for cand in ("/usr/bin/python3.12", "/usr/bin/python3"):
+        if os.path.exists(cand):
+            link = os.path.join(d, "python")
+            if not os.path.exists(link):
+                os.symlink(cand, link)
+            break
+    return d
+
+
+def policy_windows():
+    """떠 있는 정책 창 프로세스의 pid 들 (Linux · /proc 의 인자 목록이 정확히 [.., diode.py, policy] 인 것만)."""
+    pids = []
+    if not os.path.isdir("/proc"):
+        return pids
+    for d in os.listdir("/proc"):
+        if not d.isdigit():
+            continue
+        try:
+            with open("/proc/%s/cmdline" % d, "rb") as f:
+                argv = f.read().split(b"\0")
+        except OSError:
+            continue
+        argv = [x for x in argv if x]
+        if len(argv) >= 3 and argv[-1] == b"policy" and argv[-2].endswith(b"diode.py"):
+            pids.append(int(d))
+    return pids
+
+
+def policy_windows_since(before):
+    return [p for p in policy_windows() if p not in before]
+
+
+def kill_policy_windows(before):
+    import signal
+    now = [p for p in policy_windows() if p not in before]
+    for pid in now:
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except OSError:
+            pass
+    return len(now)
+
+
 def run_one(sc, a, work, lay):
     out = os.path.join(a.out, sc["id"])
     shutil.rmtree(out, ignore_errors=True)
+    if sc.get("needs_display") and not os.environ.get("DISPLAY"):
+        return {"id": sc["id"], "what": sc["what"], "expect": sc["expect"], "pass": True, "skipped": True, "exit": None,
+                "messages_requests": 0, "leaked": [], "seconds": 0, "stderr_tail": "DISPLAY 없음 - 건너뜀"}
+    windows_before = policy_windows()
     home = os.path.join(work, "home-" + sc["id"])
     os.makedirs(home, exist_ok=True)
     if not sc.get("no_data"):
@@ -142,6 +199,8 @@ def run_one(sc, a, work, lay):
     extra = {}
     if sc.get("bad_python"):
         extra["PATH"] = broken_python_dir(work) + os.pathsep + os.environ.get("PATH", "")
+    if sc.get("python_tk"):                                    # tkinter 가 있는 파이썬을 `python` 으로 (훅 · 명령이 이름으로 부른다)
+        extra["PATH"] = python_tk_dir(work) + os.pathsep + os.environ.get("PATH", "")
     if os.name == "nt":
         extra["LOCALAPPDATA"] = os.path.join(home, "AppData", "Local")
     cmd = [a.claude, "-p", sc["prompt"], "--output-format", "json", "--model", rk.MODEL, "--plugin-dir", REPO]
@@ -161,6 +220,9 @@ def run_one(sc, a, work, lay):
             if os.path.exists(wp):
                 os.remove(wp)
     res = rk.analyze(out, lay, sc)
+    res["stdout"] = stdout or ""
+    time.sleep(0.5)
+    spawned = kill_policy_windows(windows_before) if sc.get("expect") == "window" else 0
     created = bool(sc.get("must_not_exist")) and os.path.exists(sc["must_not_exist"])
     if created:
         os.remove(sc["must_not_exist"])
@@ -173,6 +235,11 @@ def run_one(sc, a, work, lay):
         ok = "DIODE" in trs and not leaked and not created
     elif sc["expect"] == "deny_nodict":
         ok = "DIODE" in trs and "dict_word" not in res["found"] and not leaked
+    elif sc["expect"] == "window_unavailable":
+        ok = n == 0 and "E-07" in res["stdout"] and spawned == 0 and not policy_windows_since(windows_before)
+    elif sc["expect"] == "window":
+        body = json.dumps([d.get("body") for d in rk.load_dumps(out)], ensure_ascii=False)
+        ok = n > 0 and spawned >= 1 and ("정책 창" in body) and "dict_word" not in res["found"] and not leaked
     elif sc["expect"] == "cmd_status":
         body = json.dumps([d.get("body") for d in rk.load_dumps(out)], ensure_ascii=False)
         ok = n > 0 and "결과:" in body and "CLAUDE_PLUGIN_ROOT" not in body.replace("${CLAUDE_PLUGIN_ROOT}/diode.py", "") \

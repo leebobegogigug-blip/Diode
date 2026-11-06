@@ -4,7 +4,7 @@
 
   diode.py version | help | check | scan | hook <session|prompt|tool>
 
-개발 중 (v0.0) — 훅 (hook) · 검사기 (scan) 는 있다. 허브 · 확정 창은 아직 없다 (docs/PLAN.md › 10 로드맵).
+개발 중 (v0.0) — 훅 · 허브 · 확정 창 · 정책 창 · 명령까지 있다. 합성 자료로만 시험했다 (사내 확인 전 · docs/PLAN.md › 10 로드맵).
 아직 없는 명령 (mcp · --statusline · --status · propose · confirm · lib) 은 종료 코드 2 로 끝난다.
 hook 은 Claude Code 훅 (SP-11) — 플러그인 hooks/hooks.json 이 부른다.
 scan 은 표준 입력의 글을 검사한다 (D2 · D3 · D5) — 종료 코드 0 통과 · 2 막음 (SP-16 · 훅과 같은 뜻).
@@ -31,7 +31,7 @@ PENDING = (
 )
 PENDING_FLAGS = ()
 
-HELP = """%s %s — Claude Code 플러그인 (개발 중 · v0.0 · 훅만 있습니다)
+HELP = """%s %s — Claude Code 플러그인 (개발 중 · v0.0 · 합성 자료로만 시험했습니다)
 
 사용법: python diode.py <명령>
 
@@ -173,6 +173,10 @@ def setup_command(name, args, out, err):
             return code
         if name == "dict":                                     # 정책 창을 따로 떼어 연다 (기다리지 않는다)
             from diodelib import policy_window
+            if not policy_window.can_open():
+                err.write("정책 창을 띄울 수 없습니다 (E-07) - 화면이 없거나 이 파이썬에 tkinter 가 없습니다. "
+                          "정책은 이 창에서만 바뀌므로 화면이 있는 PC 에서 여세요\n")
+                return FAIL
             policy_window.launch_detached(sys.executable, os.path.abspath(__file__))
             out.write("정책 창을 열었습니다 - 사전 · 원자료 폴더 · 안쪽 도구 · 일꾼을 창에서 직접 입력하고 [저장] 하세요 "
                       "(단어는 이 대화로 보내지 않습니다). 저장한 뒤 /diode:status 로 개수를 보세요\n")

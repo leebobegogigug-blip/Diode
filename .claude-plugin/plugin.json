@@ -2,7 +2,7 @@
   "name": "diode",
   "displayName": "Diode",
   "version": "0.0.1",
-  "description": "사내 LLM 과 Claude 사이를 한 방향으로만 흐르게 하는 Claude Code 플러그인. 개발 중 (v0.0) — 훅만 있다 (허브 · 확정 창이 없어 아직 쓸 수 없다).",
+  "description": "사내 LLM 과 Claude 사이를 한 방향으로만 흐르게 하는 Claude Code 플러그인. 개발 중 (v0.0) — 합성 자료로만 시험했다 (사내 확인 전이라 실데이터에는 쓰지 않는다).",
   "author": {"name": "diode"},
   "repository": "https://github.com/leebobegogigug-blip/Diode",
   "license": "MIT",

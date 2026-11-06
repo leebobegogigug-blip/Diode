@@ -170,6 +170,19 @@ class RunSetup(Base):
         self.assertIn("방을 만들었습니다", lines[0])
         self.assertEqual(code, 0)
 
+    def test_a_missing_screen_is_reported_instead_of_pretending(self):
+        from unittest import mock
+        from diodelib import policy_window
+        with mock.patch.object(policy_window, "can_open", return_value=False), \
+                mock.patch.object(policy_window, "launch_detached") as launch:
+            lines, code = setup.run_setup(self.home, path=self.room)
+        text = "\n".join(lines)
+        self.assertIn("E-07", text)
+        self.assertNotIn("정책 창을 엽니다", text)
+        launch.assert_not_called()
+        self.assertFalse(os.path.exists(self.room))
+        self.assertNotEqual(code, 0)
+
     def test_broken_config_does_not_open_the_window(self):
         os.makedirs(self.home)
         with open(config.config_path(self.home), "w") as f:
@@ -225,6 +238,75 @@ class Cli(Base):
             code, out, err = self._run(*argv)
             self.assertEqual((code, out), (2, ""), argv)
             self.assertIn("사용법 오류", err)
+
+
+class PolicyCommands(Base):
+    """diode.py dict · policy — 창을 띄우는 함수만 가짜로 (Windows CI 에서 진짜 창이 뜨지 않게). 출력에 단어 없음."""
+
+    def _main(self, *argv):
+        import io
+        from unittest import mock
+        sys.path.insert(0, ROOT)
+        import diode as cli
+        out, err = io.StringIO(), io.StringIO()
+        with mock.patch.dict(os.environ, {"HOME": self.tmp, "USERPROFILE": self.tmp,
+                                          "LOCALAPPDATA": os.path.join(self.tmp, "AppData", "Local")}):
+            os.environ.pop("DIODE_HOME", None)
+            code = cli.main(list(argv), out=out, err=err)
+        return code, out.getvalue(), err.getvalue()
+
+    def test_dict_opens_the_window_detached_and_says_nothing_about_words(self):
+        from unittest import mock
+        from diodelib import policy_window
+        with mock.patch.object(policy_window, "can_open", return_value=True), \
+                mock.patch.object(policy_window, "launch_detached", return_value=4242) as launch:
+            code, out, err = self._main("dict")
+        self.assertEqual((code, err), (0, ""))
+        launch.assert_called_once()
+        args = launch.call_args[0]
+        self.assertEqual(os.path.basename(args[1]), "diode.py")
+        self.assertIn("정책 창을 열었습니다", out)
+        self.assertIn("단어는 이 대화로 보내지 않습니다", out)
+
+    def test_dict_says_so_when_a_window_cannot_open(self):
+        from unittest import mock
+        from diodelib import policy_window
+        with mock.patch.object(policy_window, "can_open", return_value=False), \
+                mock.patch.object(policy_window, "launch_detached") as launch:
+            code, out, err = self._main("dict")
+        self.assertEqual((code, out), (1, ""))
+        self.assertIn("E-07", err)
+        launch.assert_not_called()                                              # 못 띄우면 띄운 척하지 않는다
+
+    def test_dict_failing_to_launch_is_reported_not_silent(self):
+        from unittest import mock
+        from diodelib import policy_window
+        with mock.patch.object(policy_window, "can_open", return_value=True), \
+                mock.patch.object(policy_window, "launch_detached", side_effect=OSError("x")):
+            code, out, err = self._main("dict")
+        self.assertEqual((code, out), (1, ""))
+        self.assertIn("E-20", err)
+
+    def test_policy_prints_one_json_line_and_exit_code(self):
+        from unittest import mock
+        from diodelib import policy_window
+        for result, want in (((0, '{"saved": true}'), 0), ((3, '{"saved": false}'), 3), ((1, '{"saved": false, "error": "E-07"}'), 1)):
+            with mock.patch.object(policy_window, "main_policy", return_value=result) as m:
+                code, out, err = self._main("policy")
+            self.assertEqual((code, out.strip()), (want, result[1]))
+            self.assertEqual(os.path.basename(m.call_args[0][0]), "diode")           # 기본 데이터 폴더 하나만 받는다
+
+    @unittest.skipIf(os.name == "nt", "Windows 는 화면이 있다고 본다")
+    def test_policy_without_a_display_is_e07_and_creates_nothing(self):
+        import subprocess
+        env = dict(os.environ)
+        env.update({"HOME": self.tmp, "USERPROFILE": self.tmp, "PYTHONIOENCODING": "utf-8"})
+        for k in ("DISPLAY", "WAYLAND_DISPLAY", "DIODE_HOME"):
+            env.pop(k, None)
+        p = subprocess.run([sys.executable, os.path.join(ROOT, "diode.py"), "policy"], stdout=subprocess.PIPE,
+                           stderr=subprocess.PIPE, env=env, timeout=60)
+        self.assertEqual((p.returncode, json.loads(p.stdout.decode("utf-8"))), (1, {"saved": False, "error": "E-07"}))
+        self.assertFalse(os.path.exists(os.path.join(self.tmp, ".local", "share", "diode", "dictionary.json")))
 
 
 if __name__ == "__main__":

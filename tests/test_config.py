@@ -153,6 +153,37 @@ class Damaged(Base):
         with self.assertRaises(config.ConfigError):
             config.apply_state(self.home, self.state())
 
+    def test_tolerant_load_keeps_the_intact_file(self):
+        # 사전만 깨짐 → 설정의 값은 살린다 · 설정만 깨짐 → 사전은 살린다 (저장할 때 멀쩡한 파일을 빈 값으로 덮지 않게)
+        config.apply_state(self.home, self.state())
+        with open(config.dictionary_path(self.home), "w") as f:
+            f.write("[]")
+        st, broken = config.load_state_tolerant(self.home)
+        self.assertEqual((broken, st["words"], len(st["raw_dirs"]), st["worker_command"][:2]),
+                         (["dictionary"], [], 1, ["opencode", "run"]))
+        config.apply_state(self.home, st)                                       # 저장해도 설정의 정책 값이 그대로
+        self.assertEqual(config.counts(self.home)["raw_dirs"], 1)
+        self.assertTrue(config.counts(self.home)["worker"])
+
+        config.apply_state(self.home, self.state())
+        with open(config.config_path(self.home), "w") as f:
+            f.write("{")
+        st, broken = config.load_state_tolerant(self.home)
+        self.assertEqual((broken, len(st["words"]), st["raw_dirs"]), (["config"], 2, []))
+
+    def test_tolerant_load_both_broken_and_newer(self):
+        os.makedirs(self.home)
+        for p in (config.config_path(self.home), config.dictionary_path(self.home)):
+            with open(p, "w") as f:
+                f.write("{")
+        st, broken = config.load_state_tolerant(self.home)
+        self.assertEqual((sorted(broken), st["words"]), (["config", "dictionary"], []))
+        with open(config.config_path(self.home), "w") as f:
+            json.dump({"format": 2}, f)
+        with self.assertRaises(config.ConfigError) as cm:
+            config.load_state_tolerant(self.home)
+        self.assertEqual(cm.exception.code, "newer")
+
     def test_broken_dictionary_is_set_aside(self):
         os.makedirs(self.home)
         with open(config.dictionary_path(self.home), "w") as f:
