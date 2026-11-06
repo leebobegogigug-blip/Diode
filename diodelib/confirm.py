@@ -54,6 +54,7 @@ import time
 import unicodedata
 
 from . import scan
+from .render import SAMPLE_HEAD
 
 # ---------------------------------------------------------------- 상수
 
@@ -102,6 +103,8 @@ TEXT_AUDIT = "이 내용이 감사 기록에 남습니다"
 TEXT_EFFORT_ENV = "‼ 환경 변수 CLAUDE_CODE_EFFORT_LEVEL 이 effort 를 덮어씁니다"
 TEXT_INNER_WORDS = "이 글은 토큰을 되돌린 지시라 사내 말이 보일 수 있습니다 (이 창 안에서만)"
 TEXT_HIDDEN = "‼ 보이지 않는 글자 %d개가 있어 [U+XXXX] 꼴로 표시했습니다"
+TEXT_SAMPLE = ("‼ 표가 들어 있습니다 (%d열 · %d행) - 이 표는 실값에서 줄인 값이고, 재식별이 안 된다고 증명할 수 없습니다 "
+               "(열 · 칸을 글 그대로 보세요)")
 TEXT_CHECK_BLOCKED = "검사에 걸린 글이라 보낼 수 없습니다 - [고치기] 로 돌아가세요"
 TEXT_APPROVED = "보내기를 눌렀습니다 - [복사] 를 누르면 클립보드에 넣고 끝납니다 (복사 = 보냄)"
 TEXT_COPY_FAILED = "클립보드에 넣지 못했습니다 - 다시 눌러 보거나 [버리기] 를 누르세요"
@@ -334,6 +337,24 @@ Panels = collections.namedtuple(
     "Panels", "chip title subtitle text_info segments check_line check_ok files route notices act_note send_label")
 
 
+def sample_shape(text):
+    """보낼 글 안의 파생 표본 표 (SP-03 의 닫힌 틀) -> (열 수, 행 수) 또는 None. 허브가 알려 주는 값이 아니라 글에서 직접 센다."""
+    lines = text.split("\n")
+    for i, line in enumerate(lines):
+        if line != SAMPLE_HEAD:
+            continue
+        head = lines[i + 1] if i + 1 < len(lines) else ""
+        if not (head.startswith("| ") and head.endswith(" |")):
+            return None
+        rows = 0
+        for r in lines[i + 3:]:
+            if not (r.startswith("| ") and r.endswith(" |")):
+                break
+            rows += 1
+        return head.count(" | ") + 1, rows
+    return None
+
+
 def _mmss(seconds):
     return "%02d:%02d" % divmod(max(0, int(seconds)), 60)
 
@@ -356,6 +377,9 @@ def build_panels(req):
         notices.append((TEXT_EFFORT_ENV, "alert"))
     if hidden:
         notices.append((TEXT_HIDDEN % hidden, "alert"))
+    shape = sample_shape(req.text) if out and req.kind in ("plan", "ui") else None
+    if shape:
+        notices.append((TEXT_SAMPLE % shape, "alert"))
     if not out:
         notices.append((TEXT_INNER_WORDS, "note"))
     notices.append((TEXT_IRREVERSIBLE[req.direction], "strong"))

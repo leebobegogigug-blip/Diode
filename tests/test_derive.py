@@ -585,9 +585,14 @@ class EndToEnd(Base):
         self.assertEqual(len(files), 1)
         with open(files[0], encoding="utf-8") as f:
             rec = json.load(f)
-        self.assertEqual(set(rec), {"format", "at", "job", "direction", "kind", "transforms", "columns", "rows"})
+        self.assertEqual(set(rec), {"format", "at", "job", "direction", "kind", "transforms", "columns", "rows",
+                                    "tokens", "table_sha256"})
         self.assertEqual((rec["direction"], rec["kind"], rec["columns"], rec["rows"], rec["transforms"]),
                          ("derive", "derive", 3, 50, {"bucket": 1, "rank": 1, "category": 1}))
+        with open(self.out_path(), encoding="utf-8") as f:
+            sample = json.load(f)["sample"]
+        self.assertEqual(rec["table_sha256"], audit.table_sha256(sample))        # 표 글의 해시 · 토큰 수 (값 · 이름 · 토큰은 없다)
+        self.assertEqual(rec["tokens"], len(derive.sample_tokens(sample)))
         self.assertEqual(audit.confirmed_hashes(self.home), set())              # 보낸 것이 아니라서 확정 목록에 끼지 않는다
         self.assertEqual(audit.job_states(self.home), [])
 

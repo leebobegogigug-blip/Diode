@@ -27,6 +27,11 @@ def sample_lines(sample):
     return out
 
 
+def sample_text(sample):
+    """sample -> 펼친 글에 들어가는 표 그대로의 글 (줄 사이 \\n · 끝에 줄바꿈 하나). 창이 보이고 보내는 바이트와 같다."""
+    return "\n".join(sample_lines(sample)) + "\n"
+
+
 def _t(s):
     return prepare(s)
 

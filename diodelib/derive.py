@@ -19,7 +19,11 @@
   - 열 · 변환은 사람이 터미널에서 직접 고른다 (표준 입력). 고른 것은 파일에 저장하지 않는다.
 
 한도 (넘으면 거절): 열 8 · 행 50 · 행 수 k x 2 미만 거절 (작은 표는 한 행이 곧 식별) · 한 주제 (job) 의 파생 누계 행 200 (L-05).
-감사 기록에는 변환 종류별 열 수 · 행 수만 남긴다 (audit.derive_record - 값 · 열 이름 · 토큰 없음).
+감사 기록에는 변환 종류별 열 수 · 행 수 · 토큰 수 · 표 글의 sha256 만 남긴다 (audit.derive_record - 값 · 열 이름 · 토큰 없음).
+
+만든 초안이 나가는 길 (propose · 허브 · SP-18): 초안의 sample 표 글이 위 감사 기록의 sha256 과 맞아야 한다 (check_draft).
+가명 표는 이 프로세스의 메모리에만 있다가 사라지므로 (D6) 허브의 표에는 이 토큰이 없다 - 그래서 이 초안의 토큰은 "일방향 토큰" 이다:
+되돌릴 진짜 단어가 없고 (U1 에서는 모르는 토큰), D6 은 기록에 적힌 토큰 수 안의 정확한 꼴이면 통과시킨다.
 
 출력은 코드 · 개수뿐이다 (AL-11) - 열 이름 · 값 · 경로 · 입력한 글을 찍지 않는다. 사람에게 묻는 글에도 열 이름은 없다.
 종료 코드 (S-03): 0 만듦 · 1 점검 실패 (그 밖의 예외) · 2 사용법 · 꼴 오류 (검사에 걸림 포함) · 3 사람 확인 필요 (꺼짐 · 터미널 아님).
@@ -249,6 +253,72 @@ def make_draft(sample):
     return {"format": 1, "kind": "plan", "data_class": "real", "goal": DRAFT_GOAL, "ask": DRAFT_ASK, "sample": sample}
 
 
+# ---------------------------------------------------------------- 만든 초안이 나가는 길 (propose · 허브가 쓴다)
+
+SAMPLE_KINDS = ("plan", "ui")   # sample 을 가질 수 있는 종류 (SP-02)
+DRAFT_KEYS = frozenset(["format", "kind", "data_class", "goal", "ask", "sample"])     # derive 가 만드는 초안의 칸 그대로
+
+
+def draft_shape_ok(draft):
+    """derive 가 만든 초안의 꼴인가: plan · ui · 칸이 DRAFT_KEYS 뿐 (entities · fields · context 없음) · data_class real · sample 이 사전.
+
+    일꾼 (사내 LLM) 이 쓴 plan · ui 를 받는 문이 아니다 - 칸이 이보다 많거나 sample 이 없으면 거절한다. 글 · 값을 담지 않는다.
+    """
+    return isinstance(draft, dict) and set(draft) == DRAFT_KEYS and draft.get("kind") in SAMPLE_KINDS \
+        and draft.get("data_class") == "real" and isinstance(draft.get("sample"), dict) and draft.get("format") == 1
+
+
+def draft_table_sha256(draft):
+    """초안의 sample 이 펼쳐질 표 글의 sha256. sample 의 꼴이 틀려 펼칠 수 없으면 DeriveError(E-04)."""
+    try:
+        return audit.table_sha256(draft["sample"])
+    except Exception:
+        raise DeriveError(E_SHAPE)
+
+
+def sample_tokens(sample):
+    """sample 에 나온 가명 토큰 (열 이름 · 범주 칸 · PH_other 는 묶음 표지라 뺀다) 의 집합. 정확한 꼴이 아니면 DeriveError(E-04)."""
+    try:
+        out = set()
+        for c in sample["columns"]:
+            out.add(c["token"])
+        for row in sample["rows"]:
+            for cell in row:
+                if isinstance(cell, str) and cell != SAMPLE_OTHER:
+                    out.add(cell)
+        if any(not isinstance(t, str) or not scan.TOKEN_RE.fullmatch(t) for t in out):
+            raise DeriveError(E_SHAPE)
+        return frozenset(out)
+    except DeriveError:
+        raise
+    except Exception:
+        raise DeriveError(E_SHAPE)
+
+
+def check_draft(draft, rec):
+    """초안이 derive 의 감사 기록 rec (audit.derive_find 의 결과) 과 맞는가 -> 일방향 토큰의 집합. 아니면 DeriveError(E-04).
+
+    표 글의 sha256 은 찾을 때 이미 맞았다. 여기서는 열 수 · 행 수 · 열 종류 · 토큰 수가 기록 안인지 한 번 더 본다 (기록이 틀어졌을 때를 위한 겹).
+    """
+    if not draft_shape_ok(draft) or not isinstance(rec, dict):
+        raise DeriveError(E_SHAPE)
+    sample = draft["sample"]
+    tokens = sample_tokens(sample)
+    try:
+        cols, rows = sample["columns"], sample["rows"]
+        numeric = sum(1 for c in cols if c["kind"] == "수치")
+        categoric = sum(1 for c in cols if c["kind"] == "범주")
+        tf = rec["transforms"]
+        ok = len(cols) == rec["columns"] and len(rows) == rec["rows"] \
+            and numeric == tf["bucket"] + tf["rank"] and categoric == tf["category"] \
+            and 0 < len(tokens) <= rec["tokens"] <= audit.MAX_DERIVE_TOKENS
+    except Exception:
+        ok = False
+    if not ok:
+        raise DeriveError(E_SHAPE)
+    return tokens
+
+
 # ---------------------------------------------------------------- 터미널 대화 (고른 것은 저장하지 않는다)
 
 def _read_line(stream):
@@ -369,7 +439,8 @@ def main_derive(home, home_is_default, csv_path, out_path, inp, err):
         if not res.get("ok"):
             return EXIT_USAGE, _line({"derived": False, "hits": res.get("hits", [])})
         confirm_go(inp, err, len(sample["columns"]), len(sample["rows"]))
-        audit.derive_record(home, job, counts, len(rows))
+        audit.derive_record(home, job, counts, len(rows), tokens=len(sample_tokens(sample)),
+                            table_sha256=audit.table_sha256(sample))
         write_new(out_path, json.dumps(draft, ensure_ascii=False, indent=1) + "\n")
         return EXIT_OK, _line({"derived": True, "columns": len(sample["columns"]), "rows": len(sample["rows"]),
                                "transforms": counts})

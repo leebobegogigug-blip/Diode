@@ -53,6 +53,7 @@ HELP = """%s %s — Claude Code 플러그인 (개발 중 · v0.0 · 합성 자�
   --statusline                    statusLine 기록 (방 설정이 부른다 · 표준 입력 = statusLine JSON)
   mcp                             허브 (MCP 서버 · 플러그인 .mcp.json 이 띄운다 · 표준 입출력 JSON-RPC)
   propose <report.json>           일꾼 보고 내기 (미리 보고 걸리면 2 · 통과면 허브의 대기열에 넣고 0)
+                                  derive 가 만든 초안 (plan · ui + sample) 도 받는다 (사람이 터미널에서 · 꺼져 있거나 터미널이 아니면 3)
   confirm <요청 파일>             확정 창 (허브가 부른다 · 결과는 JSON 한 줄 · 0 보냄 · 3 사람이 안 보냄 · 2 꼴 오류 · 1 창 없음)
   lib names <이름>                허용 라이브러리의 공개 이름 목록 만들기 (허용 목록에 있는 이름만 · 0 OK · 1 설치 안 됨 등 · 2 허용 목록 밖)
   speak [--detached]              말 봉인 창 (사내 말을 토큰 글로 바꿔 보이고 사람이 확인해 복사 · 답은 창에서만 되돌림 · 0 닫음 · 1 창 없음 · 3 사전을 못 읽음)

@@ -130,7 +130,7 @@ SAMPLE: coarse cells (bucket or rank class, not values; PH_other = pooled rare g
 | # | 검사 | 판정 | 반례 (걸려야 한다) |
 |---|---|---|---|
 | D1 | 형식 | JSON (UTF-8 · 64 KiB 이하 · 같은 키 두 번 · `NaN` 없음) · 스키마 통과 · 펼친 글 8 KiB 이하 · SP-03 의 글자 규칙 · 자유 글은 한 줄 · 틀 표지 꼴 없음 · `repro` 는 ASCII · `data_class=real` 이면 `policy.real_data` 가 참 (bool) · `lib` 이면 `library.name` 이 `policy.lib_allow` 에 (대소문자 무시). 스키마에서 걸리면 거기서 멈춘다 | 모르는 키 · `PH_T4W1` (글자 `1`) · 9 KiB · `☆` · 낱자모 · 줄바꿈 · `[/diode brief]` · `real` 인데 정책 꺼짐 · 판 칸에 글자 (`2-KITWORDALPHA`) |
-| D6 | 토큰 | 정확한 꼴의 토큰은 모두 가명 표에 있다 · 깨진 꼴이 하나도 없다 | 표에 없는 `PH_ZZZZ` · `ph_k7q2` · `PH_K7Q` |
+| D6 | 토큰 | 정확한 꼴의 토큰은 모두 가명 표에 있다 · 깨진 꼴이 하나도 없다 (예외 하나: `derive` 초안의 "일방향 토큰" 은 표에 없고, 맞는 `derive` 기록에 적힌 토큰 수 안의 정확한 꼴이면 통과한다 · SP-18) | 표에 없는 `PH_ZZZZ` · `ph_k7q2` · `PH_K7Q` |
 | D2 | 사전 | 정규화 N(s) = NFKD → 결합 부호 지움 → NFKC → casefold → 닮은 글자 (키릴 · 그리스) 접기 → 글자 · 숫자 밖은 모두 지움 (빈칸 · 문장 부호 · 보이지 않는 글자). 사전 단어 w 의 N(w) (2글자 이상) 가 N(s) 에 부분 문자열로 있으면 걸림. 보는 곳: 자유 글 칸마다 (토큰을 지운 글도) · 칸을 차례대로 이어 붙인 글 · 어느 칸의 끝 + 다른 칸의 머리 (두 조각 모두 2글자 이상) · 짧은 칸 (N 이 3글자 이하) 만 이어 붙인 글 (뒤의 셋은 자리 `*`) · `repro` · `error.type` · `library.version`. 별칭 (한영 · 약어) 은 사전에 따로 등록한다 — 자동 음역은 하지 않는다 (v1). 닮은 글자는 키릴 · 그리스 · 체로키 · 작은 대문자 · 획 있는 라틴 · 아르메니아에 더해 눈에 보이지 않는 태그 문자 (U+E0020–E007E) 와 지역 표시 기호를 ASCII 로 읽고, 길이 5 이상의 단어는 ASCII 안의 닮은 꼴 (`i` `l` `1` → `l` · `0` → `o` · `vv` → `w` · `rn` → `m`) 을 접은 열쇠로도 비교한다 [레드팀 A-01 · A-02] | 사전 `KITWORDALPHA` 에 대해 `kit-word alpha` · `ＫＩＴＷＯＲＤＡＬＰＨＡ` (전각) · `KitWordAlpha.` · `KITWORD PH_K7Q2 ALPHA` · 키릴 `к` · 두 칸에 나눔 · 한 글자씩 흩뿌림 |
 | D3 | 꼴 | 경로 (역슬래시 하나라도 · `//서버/공유` · `C:/` · `/home/` `/Users/` `/root/` `/tmp/` `/var/` `/etc/` `/opt/` `/mnt/` `/srv/` `/data/` · `/a/b/` 꼴 · `~/` · `%NAME%` · `$NAME` `${`) · URL (`://` · `www.` · `mailto:` · `file:`) · IPv4 (`127.0.0.1` 포함 — 안쪽 주소는 바깥에 갈 까닭이 없다) · IPv6 (`ipaddress` 로 확인) · MAC · 메일 · `user@host` · `localhost` · 마지막 칸이 알려진 최상위 이름 (`KNOWN_TLDS` · 코드의 상수) 인 점 있는 이름 — 첫 칸이 허용 라이브러리이고 끝이 안쪽 이름 (`local` `lan` `corp` `internal` `intra` `intranet` `home` `localdomain`) 이 아니면 공개 API 이름으로 본다 (`pandas.io`) · 사용자 정규식 (`policy.patterns`) · 안쪽 이름으로 흔한 끝 (`lab` `test` `svc` `prod` `stage` `staging` `qa` `uat` `cluster` `mgmt` `fab` `domain` `ldap` `dmz`) · 상대 경로 `../x` `./x` (**brief 에서만** — 사람이 치는 말은 개발에 흔한 말이라 훅에서는 세지 않는다) · 검사 전에 NFKC 와 나눗셈 빗금 `∕` · 표의 마침표 `。` 같은 닮은 꼴을 접는다 [레드팀 C-01 · C-02] | `D:\work\a` · `\\srv\share` · `http://x.example.com` · `10.0.0.1` · `fe80::1` · `a@example.com` · `db01.example.local` · `pandas.corp` |
 | D4 | 숫자 | 자유 글 칸에서 정확한 꼴의 토큰을 지운 뒤, NFKC 후 유니코드 숫자 (범주 `Nd` · `No` · `Nl`) 가 하나라도 있으면 걸림 (개수는 숫자 덩어리 수) · 숫자 칸 (SP-02) 은 예외 | `온도 350` · `３５０` (전각) · 아랍 숫자 · `v2` · `2단계` · `½` |
@@ -221,7 +221,7 @@ SAMPLE: coarse cells (bucket or rank class, not values; PH_other = pooled rare g
 | E-06 | 모르는 job | 그런 일이 없습니다 |
 | E-07 | 창을 띄울 수 없음 | 확정 창을 띄울 수 없어 보내지 않았습니다 |
 | E-08 | 일일 상한 · 월 한도 넘음 | 오늘 · 이번 달 한도를 넘었습니다 |
-| E-30 | 파생 표본이 꺼져 있음 (`policy.derived_level` 0 · 실데이터 승인 없음 · 기본 자리가 아님 · 표준 입력이 터미널이 아님) | 파생 표본이 꺼져 있습니다 |
+| E-30 | 파생 표본이 꺼져 있음 (`policy.derived_level` 0 · 실데이터 승인 없음 · 기본 자리가 아님 · 표준 입력이 터미널이 아님 — `derive` · 표가 든 초안을 내는 `propose`) | 파생 표본이 꺼져 있습니다 |
 | E-31 | 파생 표본의 한도 (열 · 행 · k × 2 미만의 작은 표 · 주제 누계 200행 · k 범위) | 파생 표본의 한도를 넘었습니다 |
 | E-20 | 검사 · 내부 오류 (막는 쪽으로 실패) | 검사 중 오류로 보내지 않았습니다 |
 
@@ -233,7 +233,7 @@ SAMPLE: coarse cells (bucket or rank class, not values; PH_other = pooled rare g
 - **허브 쪽** ([diodelib/hub.py](../diodelib/hub.py) `ProcessConfirm`): 요청을 데이터 폴더 `tmp\` 에 (0600) 쓰고 창 프로세스를 부르고 끝나면 지운다 · `timeout_s` + 30초 넘으면 자식을 죽이고 timeout · 결과는 `confirm.parse_result` — 종료 코드 · 한 줄 · 칸 · sha256 이 모두 맞을 때만 send.
 - **습관 확정을 줄이는 장치**: [보내기 · 넘기기] 는 창이 뜨고 2초 [제안] 뒤에 켜진다 · 기본 초점은 [버리기] · Enter 로 보내지 않는다 · Esc · 창 닫기 = 버리기 · 마감 뒤에 누른 손은 timeout · `checks.ok` 가 거짓이면 보내기는 끝까지 꺼짐 · `clipboard` 는 [복사] 해서 클립보드를 되읽어 같을 때만 send (넘기기에는 복사가 없다) · 보이지 않는 글자는 `[U+200B]` 꼴로 드러낸다. 코드: [diodelib/confirm.py](../diodelib/confirm.py) — 창을 못 띄우면 (`DISPLAY` · `WAYLAND_DISPLAY` 가 없음 (Windows 밖) · tkinter 없음 · `TclError`) `E-07`.
 - 창이 보이는 것 (D8 · AL-02): 보낼 바이트 그대로 · 토큰 강조 · 검사 요약 (SP-05 의 꼴) · 방향 (넘기기 = 안쪽으로 · 보내기 = 바깥으로) · 모델 · effort · 이번 달 사용 (실제 · 어림이면 `~`) · "보내면 되돌릴 수 없습니다" · "이 내용이 감사 기록에 남습니다" · 단추 [보내기] [고치기] [버리기]. 말 봉인은 따로 된 창이다 (아래).
-- **보고 내기**: 일꾼이 `python "<diode 자리>/diode.py" propose <report.json>` 을 부른다 (정확한 명령은 일꾼 안내문에 허브가 넣는다). 표준 출력은 `{"queued": true, "job": "J-0007"}` · 걸리면 `{"queued": false, "hits": [...]}` (SP-05 의 꼴 · 단어 없음 — 일꾼이 고쳐 다시 낸다). 허브가 D1–D7 → 확정 창 (D8) → 방 `outbox\J-0007.md` (펼친 글) · 감사 기록.
+- **보고 내기**: 일꾼이 `python "<diode 자리>/diode.py" propose <report.json>` 을 부른다 (정확한 명령은 일꾼 안내문에 허브가 넣는다). 표준 출력은 `{"queued": true, "job": "J-0007"}` · 걸리면 `{"queued": false, "hits": [...]}` (SP-05 의 꼴 · 단어 없음 — 일꾼이 고쳐 다시 낸다). 허브가 D1–D7 → 확정 창 (D8) → 방 `outbox\J-0007.md` (펼친 글) · 감사 기록. **파생 표본 초안** ([SP-18](#sp-18-파생-표본-l2)): `derive` 가 만든 plan · ui 초안 (칸이 `format` · `kind` · `data_class: real` · `goal` · `ask` · `sample` 뿐) 도 같은 명령이 받는다 — 사람이 안쪽 터미널에서 낸다 (표준 입력이 터미널이 아니거나 `policy.derived_level` 이 꺼져 있으면 `{"queued": false, "error": "E-30"}` · 종료 `3` · 일꾼이 낸 plan · ui 를 받는 문이 아니다). `sample` 표 글의 sha256 이 `derive` 의 감사 기록과 맞지 않으면 `E-04`. 허브가 같은 D1–D7 → 확정 창 (표를 보낼 바이트 그대로 보인다) → `outbox\<job>.md` · 감사 기록을 거친다.
 - **말 봉인 창** (`diode.py speak` · `/diode:speak` · 코드 [diodelib/speak.py](../diodelib/speak.py)): 확정 창과 따로 된 창이다. 사람이 사내 말로 쓰면 사전 · 이 창의 가명 표로 토큰 글을 만들어 보이고 [복사] 한다. 글을 SP-03 으로 손질한 뒤, 사전 단어를 긴 것부터 글자 사이 구분자 (빈칸 · `-` `_` `.` `/` `·` `,`) 를 허용해 바꾸고 (`seal.seal_speech`), 남은 것을 D2 · D3 · D4 · D6 으로 다시 본다. 새 단어는 새 토큰을 받고 같은 단어는 같은 토큰이다.
   - **복사 조건**: 검사를 통과하고 · 봉인한 뒤 쓴 글이 바뀌지 않았고 (바뀌면 곧 꺼지고 다시 봉인해야 켜진다) · 보이지 않는 글자가 없고 · 토큰 글이 64 KiB 이하이고 (쓴 글도 64 KiB 이하) · 데이터 폴더가 기본 자리일 때 (`DIODE_HOME` 이면 막는다 · `E-20`). [복사] 는 봉인한 글 그대로 클립보드에 넣고 되읽어 같을 때만 성공이다. 걸린 검사는 번호 · 줄 · 개수만 보인다 (SP-05 의 꼴). Enter 로 복사되지 않는다.
   - **되돌리기**: 붙여 넣은 Claude 의 답 (256 KiB 이하 · `unseal` 의 글 답 U4 상한만 이 창이 256 KiB 로 준다) 을 U1 – U4 로 보고 아는 토큰만 되돌린다. 답에 사전 단어가 있으면 (U2) 되돌린 글을 만들지 않고 경보만 낸다. 되돌린 글은 **창 안에서만** 보인다 — 복사 단추 · 클립보드 · 파일 · 로그 · 출력이 없고, 되돌린 글 칸은 복사 · 잘라내기 · 선택 내보내기도 막는다.
@@ -318,7 +318,8 @@ SAMPLE: coarse cells (bucket or rank class, not values; PH_other = pooled rare g
 - `direction: "in"` (Claude 의 답) 은 `text` 를 남기지 않는다 — 해시 · 크기 · U1–U4 결과만 [제안].
 - `sent` 인 `out` · `dispatch` 는 `text` 가 있어야 하고, `sha256` · `bytes` 가 그 글과 다르면 쓰지 않는다.
 - 넘기기 (안쪽으로) 는 `direction: "dispatch"` · `kind: "instruction"` · `transport: "worker"` · `text` 에 되돌리기 전의 지시 (토큰 꼴) 를 남기고, `sha256` 도 그 글의 것이다 (진짜 단어가 든 되돌린 글의 해시는 남기지 않는다 · AL-05).
-- 파생 표본을 만들면 `<job>-<순번>-derive.json` 을 남긴다 (`derive_record`): `{"format": 1, "at", "job", "direction": "derive", "kind": "derive", "transforms": {"bucket": n, "rank": n, "category": n}, "columns": n, "rows": n}` — 변환 종류별 열 수 · 열 수 · 행 수뿐이다 (값 · 열 이름 · 토큰 없음). 보낸 것 (`out`) 이 아니라서 확정 목록 · job 상태에 끼지 않는다. 같은 job 의 `rows` 합이 주제별 누계 (L-05) 다.
+- 파생 표본을 만들면 `<job>-<순번>-derive.json` 을 남긴다 (`derive_record`): `{"format": 1, "at", "job", "direction": "derive", "kind": "derive", "transforms": {"bucket": n, "rank": n, "category": n}, "columns": n, "rows": n, "tokens": n, "table_sha256": "<표 글의 해시>"}` — 변환 종류별 열 수 · 열 수 · 행 수 · 표에 나온 서로 다른 가명 토큰의 수 · 표 글 (`render.sample_text` · 창이 보이고 보내는 바이트) 의 sha256 뿐이다 (값 · 열 이름 · 토큰 없음). 해시와 토큰 수는 propose · 허브가 "derive 가 만든 초안 그대로인가" 를 볼 때 쓴다 ([SP-18](#sp-18-파생-표본-l2)) — 이 둘이 없는 옛 기록은 어떤 초안과도 맞지 않는다. 보낸 것 (`out`) 이 아니라서 확정 목록 · job 상태에 끼지 않는다. 같은 job 의 `rows` 합이 주제별 누계 (L-05) 다.
+- 표가 든 파생 초안 (plan · ui) 을 보내면 보통의 `out` 기록 (`kind: "plan"` 또는 `"ui"` · 보낸 펼친 글 그대로 · `sha256` · `bytes`) 에 칸 `sample` 이 더해진다: `{"transforms": {"bucket": n, "rank": n, "category": n}, "columns": n, "rows": n}` — 정수뿐이다 (값은 이미 보낸 글에 있으므로 따로 남기지 않는다 · 열 이름 · 토큰 없음). `sample` 은 이 꼴의 기록에만 쓸 수 있다 (`audit.build` 가 다른 방향 · 종류면 거절한다).
 - 가명 표 · 원자료 · 사전 단어는 어디에도 남기지 않는다. `decision` 은 `sent` · `discarded` · `blocked` · `timeout`.
 
 ## SP-15 설정 (format 1)
@@ -372,7 +373,7 @@ SAMPLE: coarse cells (bucket or rank class, not values; PH_other = pooled rare g
 | `diode.py hook <session \| prompt \| tool>` | Claude Code (플러그인 `hooks/hooks.json`) |
 | `diode.py --statusline` | Claude Code (방 설정) |
 | `diode.py --status --json [--room <폴더>]` | Terminal–1 · 사람 |
-| `diode.py propose <report.json>` | 일꾼 (사내 LLM) |
+| `diode.py propose <report.json>` | 일꾼 (사내 LLM) — `kind: report` 만. **`derive` 가 만든 plan · ui 초안 (sample) 은 사람이 터미널에서** (표준 입력이 터미널이 아니거나 `policy.derived_level` 이 꺼져 있으면 `E-30` · 종료 `3` · SP-18) |
 | `diode.py confirm <요청 파일>` | 허브 (창 프로세스) |
 | `diode.py scan` | 사람 · 시험 (표준 입력의 글을 D2 · D3 · D5 로 · 표준 출력에 SP-05 꼴의 JSON 한 줄 · 종료 코드 `0` 통과 · `2` 막음 — 훅과 같은 뜻 · 사전이 없거나 비면 `2`) |
 | `diode.py lib names <이름>` | 사람 (안쪽 PC 의 터미널에서 직접 · SP-05 의 공개 이름 목록 · `policy.lib_allow` 에 있는 이름만 · 별도 프로세스에서 불러 `libnames\<이름>.json` 에 씀 · 출력은 개수 · 코드뿐 · 종료 코드 `0` OK · `1` 점검 실패 (설치 안 됨 · 시간 · 출력 · 쓰기) · `2` 허용 목록 밖 · 이름 꼴 오류) |
@@ -413,7 +414,20 @@ SAMPLE: coarse cells (bucket or rank class, not values; PH_other = pooled rare g
 - **한도** (코드 상수 · 넘으면 거절): 열 8 · 행 50 · 자문 하나에 `sample` 하나 · 행 수가 k × 2 미만인 표는 거절 (작은 표는 한 행이 곧 식별) · 한 주제 (job) 의 파생 누계 행 200 (L-05 · 감사 기록 SP-14 의 `derive` 기록으로 센다) · 읽는 표 파일 1 MiB.
 - **사람이 고른다** (표준 입력 · 파일에 저장하지 않는다): 주제 job 번호 → k → `열=변환` 줄들 (열은 머리 글을 직접 치거나 1부터의 번호 · 묻는 글에 열 이름을 쓰지 않는다) → 만들기 전 `y`. 입력이 끊기거나 틀리면 만들지 않는다.
 - **문**: `policy.derived_level` 이 정수 1 이고 `policy.real_data` 가 참 (bool) 일 때만 돈다 (`derive.effective_level`) · 데이터 폴더가 기본 자리가 아니면 돌지 않는다 (AL-12). `derive.py` 는 설정을 읽기만 하고 환경 변수 · 명령줄을 읽지 않는다.
-- **이어지는 길**: 초안은 `seal` 로 미리 봉인해 D1–D6 을 통과해야 만든다 (열 · 범주 토큰은 그 실행의 가명 표). 그 뒤의 D7 · 확정 창 (D8 · 보낼 바이트 그대로) · 건네기 · 감사 기록은 기존 흐름 그대로다 — 새 우회 길을 만들지 않았다. **지금의 한계**: `propose` 는 `kind: report` 만 받고 허브는 보고만 봉인하므로, `plan` · `ui` 초안이 확정 창까지 가는 길은 아직 없다. 가명 표가 `derive` 프로세스의 메모리에만 있어 (실행이 끝나면 사라진다) 허브의 표에는 이 토큰이 없다 — 그 길을 만들 때 표를 어떻게 넘길지 (허브가 직접 `derive` 를 돌리는 등) 새로 정해야 한다.
+- **나가는 길** (구현했다 · 코드 [diodelib/propose.py](../diodelib/propose.py) · [diodelib/hub.py](../diodelib/hub.py) `take_derived`): 초안은 새 우회 길 없이 기존 흐름 (D1–D7 → 확정 창 D8 → 건네기 → 감사 기록) 을 거쳐 방 `outbox\<job>.md` 로 간다.
+  1. **`propose <초안.json>`** (사람이 터미널에서): 칸이 `derive` 가 만든 그대로 (`format` · `kind` plan 또는 ui · `data_class` real · `goal` · `ask` · `sample` — `entities` · `fields` · `context` 가 있으면 `E-04`) · `policy.derived_level` 1 + `real_data` (아니면 `E-30` · 종료 3) · 표준 입력이 터미널 (아니면 `E-30`) · `sample` 표 글의 sha256 이 `derive` 의 감사 기록 (SP-14) 과 맞아야 한다 (아니면 `E-04` — **일꾼 (사내 LLM) 이 지어낸 표 · 사람이 칸 하나를 고친 표는 받지 않는다**). 맞으면 `seal` 미리 보기 (D1–D6) 를 거쳐 대기열에 넣는다. 초안에는 job 이 없다 — 맞는 기록의 job 을 쓴다.
+  2. **허브** `poll_queue` 는 이 초안 (plan · ui + `sample`) 을 job 번호와 상관없이 읽어 `take_derived` 로 넘긴다: 정책 · derive 기록을 다시 보고 (꺼져 있으면 막음) → job 이 이 허브가 일꾼에게 넘긴 일이 아니고 `outbox\<job>.md` 가 비어 있는지 → 봉인 (D1–D6) → **D7 (펼친 글 그대로 · 표 포함 · 부록 A 의 프롬프트 그대로 · 응답 없음 · 예외는 막음)** → 확정 창 → job 번호 예약 (`jobs\`) → 건네기 → 감사 기록. `take_report` 는 이제 `kind: report` 가 아닌 것을 막는다 (일꾼의 길은 보고만).
+  3. **확정 창** (D8): 표는 보낼 글의 일부라서 **보낼 바이트 그대로** 보인다 (새 화면 부품 없음). 글 안의 표를 직접 세어 알림 한 줄을 더한다 — `표가 들어 있습니다 (n열 · n행) - 이 표는 실값에서 줄인 값이고, 재식별이 안 된다고 증명할 수 없습니다`. 요청 파일의 칸은 늘지 않았다.
+  4. **감사 기록**: 보통의 `out` 기록 (`kind` plan 또는 ui · 보낸 글 그대로 · `sha256`) + `sample` 요약 (변환 종류별 열 수 · 열 수 · 행 수 · SP-14). 주제당 누계 (행 200) 는 `derive` 쪽 그대로 `derive` 기록으로 센다.
+  - 한 job 에는 표가 든 초안을 한 번만 보낸다 (`outbox\<job>.md` 는 덮어쓰지 않는다 · 사람이 버린 초안은 `derive` 를 다시 돌려 같은 job 으로 낼 수 있다 — 누계에는 센다).
+- **일방향 토큰** (가명 표 문제와 그 풀이): `derive` 의 가명 표는 그 프로세스의 메모리에만 있다가 사라지고 (W-05 · AL-05) 허브의 표에는 없다. 표를 디스크나 프로세스 밖으로 내보내지 않고 풀기 위해 이 초안의 토큰 (열 이름 · 범주 값) 을 **되돌리기 없는 "일방향 토큰"** 으로 정한다 — 진짜 단어와 이어질 일이 없다 (Claude 의 답을 되돌릴 때만 표가 필요하다). D6 은 "허브 표에 있음" 대신 **"표 글의 sha256 이 맞는 `derive` 기록에 적힌 토큰 수 (`tokens`) 안의 정확한 꼴"** 이면 통과시킨다 (`seal` 의 `known_tokens` · 초안의 다른 자리 — `goal` · `ask` 에 쓴 토큰은 이 집합에 없으면 그대로 D6 에 걸린다). **되돌리기 (U1) 에서는 이 토큰이 모르는 토큰이다** — 답에 이 토큰이 있어도 되돌리지 않고 U1 이 그 줄을 알린다 (기존 동작 그대로 · 허브 `restore` 도 안쪽으로 가는 지시에서 되돌리지 않는다). 그래서 Claude 가 "PH_xxxx 열이 이상하다" 고 답해도 사람은 진짜 열을 이 토큰으로 찾을 수 없다 — 사람이 `derive` 를 돌린 터미널 기록 (열 번호) 으로 찾아야 한다.
+  - **더 안전한 대안과 하지 않은 까닭**: 일방향이면 무작위 `PH_` 토큰이 필요 없다 — 열을 `열 1` · `열 2` …, 범주를 닫힌 기호 (`가` · `나` · …) 로 바꾸면 D6 의 예외 · `tokens` 도 필요 없다. 하지만 스키마 (`sample.columns[].token` 이 가명 토큰) · 형식 · 검사 (D6 · D1 틀) · 펼침 틀 (SP-03) · 시험을 모두 바꾸는 일이라 이번 범위 밖으로 남긴다. 표를 디스크에 두는 길 (W-05 위반) · 허브가 `derive` 를 직접 도는 길 (허브는 터미널이 없고 열 · 변환은 사람이 터미널에서 고른다) 은 막혀 있다.
+- **한계 (솔직히)**:
+  - 표 글의 sha256 맞춤과 터미널 확인은 **벽이 아니다** — `derive` 가 만든 초안 파일을 읽을 수 있는 쪽은 그 초안을 그대로 `propose` 할 수 있다 (터미널을 가장해서도). 막는 것은 지어낸 표 · 고친 표이고, 그 초안이 나가는 것을 막는 것은 확정 창 (D8) 에서 사람이 표를 보는 일이다 (L-11).
+  - 대기열은 데이터 폴더 하나라서, 허브가 둘 이상 (세션 · 방이 여럿) 이면 **먼저 읽은 허브의 방** 으로 간다. 확정 창은 방 이름을 보이지 않는다 (경로 없음 · AL-11).
+  - D7 은 표의 한 자리 숫자 (0–9) 를 "수치" 로 보고 막을 수 있다 (프롬프트를 바꾸지 않았다) — 막으면 보내지 않는다 (fail-closed). 판정 모델이 표를 통과시키는지는 사내에서 봐야 한다.
+  - 일방향 토큰을 안다고 재식별이 막히는 것은 아니다 — 정보 상한 · 통계적 재식별은 위 그대로 **증명할 수 없다** (SP-05).
+  - 이 기록이 생기기 전 (`tokens` · `table_sha256` 이 없는) 의 `derive` 기록과 맞는 초안은 받지 않는다 — `derive` 를 다시 돌린다.
 
 ## 부록 A — D7 판정 프롬프트 (고정 글)
 
