@@ -137,5 +137,6 @@ Q32=json=10/10,맞음=9/10
 | H4 | statusLine 칸 이름 — 방 폴더의 `.claude\settings.json` 에 `"statusLine": {"type": "command", "command": "python D:\\claude\\diode\\kit\\statusline_keys.py"}` 를 걸고 Claude Code 를 열어 말 한 마디를 한다 | 상태줄에 나온 한 줄 (칸 이름만 · 값 없음) | — (끝나면 이 설정을 지우고 방을 `/diode:room` 으로 새로 만든다) |
 | H5 | `python D:\claude\diode\kit\run_opencode.py --opencode <opencode 실행 파일>` | `R1` · `R2a` · `R2b` 줄과 `결과:` 줄 | — |
 | H6 | `/plugin marketplace add "D:\claude\diode"` → `/plugin install diode@diode` → `/diode:status` | 각 단계가 되었나 y/n, 막혔다면 막은 문구의 **첫 다섯 낱말만** | 경로 · 사용자 이름이 든 줄 |
+| H7 | `python D:\claude\diode\kit\run_install.py` (사내 CLI 로 설치 → 설정 → 방 → 훅 · 허브 를 처음부터 끝까지 · 임시 폴더 · 가짜 서버) | `I1`–`I6` 줄과 `결과:` 줄 | — |
 
 H1 이 `확인 필요` 로 끝나는 것은 정상이다 (처음에는 사전 · 원자료 폴더가 비어 있다).

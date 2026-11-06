@@ -11,6 +11,7 @@ M0 (앱 코드 0줄 · 합성 자료만) 동안만 쓰는 폴더다. M0 가 끝�
 | `run_opencode.py` | 진짜 opencode 로 일꾼 부품 · 셸 권한 시험 (가짜 로컬 모델 · 선택 · `--opencode <경로>`) |
 | `inhouse-questions.md` | **사내 확인 질문지** — 1부는 사내 Claude 에게 붙여 넣고 (예 · 아니오 · 숫자 · 보기로만 답하게 해서 이름 · 주소 · 경로가 바깥으로 안 나오게), 2부는 사람이 직접 돌릴 것 (옮길 줄이 정해져 있다) |
 | `statusline_keys.py` | statusLine 입력 JSON 의 **칸 이름만** 찍는 도구 (값은 안 찍음 · 질문지 H4) |
+| `run_install.py` | **처음부터 끝까지** — 마켓플레이스로 설치 → 정책 입력 → `/diode:setup` 이 방을 만듦 → 방 안 세션이 훅 · 허브 아래에서 도는지 (I1–I6 · 임시 HOME · 가짜 서버) |
 | `run_hooks.py` | 진짜 훅 (저장소의 `hooks/hooks.json` · `diode.py hook`) 으로 KIT-2 재시험 R01–R23 (T12 · T19 — 훅 · 허브 · 슬래시 명령 · 데이터 폴더 보호) |
 | `run_tui.py` | 대화형 (TUI) 세션 한 번 — 의사 터미널 (리눅스 · macOS) · statusLine 입력 칸 · `safeguards` 칸 |
 | `fake_anthropic.py` | 가짜 Anthropic Messages API 서버 (127.0.0.1 · 요청을 덤프 · 키는 남기지 않음) |
