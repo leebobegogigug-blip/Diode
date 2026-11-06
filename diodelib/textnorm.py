@@ -44,7 +44,22 @@ _CONFUSABLES = {
     # 라틴 변형
     "ı": "i", "ɡ": "g", "ſ": "s",
 }
+# 더 넓은 닮은 글자 (레드팀 A-02) - 체로키 · 작은 대문자 · 획 있는 라틴 · 아르메니아. 접는 방향은 눈에 보이는 라틴 글자.
+# (casefold 뒤에 쓰므로 체로키는 대문자 쪽이 열쇠다.) 틀린 매핑이 있어도 사전 비교에 닮은 꼴이 하나 더 걸릴 뿐이다.
+_CONFUSABLES.update({
+    "Ꭺ": "a", "Ᏼ": "b", "Ꮯ": "c", "Ꭰ": "d", "Ꭼ": "e", "Ꮐ": "g", "Ꮋ": "h", "Ꭻ": "j", "Ꮶ": "k", "Ꮮ": "l",
+    "Ꮇ": "m", "Ꮪ": "s", "Ꭲ": "t", "Ꮩ": "v", "Ꮃ": "w", "Ꮓ": "z",
+    "ᴀ": "a", "ʙ": "b", "ᴄ": "c", "ᴅ": "d", "ᴇ": "e", "ꜰ": "f", "ɢ": "g", "ʜ": "h", "ɪ": "i", "ᴊ": "j",
+    "ᴋ": "k", "ʟ": "l", "ᴍ": "m", "ɴ": "n", "ᴏ": "o", "ᴘ": "p", "ʀ": "r", "ꜱ": "s", "ᴛ": "t", "ᴜ": "u",
+    "ᴠ": "v", "ᴡ": "w", "ʏ": "y", "ᴢ": "z",
+    "ø": "o", "đ": "d", "ħ": "h", "ł": "l", "ŧ": "t", "ƀ": "b", "ɨ": "i", "ɫ": "l", "ƚ": "l", "ǥ": "g",
+    "ɍ": "r", "ᵽ": "p", "ɋ": "q", "ɏ": "y", "ƶ": "z", "ʉ": "u", "ɇ": "e", "ꝁ": "k",
+    "օ": "o", "ս": "u", "ո": "n", "ց": "g", "հ": "h",
+})
 _CONFUSABLE_TABLE = {ord(k): v for k, v in _CONFUSABLES.items()}
+# 눈에 보이지 않는 태그 문자 (U+E0020–E007E) 는 ASCII 를 그대로 싣는다 · 지역 표시 기호 (🇰🇮🇹) 는 A–Z 모양이다.
+_CONFUSABLE_TABLE.update({0xE0000 + i: chr(i).lower() for i in range(0x20, 0x7F)})
+_CONFUSABLE_TABLE.update({0x1F1E6 + i: chr(97 + i) for i in range(26)})
 
 
 def nfkc(s):
@@ -100,6 +115,14 @@ def dict_key(s):
     s = s.casefold()
     s = s.translate(_CONFUSABLE_TABLE)
     return "".join(ch for ch in s if ch.isalnum())
+
+
+_SKEL_TABLE = {ord("i"): "l", ord("1"): "l", ord("0"): "o"}
+
+
+def skeleton(key):
+    """dict_key 의 결과를 한 번 더 접는다 - ASCII 안의 닮은 글자 (i · l · 1 → l, 0 → o, vv → w, rn → m). 긴 단어에만 쓴다."""
+    return key.replace("vv", "w").replace("rn", "m").translate(_SKEL_TABLE)
 
 
 # D1 의 글자 규칙 (SP-03): 손질한 뒤에 남아도 되는 글자.

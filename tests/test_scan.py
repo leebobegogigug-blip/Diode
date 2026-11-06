@@ -307,6 +307,75 @@ class Repro(unittest.TestCase):
         self.assertEqual(scan.check_repro("x = 1\n" * 21, p), [21])
 
 
+class RedTeamFixes(unittest.TestCase):
+    """레드팀이 찾은 구멍 중 brief/검사기 쪽을 막은 것 (합성 사전 단어만) - 같은 꼴이 다시 통과하지 않게."""
+
+    def test_ascii_lookalikes_of_a_long_word(self):
+        p = policy()
+        for text in ("KlTWORDALPHA", "KITVVORDALPHA", "K1TW0RDALPHA", "kitwordalpha"):
+            self.assertFalse(scan.check_text("수율 %s 이야" % text, p, ("D2",))["ok"], text)
+        self.assertTrue(scan.check_text("수율 이야", p, ("D2",))["ok"])
+
+    def test_short_words_are_not_folded(self):
+        q = scan.Policy(words=["ABCD"])               # 4글자 이하는 닮은 글자 접기를 하지 않는다 (오탐이 는다)
+        self.assertTrue(scan.check_text("AB1D 와 ABCO", q, ("D2",))["ok"])
+        self.assertFalse(scan.check_text("ABCD", q, ("D2",))["ok"])
+
+    def test_invisible_tag_characters_and_regional_indicators_carry_ascii(self):
+        word = "KITWORDALPHA"
+        tags = "".join(chr(0xE0000 + ord(c)) for c in word)
+        regional = "".join(chr(0x1F1E6 + ord(c) - ord("A")) for c in word)
+        self.assertEqual(textnorm.dict_key(tags), textnorm.dict_key(word))
+        self.assertEqual(textnorm.dict_key(regional), textnorm.dict_key(word))
+        self.assertFalse(scan.check_text("메모 " + tags, policy(), ("D2",))["ok"])
+
+    def test_wider_confusables(self):
+        for text in ("\u13e6ITWORDALPHA", "\u1d0bITWORDALPHA", "K\u0268TWORDALPHA"):    # 체로키 K · 작은 대문자 K · 획 있는 i
+            self.assertEqual(textnorm.dict_key(text), textnorm.dict_key("KITWORDALPHA"), text)
+
+    def test_more_internal_host_endings(self):
+        p = policy()
+        for name in ("db.prod", "node.lab", "api.svc", "web.qa.test"):
+            self.assertGreaterEqual(scan.pattern_hits("접속 %s 로" % name, p), 1, name)
+        self.assertEqual(scan.pattern_hits("pandas.io 를 쓴다", p), 0)       # 공개 API 이름은 그대로
+
+    def test_relative_paths_only_in_briefs(self):
+        p = policy()
+        self.assertEqual(scan.pattern_hits("../x 와 ./y", p), 0)             # 훅의 프롬프트 - 개발에 흔한 말
+        self.assertEqual(scan.pattern_hits("../x 와 ./y", p, relative=True), 2)
+        brief = _load("brief.json")["pass"][0]["brief"]
+        free = scan.free_text_fields(brief)
+        self.assertTrue(free)
+
+    def test_look_alike_slashes_and_dots_in_paths(self):
+        p = policy()
+        self.assertGreaterEqual(scan.pattern_hits("\u2215home\u2215x\u2215y", p), 1)     # 나눗셈 빗금
+        self.assertGreaterEqual(scan.pattern_hits("C:\u2215dir\u2215f", p), 1)
+
+    def test_mail_pattern_stays_linear(self):
+        import time
+        t0 = time.time()
+        scan.pattern_hits("a" * 65536, policy())
+        self.assertLess(time.time() - t0, 2.0)                                   # 전에는 64 KB 에 5초
+
+    def test_spaced_out_frame_marker(self):
+        brief = _load("brief.json")["pass"][0]["brief"]
+        bad = json.loads(json.dumps(brief))
+        key = next(k for k in ("goal", "ask") if isinstance(bad.get(k), str))
+        bad[key] = "목록 [ / d i o d e   brief ] 화면"
+        self.assertFalse(scan.check_brief(bad, policy())["ok"])
+
+    def test_repro_cannot_carry_text_as_numbers(self):
+        p = policy()
+        for code in ("import pandas as pd\nx = chr(75)\n",
+                     "import pandas as pd\nx = bytes([75, 73]).decode()\n",
+                     "import pandas as pd\nx = 350*10+7\n",
+                     "import pandas as pd\nx = eval(a)\n",
+                     "import pandas as pd\nx = getattr(a, b)\n"):
+            self.assertTrue(scan.check_repro(code, p), code)
+        self.assertEqual(scan.check_repro("import pandas as pd\nx = pd.DataFrame()\ny = 3\n", p), [])
+
+
 class ScanCommand(unittest.TestCase):
     def setUp(self):
         self.home = tempfile.mkdtemp(prefix="diode-test-")
