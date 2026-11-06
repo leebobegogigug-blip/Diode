@@ -1,0 +1,14 @@
+{
+  "description": "Diode 훅 (SP-11) — 방 · 원자료 폴더 · 그 밖 세 모드. 고장 나면 막는다 (onFailure: block). Python 은 이름만 적는다 (L-30).",
+  "hooks": {
+    "SessionStart": [
+      {"hooks": [{"type": "command", "command": "python", "args": ["${CLAUDE_PLUGIN_ROOT}/diode.py", "hook", "session"], "onFailure": "block", "timeout": 10}]}
+    ],
+    "UserPromptSubmit": [
+      {"hooks": [{"type": "command", "command": "python", "args": ["${CLAUDE_PLUGIN_ROOT}/diode.py", "hook", "prompt"], "onFailure": "block", "timeout": 10}]}
+    ],
+    "PreToolUse": [
+      {"matcher": "*", "hooks": [{"type": "command", "command": "python", "args": ["${CLAUDE_PLUGIN_ROOT}/diode.py", "hook", "tool"], "onFailure": "block", "timeout": 10}]}
+    ]
+  }
+}

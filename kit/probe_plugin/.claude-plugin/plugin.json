@@ -1,0 +1,6 @@
+{
+  "name": "diode-probe",
+  "version": "0.0.1",
+  "description": "M0 scouting probe for Diode — synthetic data only",
+  "author": {"name": "diode"}
+}

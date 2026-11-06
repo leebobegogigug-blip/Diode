@@ -1,0 +1,11 @@
+{
+  "format": 1,
+  "note": "반례 묶음의 합성 정책. 단어 · 이름은 모두 지어낸 것이다.",
+  "words": ["KITWORDALPHA", "가람소재", "BX-7 라인", "KITC_ORBIT", "모래시계공정"],
+  "real_data": false,
+  "lib_allow": ["pandas"],
+  "patterns": ["(?i)kitlot-[a-z]{3}"],
+  "lib_names": ["DataFrame", "Series", "groupby", "sum", "mean", "agg", "read_csv", "merge", "on", "how", "by",
+                "columns", "errors", "ParserError", "io", "json", "to_csv"],
+  "tokens": ["PH_K7Q2", "PH_M3X9", "PH_T4W5"]
+}

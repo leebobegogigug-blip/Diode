@@ -1,0 +1,344 @@
+# -*- coding: utf-8 -*-
+"""방 만들기 (room.create_room) · 점검 (setup.check) · 처음 설정 (setup.run_setup). 합성 자리 · 합성 단어만."""
+
+import json
+import os
+import shutil
+import sys
+import tempfile
+import unittest
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
+
+from diodelib import config, room, setup  # noqa: E402
+
+WORD = "KITWORDALPHA"
+
+
+class Base(unittest.TestCase):
+    def setUp(self):
+        self.tmp = os.path.realpath(tempfile.mkdtemp(prefix="diode-setup-"))
+        self.home = os.path.join(self.tmp, "data")
+        self.raw = os.path.join(self.tmp, "kitraw")
+        self.room = os.path.join(self.tmp, "claude", "room")
+        os.makedirs(self.raw)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def ready_policy(self, **kw):
+        st = {"words": [WORD], "raw_dirs": [self.raw], "room_path": self.room,
+              "llm": {"base_url": "http://127.0.0.1:1/v1", "model": "m"}, "worker_command": [sys.executable, "-c", "pass", "{prompt}"]}
+        st.update(kw)
+        config.apply_state(self.home, st)
+
+
+class CreateRoom(Base):
+    def test_created_room_is_ok_and_has_the_five_settings(self):
+        self.assertEqual(room.create_room(self.room, [self.raw]), {"room": "created"})
+        self.assertEqual(room.room_state(self.room), "ok")
+        self.assertEqual(sorted(os.listdir(self.room)), [".claude", ".diode-room", "inbox", "outbox", "work"])
+        with open(os.path.join(self.room, ".claude", "settings.json"), encoding="utf-8") as f:
+            s = json.load(f)
+        self.assertIs(s["autoMemoryEnabled"], False)
+        self.assertEqual(s["permissions"]["defaultMode"], "default")
+        self.assertIs(s["permissions"]["blockReadsOutsideWorkingDirectories"], True)
+        self.assertEqual(s["permissions"]["deny"], ["Bash", "WebFetch"])
+        self.assertIn("**/CLAUDE.md", s["claudeMdExcludes"])
+        self.assertTrue(s["statusLine"]["command"].startswith('python "'))          # python 은 이름만 (L-30)
+        self.assertTrue(s["statusLine"]["command"].endswith('diode.py" --statusline'))
+        dumped = json.dumps(s)
+        self.assertNotIn(self.raw, dumped)                                         # 권한 규칙에 원자료 경로를 쓰지 않는다 (L-31)
+
+    def test_idempotent_and_never_overwrites(self):
+        room.create_room(self.room, [])
+        with open(os.path.join(self.room, ".claude", "settings.json"), "rb") as f:
+            before = f.read()
+        self.assertEqual(room.create_room(self.room, []), {"room": "ok"})
+        with open(os.path.join(self.room, ".claude", "settings.json"), "w") as f:
+            f.write("{}")
+        self.assertEqual(room.create_room(self.room, []), {"room": "changed"})        # 바뀌었으면 알리기만
+        with open(os.path.join(self.room, ".claude", "settings.json")) as f:
+            self.assertEqual(f.read(), "{}")                                        # 덮어쓰지 않았다
+        self.assertNotEqual(before, b"{}")
+
+    def test_refusals(self):
+        # 원자료 폴더와 겹침 (안 · 위)
+        self.assertEqual(room.create_room(os.path.join(self.raw, "room"), [self.raw]), {"room": "refused", "code": "raw"})
+        self.assertEqual(room.create_room(self.tmp, [self.raw]), {"room": "refused", "code": "raw"})
+        # 플러그인 소스와 겹침
+        self.assertEqual(room.create_room(os.path.join(room.PLUGIN_ROOT, "room"), []), {"room": "refused", "code": "plugin"})
+        # git 저장소 안
+        repo = os.path.join(self.tmp, "repo")
+        os.makedirs(os.path.join(repo, ".git"))
+        self.assertEqual(room.create_room(os.path.join(repo, "room"), []), {"room": "refused", "code": "git"})
+        # 위 폴더에 안내 파일
+        for rel in ("CLAUDE.md", os.path.join(".claude", "CLAUDE.md"), "AGENTS.md"):
+            top = os.path.join(self.tmp, "guide-" + rel.replace(os.sep, "-"))
+            os.makedirs(os.path.join(top, os.path.dirname(rel)) if os.path.dirname(rel) else top, exist_ok=True)
+            with open(os.path.join(top, rel), "w") as f:
+                f.write("x")
+            self.assertEqual(room.create_room(os.path.join(top, "room"), []), {"room": "refused", "code": "guide"}, rel)
+        # 비어 있지 않은 폴더 · 상대 경로
+        full = os.path.join(self.tmp, "full")
+        os.makedirs(full)
+        open(os.path.join(full, "a.txt"), "w").close()
+        self.assertEqual(room.create_room(full, []), {"room": "refused", "code": "nonempty"})
+        self.assertEqual(room.create_room("room", []), {"room": "refused", "code": "path"})
+        self.assertEqual(room.create_room("", []), {"room": "refused", "code": "path"})
+        self.assertFalse(os.path.exists(os.path.join(self.raw, "room")))              # 거부했으니 아무것도 만들지 않았다
+
+    def test_empty_existing_folder_is_fine(self):
+        os.makedirs(self.room)
+        self.assertEqual(room.create_room(self.room, []), {"room": "created"})
+
+    def test_default_room_path(self):
+        self.assertEqual(room.default_room_path("  /x/room  "), "/x/room")
+        self.assertTrue(room.default_room_path(None).endswith("room"))
+
+
+class Check(Base):
+    def lines(self, **kw):
+        return setup.check(self.home, python_probe=kw.get("probe") or (lambda: (True, "3.12")))
+
+    def test_first_run_needs_confirmation(self):
+        lines, code = self.lines()
+        self.assertEqual(code, 3)
+        self.assertEqual(lines[-1], "결과: 확인 필요")
+        text = "\n".join(lines)
+        self.assertIn("사전이 비어 있음", text)
+        self.assertIn("훅 자체 시험 OK", text)
+
+    def test_all_ready_is_ok(self):
+        self.ready_policy()
+        room.create_room(self.room, [self.raw])
+        lines, code = self.lines()
+        self.assertEqual((code, lines[-1]), (0, "결과: OK"))
+
+    def test_worker_command_problems_are_shown(self):
+        self.ready_policy(worker_command=["diode-no-such-exe-xyz", "{prompt}"])
+        lines, code = self.lines()
+        text = "\n".join(lines)
+        self.assertIn("일꾼 명령 문제: 실행 파일을 PATH 에서 찾지 못함", text)
+        self.assertEqual(code, 3)
+        self.assertNotIn("diode-no-such-exe", text)                                    # 명령 이름도 찍지 않는다
+        self.ready_policy(worker_command=[sys.executable, "-c", "pass"])
+        self.assertNotIn("일꾼 명령 문제", "\n".join(self.lines()[0]))
+
+    def test_python_missing_fails(self):
+        _, code = self.lines(probe=lambda: (False, None))
+        self.assertEqual(code, 1)
+        _, code = self.lines(probe=lambda: (False, "3.6"))
+        self.assertEqual(code, 1)
+
+    def test_broken_config_fails(self):
+        os.makedirs(self.home)
+        with open(config.config_path(self.home), "w") as f:
+            f.write("{")
+        lines, code = self.lines()
+        self.assertEqual(code, 1)
+        self.assertIn("(broken)", "\n".join(lines))
+
+    def test_output_has_no_words_or_paths(self):
+        self.ready_policy()
+        room.create_room(self.room, [self.raw])
+        text = "\n".join(self.lines()[0])
+        for w in (WORD, "kitraw", self.tmp, "opencode run", "127.0.0.1"):
+            self.assertNotIn(w, text)
+
+    def test_check_reports_guide_files_here_and_above(self):
+        self.ready_policy()
+        proj = os.path.join(self.tmp, "proj", "sub")
+        os.makedirs(proj)
+        with open(os.path.join(self.tmp, "proj", "AGENTS.md"), "w", encoding="utf-8") as f:
+            f.write("%s 규칙\n" % WORD)
+        self.assertEqual(setup.guide_hits_here(self.home, cwd=proj, env={"CLAUDE_CONFIG_DIR": os.path.join(self.tmp, "u")}), 1)
+        cwd = os.getcwd()
+        os.chdir(proj)
+        try:
+            from unittest import mock
+            with mock.patch.dict(os.environ, {"CLAUDE_CONFIG_DIR": os.path.join(self.tmp, "u")}):
+                lines, code = setup.check(self.home, python_probe=lambda: (True, "3.12"))
+        finally:
+            os.chdir(cwd)
+        text = "\n".join(lines)
+        self.assertIn("안내 파일", text)
+        self.assertIn("사전 단어가 1개", text)
+        self.assertNotIn(WORD, text)
+        self.assertEqual(code, 3)
+
+    def test_user_guide_with_dictionary_word(self):
+        self.ready_policy()
+        md = os.path.join(self.tmp, "CLAUDE.md")
+        with open(md, "w", encoding="utf-8") as f:
+            f.write("# 메모\n%s 프로젝트\n" % WORD)
+        self.assertEqual(setup.user_guide_hits(self.home, md), 1)
+        with open(md, "w", encoding="utf-8") as f:
+            f.write("평범한 메모\n")
+        self.assertEqual(setup.user_guide_hits(self.home, md), 0)
+        self.assertEqual(setup.user_guide_hits(self.home, os.path.join(self.tmp, "없음.md")), 0)
+
+
+class RunSetup(Base):
+    def test_first_run_opens_the_window_and_does_not_make_a_room(self):
+        launched = []
+        lines, code = setup.run_setup(self.home, path=self.room, launch=lambda: launched.append(1))
+        self.assertEqual(launched, [1])
+        self.assertEqual(code, 3)
+        self.assertFalse(os.path.exists(self.room))
+        self.assertIn("정책 창을 엽니다", "\n".join(lines))
+        self.assertNotIn(WORD, "\n".join(lines))
+
+    def test_ready_makes_the_room_without_the_window(self):
+        self.ready_policy()
+        launched = []
+        lines, code = setup.run_setup(self.home, path=self.room, launch=lambda: launched.append(1))
+        self.assertEqual(launched, [])
+        self.assertEqual(room.room_state(self.room), "ok")
+        self.assertIn("방을 만들었습니다", lines[0])
+        self.assertEqual(code, 0)
+
+    def test_a_missing_screen_is_reported_instead_of_pretending(self):
+        from unittest import mock
+        from diodelib import policy_window
+        with mock.patch.object(policy_window, "can_open", return_value=False), \
+                mock.patch.object(policy_window, "launch_detached") as launch:
+            lines, code = setup.run_setup(self.home, path=self.room)
+        text = "\n".join(lines)
+        self.assertIn("E-07", text)
+        self.assertNotIn("정책 창을 엽니다", text)
+        launch.assert_not_called()
+        self.assertFalse(os.path.exists(self.room))
+        self.assertNotEqual(code, 0)
+
+    def test_broken_config_does_not_open_the_window(self):
+        os.makedirs(self.home)
+        with open(config.config_path(self.home), "w") as f:
+            f.write("{")
+        launched = []
+        lines, code = setup.run_setup(self.home, path=self.room, launch=lambda: launched.append(1))
+        self.assertEqual((launched, code >= 1), ([], True))
+
+    def test_refused_room_is_reported(self):
+        self.ready_policy()
+        lines, code = setup.run_setup(self.home, path=os.path.join(self.raw, "room"), launch=lambda: None)
+        self.assertIn("원자료 폴더와 겹칩니다", "\n".join(lines))
+        self.assertNotEqual(code, 0)
+
+
+class Cli(Base):
+    """diode.py setup · room · dict — 진짜 프로세스 · 임시 HOME (기본 데이터 폴더)."""
+
+    def _run(self, *argv):
+        import subprocess
+        env = dict(os.environ)
+        env.update({"HOME": self.tmp, "USERPROFILE": self.tmp, "LOCALAPPDATA": os.path.join(self.tmp, "AppData", "Local"),
+                    "PYTHONIOENCODING": "utf-8"})
+        env.pop("DIODE_HOME", None)
+        p = subprocess.run([sys.executable, os.path.join(ROOT, "diode.py")] + list(argv), stdout=subprocess.PIPE,
+                           stderr=subprocess.PIPE, env=env, timeout=60)
+        return p.returncode, p.stdout.decode("utf-8"), p.stderr.decode("utf-8")
+
+    def test_setup_check(self):
+        code, out, err = self._run("setup", "--check")
+        self.assertEqual(code, 3)
+        self.assertEqual(out.strip().splitlines()[-1], "결과: 확인 필요")
+        self.assertFalse(os.path.exists(self.home))                         # 점검은 아무것도 만들지 않는다
+
+    def test_report_mode_always_exits_zero(self):
+        # 슬래시 명령의 ! 는 종료 코드가 0 이 아니면 명령을 실패로 본다 — 결과 줄이 상태를 알린다
+        code, out, err = self._run("setup", "--check", "--report")
+        self.assertEqual((code, out.strip().splitlines()[-1]), (0, "결과: 확인 필요"))
+        code, out, err = self._run("room", "--path", os.path.join(room.PLUGIN_ROOT, "x"), "--report")
+        self.assertEqual(code, 0)
+        self.assertIn("플러그인 소스", out)
+
+    def test_room_path(self):
+        code, out, err = self._run("room", "--path", self.room)
+        self.assertEqual((code, room.room_state(self.room)), (0, "ok"))
+        self.assertEqual(self._run("room", "--path", self.room)[0], 0)
+        code, out, err = self._run("room", "--path", os.path.join(room.PLUGIN_ROOT, "x"))
+        self.assertEqual(code, 2)
+        self.assertIn("플러그인 소스", out)
+
+    def test_bad_arguments(self):
+        for argv in (("setup", "extra"), ("room", "--bogus"), ("room", "--path"), ("dict", "x"), ("policy", "x")):
+            code, out, err = self._run(*argv)
+            self.assertEqual((code, out), (2, ""), argv)
+            self.assertIn("사용법 오류", err)
+
+
+class PolicyCommands(Base):
+    """diode.py dict · policy — 창을 띄우는 함수만 가짜로 (Windows CI 에서 진짜 창이 뜨지 않게). 출력에 단어 없음."""
+
+    def _main(self, *argv):
+        import io
+        from unittest import mock
+        sys.path.insert(0, ROOT)
+        import diode as cli
+        out, err = io.StringIO(), io.StringIO()
+        with mock.patch.dict(os.environ, {"HOME": self.tmp, "USERPROFILE": self.tmp,
+                                          "LOCALAPPDATA": os.path.join(self.tmp, "AppData", "Local")}):
+            os.environ.pop("DIODE_HOME", None)
+            code = cli.main(list(argv), out=out, err=err)
+        return code, out.getvalue(), err.getvalue()
+
+    def test_dict_opens_the_window_detached_and_says_nothing_about_words(self):
+        from unittest import mock
+        from diodelib import policy_window
+        with mock.patch.object(policy_window, "can_open", return_value=True), \
+                mock.patch.object(policy_window, "launch_detached", return_value=4242) as launch:
+            code, out, err = self._main("dict")
+        self.assertEqual((code, err), (0, ""))
+        launch.assert_called_once()
+        args = launch.call_args[0]
+        self.assertEqual(os.path.basename(args[1]), "diode.py")
+        self.assertIn("정책 창을 열었습니다", out)
+        self.assertIn("단어는 이 대화로 보내지 않습니다", out)
+
+    def test_dict_says_so_when_a_window_cannot_open(self):
+        from unittest import mock
+        from diodelib import policy_window
+        with mock.patch.object(policy_window, "can_open", return_value=False), \
+                mock.patch.object(policy_window, "launch_detached") as launch:
+            code, out, err = self._main("dict")
+        self.assertEqual((code, out), (1, ""))
+        self.assertIn("E-07", err)
+        launch.assert_not_called()                                              # 못 띄우면 띄운 척하지 않는다
+
+    def test_dict_failing_to_launch_is_reported_not_silent(self):
+        from unittest import mock
+        from diodelib import policy_window
+        with mock.patch.object(policy_window, "can_open", return_value=True), \
+                mock.patch.object(policy_window, "launch_detached", side_effect=OSError("x")):
+            code, out, err = self._main("dict")
+        self.assertEqual((code, out), (1, ""))
+        self.assertIn("E-20", err)
+
+    def test_policy_prints_one_json_line_and_exit_code(self):
+        from unittest import mock
+        from diodelib import policy_window
+        for result, want in (((0, '{"saved": true}'), 0), ((3, '{"saved": false}'), 3), ((1, '{"saved": false, "error": "E-07"}'), 1)):
+            with mock.patch.object(policy_window, "main_policy", return_value=result) as m:
+                code, out, err = self._main("policy")
+            self.assertEqual((code, out.strip()), (want, result[1]))
+            self.assertEqual(os.path.basename(m.call_args[0][0]), "diode")           # 기본 데이터 폴더 하나만 받는다
+
+    @unittest.skipIf(os.name == "nt", "Windows 는 화면이 있다고 본다")
+    def test_policy_without_a_display_is_e07_and_creates_nothing(self):
+        import subprocess
+        env = dict(os.environ)
+        env.update({"HOME": self.tmp, "USERPROFILE": self.tmp, "PYTHONIOENCODING": "utf-8"})
+        for k in ("DISPLAY", "WAYLAND_DISPLAY", "DIODE_HOME"):
+            env.pop(k, None)
+        p = subprocess.run([sys.executable, os.path.join(ROOT, "diode.py"), "policy"], stdout=subprocess.PIPE,
+                           stderr=subprocess.PIPE, env=env, timeout=60)
+        self.assertEqual((p.returncode, json.loads(p.stdout.decode("utf-8"))), (1, {"saved": False, "error": "E-07"}))
+        self.assertFalse(os.path.exists(os.path.join(self.tmp, ".local", "share", "diode", "dictionary.json")))
+
+
+if __name__ == "__main__":
+    unittest.main()

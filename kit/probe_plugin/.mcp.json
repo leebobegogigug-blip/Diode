@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "hub": {
+      "command": "python3",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/hub_min.py"]
+    }
+  }
+}

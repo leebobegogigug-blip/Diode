@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "hub": {
+      "command": "python",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/diode.py", "mcp"]
+    }
+  }
+}

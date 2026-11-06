@@ -1,0 +1,306 @@
+{
+  "format": 1,
+  "note": "check_text 로 보는 글. block 은 그 검사에 걸려야 하고 pass 는 어느 검사에도 걸리면 안 된다 (checks 는 D2 · D3 · D4 · D5 · D6 전부).",
+  "block": [
+    {
+      "check": "D2",
+      "text": "KITWORDALPHA 를 쓴다"
+    },
+    {
+      "check": "D2",
+      "text": "kit-word alpha 를 쓴다"
+    },
+    {
+      "check": "D2",
+      "text": "ＫＩＴＷＯＲＤＡＬＰＨＡ 를 쓴다"
+    },
+    {
+      "check": "D2",
+      "text": "KitWordAlpha."
+    },
+    {
+      "check": "D2",
+      "text": "kit_word.alpha"
+    },
+    {
+      "check": "D2",
+      "text": "k i t w o r d a l p h a"
+    },
+    {
+      "check": "D2",
+      "text": "KITWΟRDALPHA (그리스 글자 오미크론)"
+    },
+    {
+      "check": "D2",
+      "text": "кitwordalpha (키릴 글자)"
+    },
+    {
+      "check": "D2",
+      "text": "KITWORD​ALPHA (보이지 않는 빈칸)"
+    },
+    {
+      "check": "D2",
+      "text": "KÏTWORDALPHA (결합 부호)"
+    },
+    {
+      "check": "D2",
+      "text": "가 람 소 재 의 일"
+    },
+    {
+      "check": "D2",
+      "text": "가람·소재"
+    },
+    {
+      "check": "D2",
+      "text": "bx7라인"
+    },
+    {
+      "check": "D2",
+      "text": "KITWORD PH_K7Q2 ALPHA"
+    },
+    {
+      "check": "D2",
+      "text": "모래시계\n공정"
+    },
+    {
+      "check": "D3",
+      "text": "D:\\work\\a"
+    },
+    {
+      "check": "D3",
+      "text": "\\\\srv\\share"
+    },
+    {
+      "check": "D3",
+      "text": "C:/Users/x"
+    },
+    {
+      "check": "D3",
+      "text": "열기 /home/kit/a"
+    },
+    {
+      "check": "D3",
+      "text": "~/kit/a"
+    },
+    {
+      "check": "D3",
+      "text": "%USERPROFILE% 아래"
+    },
+    {
+      "check": "D3",
+      "text": "http://x.example.com"
+    },
+    {
+      "check": "D3",
+      "text": "주소는ftp://a"
+    },
+    {
+      "check": "D3",
+      "text": "www.example"
+    },
+    {
+      "check": "D3",
+      "text": "10.0.0.1"
+    },
+    {
+      "check": "D3",
+      "text": "127.0.0.1 로"
+    },
+    {
+      "check": "D3",
+      "text": "fe80::1 로"
+    },
+    {
+      "check": "D3",
+      "text": "aa:bb:cc:dd:ee:ff"
+    },
+    {
+      "check": "D3",
+      "text": "a@example.com"
+    },
+    {
+      "check": "D3",
+      "text": "kim@srv"
+    },
+    {
+      "check": "D3",
+      "text": "db.example.local 에"
+    },
+    {
+      "check": "D3",
+      "text": "app.corp"
+    },
+    {
+      "check": "D3",
+      "text": "pandas.corp"
+    },
+    {
+      "check": "D3",
+      "text": "localhost 로"
+    },
+    {
+      "check": "D3",
+      "text": "KITLOT-abc 를"
+    },
+    {
+      "check": "D3",
+      "text": "//서버/공유/한글폴더/파일"
+    },
+    {
+      "check": "D4",
+      "text": "온도 350"
+    },
+    {
+      "check": "D4",
+      "text": "온도 ３５０"
+    },
+    {
+      "check": "D4",
+      "text": "온도 ٣٥٠"
+    },
+    {
+      "check": "D4",
+      "text": "v2"
+    },
+    {
+      "check": "D4",
+      "text": "2단계"
+    },
+    {
+      "check": "D4",
+      "text": "½ 만큼"
+    },
+    {
+      "check": "D5",
+      "text": "```코드```"
+    },
+    {
+      "check": "D5",
+      "text": "`df` 를"
+    },
+    {
+      "check": "D5",
+      "text": "def f(x): 를"
+    },
+    {
+      "check": "D5",
+      "text": "from kitpkg import a"
+    },
+    {
+      "check": "D5",
+      "text": "SELECT a FROM b"
+    },
+    {
+      "check": "D5",
+      "text": "f(x);"
+    },
+    {
+      "check": "D5",
+      "text": "{a}"
+    },
+    {
+      "check": "D5",
+      "text": "a == b"
+    },
+    {
+      "check": "D5",
+      "text": "<div class=\"a\">"
+    },
+    {
+      "check": "D5",
+      "text": "line_temp 를 고친다"
+    },
+    {
+      "check": "D5",
+      "text": "lineTemp 를 고친다"
+    },
+    {
+      "check": "D5",
+      "text": "QWxhZGRpbjpvcGVuIHNlc2FtZQ"
+    },
+    {
+      "check": "D5",
+      "text": "deadbeefcafebabe"
+    },
+    {
+      "check": "D5",
+      "text": "Zq8!xW3#pL5$vB7%nM9^"
+    },
+    {
+      "check": "D6",
+      "text": "PH_ZZZZ 를"
+    },
+    {
+      "check": "D6",
+      "text": "ph_k7q2 를"
+    },
+    {
+      "check": "D6",
+      "text": "PH_K7Q 를"
+    },
+    {
+      "check": "D6",
+      "text": "PH K7Q2 를"
+    },
+    {
+      "check": "D6",
+      "text": "PH_K7Q2X 를"
+    },
+    {
+      "check": "D6",
+      "text": "PH-K7Q2 를"
+    },
+    {
+      "check": "D6",
+      "text": "PH_K7Q1 를"
+    },
+    {
+      "check": "D6",
+      "text": "PHK7Q2 를"
+    }
+  ],
+  "pass": [
+    {
+      "text": "PH_K7Q2 를 만들었다"
+    },
+    {
+      "text": "PH_K7Q2의 목록과 PH_M3X9 를 묶는다"
+    },
+    {
+      "text": "kit word 와 alpha 는 다른 낱말이다"
+    },
+    {
+      "text": "가람 과 소나무"
+    },
+    {
+      "text": "pandas.DataFrame.groupby 를 쓴다"
+    },
+    {
+      "text": "pandas.io.json 아래의 것"
+    },
+    {
+      "text": "read_csv 로 읽는다"
+    },
+    {
+      "text": "입력/출력 을 나눈다"
+    },
+    {
+      "text": "a.b 는 점이 하나인 낱말"
+    },
+    {
+      "text": "phone 과 photo 와 phase"
+    },
+    {
+      "text": "A -> B 로 흐른다"
+    },
+    {
+      "text": "화면 구성, 흐름, 빈 상태를 제안해 달라"
+    },
+    {
+      "text": "열 이름 대신 토큰을 쓴다"
+    },
+    {
+      "text": "a // b 는 나눗셈 꼴"
+    }
+  ]
+}
