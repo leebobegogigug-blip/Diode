@@ -83,6 +83,14 @@ def build_parser():
     sub.add_parser("confirm", add_help=False).add_argument("rest", nargs=argparse.REMAINDER)
     sub.add_parser("propose", add_help=False).add_argument("rest", nargs=argparse.REMAINDER)
     sub.add_parser("mcp", add_help=False)
+    sp = sub.add_parser("setup", add_help=False)
+    sp.add_argument("--check", action="store_true")
+    sp.add_argument("--report", action="store_true")      # 슬래시 명령용: 종료 코드를 늘 0 으로 (0 이 아니면 Claude Code 가 명령을 실패로 본다)
+    rp = sub.add_parser("room", add_help=False)
+    rp.add_argument("--path", default=None)
+    rp.add_argument("--report", action="store_true")
+    for name in ("dict", "policy"):
+        sub.add_parser(name, add_help=False)
     sub.add_parser("hook", add_help=False).add_argument("event", nargs="?", default="")
     for name, _ in PENDING:
         sub.add_parser(name, add_help=False).add_argument("rest", nargs=argparse.REMAINDER)
@@ -154,6 +162,37 @@ def confirm_command(out, rest):
     return code
 
 
+def setup_command(name, args, out, err):
+    """/diode:setup · :room · :dict 가 부르는 명령. 출력은 개수 · 참거짓 · 코드뿐이다 (슬래시 명령의 출력은 Claude 의 맥락에 붙는다)."""
+    try:
+        home = data_dir()[0]
+        if name == "policy":                                   # 정책 창 (따로 된 프로세스 · 사람이 입력한다 · AL-12)
+            from diodelib import policy_window
+            code, line = policy_window.main_policy(home)
+            out.write(line + "\n")
+            return code
+        if name == "dict":                                     # 정책 창을 따로 떼어 연다 (기다리지 않는다)
+            from diodelib import policy_window
+            policy_window.launch_detached(sys.executable, os.path.abspath(__file__))
+            out.write("정책 창을 열었습니다 - 사전 · 원자료 폴더 · 안쪽 도구 · 일꾼을 창에서 직접 입력하고 [저장] 하세요 "
+                      "(단어는 이 대화로 보내지 않습니다). 저장한 뒤 /diode:status 로 개수를 보세요\n")
+            return OK
+        from diodelib import setup
+        if name == "room":
+            lines, code = setup.make_room(home, args.path)
+        elif args.check:
+            lines, code = setup.check(home)
+        else:
+            lines, code = setup.run_setup(home)
+        out.write("\n".join(lines) + "\n")
+        return OK if getattr(args, "report", False) else code
+    except UsageError:
+        raise
+    except Exception:
+        err.write("diode.py %s: 실패 (E-20)\n" % name)
+        return FAIL
+
+
 def run(args, out, err, inp=None):
     if (args.json or args.room) and not args.status:
         raise UsageError("--json · --room 은 --status 와 같이 씁니다")
@@ -183,6 +222,8 @@ def run(args, out, err, inp=None):
             code, line = 2, '{"queued": false, "error": "E-20"}'
         out.write(line + "\n")
         return code
+    if args.command in ("setup", "room", "dict", "policy"):
+        return setup_command(args.command, args, out, err)
     if args.command == "mcp":
         from diodelib import hub
         return hub.main(stdin=inp if inp is not None else None, stdout=out if out is not sys.stdout else None)

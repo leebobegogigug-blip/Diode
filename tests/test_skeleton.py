@@ -254,16 +254,21 @@ class TestPluginFiles(unittest.TestCase):
         self.assertIn(entry["source"], (".", "./"))               # 이 저장소 루트가 플러그인
         self.assertNotIn("version", entry)                        # plugin.json 의 version 이 앞서고, 둘 다 있으면 validate 가 경고한다
 
-    def test_skill_placeholder(self):
+    def test_skill(self):
         text = read("skills/diode/SKILL.md")
         m = re.match(r"^---\n(.*?)\n---\n(.*)$", text, re.S)
         self.assertIsNotNone(m, "frontmatter 가 없다")
         front = dict(ln.split(": ", 1) for ln in m.group(1).splitlines())
         self.assertEqual(front["name"], "diode")
-        self.assertIn("개발 중 (v0.0)", front["description"])
-        self.assertIn("훅만 있다", front["description"])
-        self.assertTrue(m.group(2).strip())
-        self.assertLessEqual(len(m.group(2).strip().splitlines()), 4)     # 자리표시 — 본문은 두세 줄
+        self.assertIn("PH_", front["description"])
+        self.assertLess(len(front["description"]), 400)                  # 모든 세션에 실리는 글이라 짧게
+        body = m.group(2)
+        self.assertLess(len(body.splitlines()), 80)
+        for needle in ("mcp__plugin_diode_hub__dispatch", "inbox", "ToolSearch", "E-01", "E-20", "벽이 아니다"):
+            self.assertIn(needle, body)
+        # 안내문은 벽이 아니다 (AL-09) — 사내 이름 · 실제 경로 · 주소를 담지 않는다
+        for bad in ("http", "D:\\", "/home/", "opencode"):
+            self.assertNotIn(bad, body)
 
     def test_only_one_skill_and_it_is_named_like_the_plugin(self):
         self.assertEqual(sorted(os.listdir(os.path.join(ROOT, "skills"))), ["diode"])

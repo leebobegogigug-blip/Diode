@@ -102,6 +102,11 @@ def dict_hits(text, words_or_keys):
     return len(_matched_keys(text, keys))
 
 
+def policy_dict_hits(text, policy):
+    """정책의 사전 (별칭 포함) 단어가 글 안에 몇 개 있나 — 서로 다른 단어 수 (단어는 내지 않는다)."""
+    return len(_matched_keys(text, policy.word_keys))
+
+
 def _matched_keys(text, keys):
     a = dict_key(text)
     b = dict_key(remove_tokens(text, ""))

@@ -312,6 +312,108 @@ class InnerTools(Base):
         self.assertEqual(code, 2)
 
 
+class DataFolderGuard(Base):
+    """사전 · 설정 · 기록이 든 데이터 폴더와 플러그인 소스는 Claude 가 읽거나 고치지 않는다 — 정책은 사람이 창에서만 (AL-12)."""
+
+    def test_file_tools_denied_everywhere(self):
+        d = os.path.join(self.home, "dictionary.json")
+        for project in (self.other, self.room):
+            for name in ("Read", "Write", "Edit", "MultiEdit", "NotebookEdit"):
+                self.assertDenied(self.tool(name, {"file_path": d, "content": "x"}, project))
+        for rel in ("config.json", os.path.join("audit", "2026-11", "J-0001-001-out.json"), os.path.join("queue", "x.json")):
+            self.assertDenied(self.tool("Read", {"file_path": os.path.join(self.home, rel)}, self.other))
+        self.assertDenied(self.tool("Grep", {"pattern": "x", "path": self.home}, self.other))
+        self.assertDenied(self.tool("Glob", {"pattern": "*", "path": self.home}, self.other))
+
+    def test_listing_the_parent_is_fine_but_searching_its_content_is_not(self):
+        # 데이터 폴더를 품은 위 폴더 (원자료 폴더는 없음): 이름만 보는 Glob 은 통과 · 내용을 읽는 Grep 은 막음
+        parent = os.path.join(self.tmp, "up")
+        home = os.path.join(parent, "diode-data")
+        os.makedirs(home)
+        write_json(os.path.join(home, "dictionary.json"), {"format": 1, "words": [WORD]})
+        write_json(os.path.join(home, "config.json"), {"format": 1, "policy": {"raw_dirs": []}})
+        self.assertAllowed(self.tool("Glob", {"pattern": "*.nothing", "path": parent}, self.other, home=home))
+        self.assertDenied(self.tool("Grep", {"pattern": "x", "path": parent}, self.other, home=home))
+        self.assertDenied(self.tool("Read", {"file_path": os.path.join(home, "dictionary.json")}, self.other, home=home))
+
+    def test_shell_mentions(self):
+        for cmd in ("cat %s/dictionary.json" % self.home, "type %s\\config.json" % self.home.replace("/", "\\"),
+                    "cat ~/.local/share/diode/dictionary.json", "type %LOCALAPPDATA%\\diode\\config.json",
+                    "ls diode/audit"):
+            self.assertDenied(self.tool("Bash", {"command": cmd}, self.other))
+        self.assertAllowed(self.tool("Bash", {"command": "ls"}, self.other))
+        self.assertAllowed(self.tool("Bash", {"command": 'python "/x/diode/diode.py" setup'}, self.other))
+        code, out, _ = self.call("tool", {"tool_name": "Bash", "tool_input": {"command": "cat dictionary.json"},
+                                          "cwd": self.home}, self.other)
+        self.assertDenied((code, out, ""))                                    # 데이터 폴더 안에서 연 셸
+
+    def test_plugin_source_is_write_protected_but_readable(self):
+        from diodelib.room import PLUGIN_ROOT
+        f = os.path.join(PLUGIN_ROOT, "diode.py")
+        for name in ("Write", "Edit", "MultiEdit"):
+            self.assertDenied(self.tool(name, {"file_path": f, "content": "x"}, self.other))
+        self.assertAllowed(self.tool("Read", {"file_path": f}, self.other))
+
+    def test_hub_tools_and_ordinary_paths_pass(self):
+        self.assertAllowed(self.tool("mcp__plugin_diode_hub__status", {}, self.room))
+        self.assertAllowed(self.tool("Write", {"file_path": os.path.join(self.other, "a.txt"), "content": "x"}, self.other))
+
+    def test_before_setup_too(self):
+        empty = os.path.join(self.tmp, "empty")
+        self.assertDenied(self.tool("Read", {"file_path": os.path.join(empty, "dictionary.json")}, self.other, home=empty))
+
+
+class ReadScan(Base):
+    """원자료 폴더 목록 밖의 파일도 내용에 사내 단어가 있으면 읽지 못한다 — 안전벨트가 이름이 아니라 내용도 본다."""
+
+    def _file(self, name, data):
+        p = os.path.join(self.other, name)
+        mode = "wb" if isinstance(data, bytes) else "w"
+        with open(p, mode, **({} if isinstance(data, bytes) else {"encoding": "utf-8"})) as f:
+            f.write(data)
+        return p
+
+    def test_file_with_a_dictionary_word_is_denied_anywhere(self):
+        for text in ("메모\n%s 프로젝트\n" % WORD, "kit-word alpha 의 일", "ＫＩＴＷＯＲＤＡＬＰＨＡ"):
+            code, out, _ = self.tool("Read", {"file_path": self._file("n.txt", text)}, self.other)
+            self.assertDenied((code, out, ""))
+            self.assertIn("D2 x1", json.loads(out)["hookSpecificOutput"]["permissionDecisionReason"])
+
+    def test_clean_files_and_special_cases_pass(self):
+        self.assertAllowed(self.tool("Read", {"file_path": self._file("ok.txt", "평범한 메모\n")}, self.other))
+        self.assertAllowed(self.tool("Read", {"file_path": self._file("img.png", b"\x89PNG\x00" + WORD.encode())}, self.other))
+        self.assertAllowed(self.tool("Read", {"file_path": os.path.join(self.other, "없는파일.txt")}, self.other))
+        self.assertAllowed(self.tool("Read", {"file_path": "ok.txt"}, self.other))                       # 상대 경로 (cwd)
+
+    def test_too_big_is_denied(self):
+        from diodelib import hook
+        p = self._file("big.txt", "가" * 10)
+        saved = hook.READ_SCAN_MAX
+        hook.READ_SCAN_MAX = 5
+        try:
+            code, out, _ = self.tool("Read", {"file_path": p}, self.other)
+        finally:
+            hook.READ_SCAN_MAX = saved
+        self.assertDenied((code, out, ""))
+        self.assertIn("너무 커서", json.loads(out)["hookSpecificOutput"]["permissionDecisionReason"])
+
+    def test_output_has_no_word_or_path(self):
+        code, out, err = self.tool("Read", {"file_path": self._file("secret-name.txt", WORD)}, self.other)
+        self.assertNotIn("secret-name", out)
+        self.assertNotIn(WORD.lower(), out.lower())
+
+    def test_not_before_setup(self):
+        empty = os.path.join(self.tmp, "empty")
+        self.assertAllowed(self.tool("Read", {"file_path": self._file("n.txt", WORD)}, self.other, home=empty))
+
+    def test_room_files_are_not_scanned_here(self):
+        # 방은 방 안의 파일만 읽고 (다른 규칙) 방 안에는 원자료가 없다 — 내용 검사는 방 밖 (그 밖의 폴더) 에서만
+        p = os.path.join(self.room, "work", "a.md")
+        with open(p, "w", encoding="utf-8") as f:
+            f.write("평범한 글")
+        self.assertAllowed(self.tool("Read", {"file_path": p}, self.room))
+
+
 class Session(Base):
     def test_messages(self):
         self.assertEqual(self.call("session", {}, self.room), (0, "", ""))

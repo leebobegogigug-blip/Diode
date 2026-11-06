@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 import re
+import time
 
 MARKER = ".diode-room"
 SETTINGS_REL = os.path.join(".claude", "settings.json")
@@ -88,3 +89,99 @@ def is_protected(path, room):
         if inside(path, os.path.join(room, rel)):
             return True
     return False
+
+
+# ---------------------------------------------------------------- 방 만들기 (SP-10 · /diode:room)
+
+PLUGIN_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+GUIDE_FILES = ("CLAUDE.md", os.path.join(".claude", "CLAUDE.md"), "AGENTS.md")
+ROOM_DIRS = ("outbox", "inbox", "work")
+
+
+def default_room_path(cfg_room=None):
+    """설정 room.path → 없으면 Windows `D:\\claude\\room` · 그 밖 `~/claude/room`."""
+    if isinstance(cfg_room, str) and cfg_room.strip():
+        return cfg_room.strip()
+    if os.name == "nt":
+        return "D:\\claude\\room"
+    return os.path.join(os.path.expanduser("~"), "claude", "room")
+
+
+def room_settings(plugin_root=None):
+    """방 설정 (SP-10 · 다섯 + statusLine). 권한 규칙에 경로를 쓰지 않는다 (L-31) · python 은 이름만 (L-30)."""
+    diode_py = os.path.join(plugin_root or PLUGIN_ROOT, "diode.py")
+    return {
+        "autoMemoryEnabled": False,
+        "claudeMdExcludes": ["**/CLAUDE.md", "**/.claude/CLAUDE.md", "**/AGENTS.md", "**/.claude/rules/**"],
+        "permissions": {"defaultMode": "default", "blockReadsOutsideWorkingDirectories": True,
+                        "deny": ["Bash", "WebFetch"]},
+        "statusLine": {"type": "command", "command": 'python "%s" --statusline' % diode_py},
+        "effortLevel": "high",
+    }
+
+
+def _settings_bytes(settings):
+    return (json.dumps(settings, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode("utf-8")
+
+
+def _inside_git(folder):
+    cur = norm(folder)
+    while True:
+        if os.path.exists(os.path.join(cur, ".git")):
+            return True
+        parent = os.path.dirname(cur)
+        if parent == cur:
+            return False
+        cur = parent
+
+
+def _guide_above(folder):
+    """방 자리와 그 위 폴더에 안내 파일 (CLAUDE.md · AGENTS.md) 이 있나 — 있으면 Claude 가 읽어 간다."""
+    cur = norm(folder)
+    while True:
+        for rel in GUIDE_FILES:
+            if os.path.exists(os.path.join(cur, rel)):
+                return True
+        parent = os.path.dirname(cur)
+        if parent == cur:
+            return False
+        cur = parent
+
+
+def create_room(folder, raw_dirs=(), plugin_root=None, now=None):
+    """방을 만든다 (이미 방이면 그대로) → {"room": "created"|"ok"|"changed"|"refused", "code": 거부 이유 (거부일 때)}.
+
+    거부 (SP-10): git 저장소 안 (git) · 원자료 폴더와 겹침 (raw) · 플러그인 소스와 겹침 (plugin) ·
+    그 위 폴더에 안내 파일 (guide) · 비어 있지 않은 폴더 (nonempty) · 절대 경로가 아님 (path).
+    이미 있는 방은 덮어쓰지 않는다 — 표지 · 해시가 어긋나면 changed 로 알리기만 한다.
+    """
+    if not isinstance(folder, str) or not folder.strip() or not (os.path.isabs(folder) or folder[1:3] in (":\\", ":/")):
+        return {"room": "refused", "code": "path"}
+    root = plugin_root or PLUGIN_ROOT
+    st = room_state(folder)
+    if st == "ok":
+        return {"room": "ok"}
+    if st == "changed":
+        return {"room": "changed"}
+    if overlaps(folder, root):
+        return {"room": "refused", "code": "plugin"}
+    for r in raw_dirs:
+        if overlaps(folder, r):
+            return {"room": "refused", "code": "raw"}
+    if _inside_git(folder):
+        return {"room": "refused", "code": "git"}
+    if _guide_above(folder):
+        return {"room": "refused", "code": "guide"}
+    if os.path.isdir(folder) and os.listdir(folder):
+        return {"room": "refused", "code": "nonempty"}
+    os.makedirs(os.path.join(folder, ".claude"), exist_ok=True)
+    data = _settings_bytes(room_settings(root))
+    with open(os.path.join(folder, SETTINGS_REL), "wb") as f:
+        f.write(data)
+    created = time.strftime("%Y-%m-%dT%H:%M:%SZ", now or time.gmtime())
+    marker = {"format": 1, "created": created, "settings_sha256": hashlib.sha256(data).hexdigest()}
+    with open(os.path.join(folder, MARKER), "wb") as f:
+        f.write((json.dumps(marker, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode("utf-8"))
+    for d in ROOM_DIRS:
+        os.makedirs(os.path.join(folder, d), exist_ok=True)
+    return {"room": "created"}

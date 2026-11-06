@@ -106,6 +106,20 @@ def scenarios(lay):
          "steps": [{"tool": "ToolSearch", "input": {"query": "select:{dispatch}", "max_results": 1}},
                    {"tool": "{dispatch}", "input": {"instruction": "PH_K7Q2 화면을 만들어 달라"}}],
          "args": ["--allowedTools", "mcp__plugin_diode_hub__dispatch"], "expect": "hub_e01"},
+        {"id": "R18", "what": "보통 폴더 · 사전 파일 (데이터 폴더) Read → deny · 사전 단어가 Claude 에게 가지 않는다", "cwd": "other",
+         "prompt": "읽어", "server": "tool", "tool": "Read", "tool_input": {"file_path": "{DATA}/dictionary.json"},
+         "args": ["--allowedTools", "Read"], "expect": "deny_nodict"},
+        {"id": "R19", "what": "보통 폴더 · 플러그인 소스 폴더에 새 파일 Write → deny · 파일이 안 생김 (세션 중 훅 · 허브를 스스로 고치지 못함)",
+         "cwd": "other", "prompt": "고쳐", "server": "tool", "tool": "Write",
+         "tool_input": {"file_path": os.path.join(REPO, "kit", "out", "r19-new-file.txt"), "content": "x"},
+         "args": ["--allowedTools", "Write"], "expect": "deny", "must_not_exist": os.path.join(REPO, "kit", "out", "r19-new-file.txt")},
+        {"id": "R20", "what": "보통 폴더 · 원자료 폴더 목록 밖의 파일인데 사내 단어가 든 파일 Read → deny (이름이 아니라 내용을 본다) · 단어가 Claude 에게 가지 않는다",
+         "cwd": "other", "prompt": "읽어", "server": "tool", "tool": "Read",
+         "tool_input": {"file_path": os.path.join(lay["other"], "internal-note.txt")},
+         "write": {os.path.join(lay["other"], "internal-note.txt"): "메모: %s 프로젝트 일정\n" % word},
+         "args": ["--allowedTools", "Read"], "expect": "deny_nodict"},
+        {"id": "R17", "what": "슬래시 명령 /diode:status — ${CLAUDE_PLUGIN_ROOT} 가 풀리고 점검 결과가 Claude 에게 가며 사전 단어는 없다", "cwd": "other",
+         "prompt": "/diode:status", "expect": "cmd_status"},
     ]
 
 
@@ -116,12 +130,15 @@ def run_one(sc, a, work, lay):
     os.makedirs(home, exist_ok=True)
     if not sc.get("no_data"):
         seed_data(home, lay)
+    for wp, wt in (sc.get("write") or {}).items():
+        with open(wp, "w", encoding="utf-8") as f:
+            f.write(wt)
     local = os.path.join(lay["room"], ".claude", "settings.local.json")
     if sc.get("local_settings"):
         with open(local, "w", encoding="utf-8") as f:
             json.dump({"permissions": {"allow": ["Bash"]}}, f)
-    srv = rk.start_server(out, sc.get("server", "text"), sc.get("tool", ""), sc.get("tool_input", {}),
-                          sc.get("steps"), sc.get("vars"))
+    ti = json.loads(json.dumps(sc.get("tool_input", {})).replace("{DATA}", data_dir_of(home).replace("\\", "\\\\")))
+    srv = rk.start_server(out, sc.get("server", "text"), sc.get("tool", ""), ti, sc.get("steps"), sc.get("vars"))
     extra = {}
     if sc.get("bad_python"):
         extra["PATH"] = broken_python_dir(work) + os.pathsep + os.environ.get("PATH", "")
@@ -140,14 +157,26 @@ def run_one(sc, a, work, lay):
         srv.shutdown()
         if os.path.exists(local):
             os.remove(local)
+        for wp in (sc.get("write") or {}):
+            if os.path.exists(wp):
+                os.remove(wp)
     res = rk.analyze(out, lay, sc)
+    created = bool(sc.get("must_not_exist")) and os.path.exists(sc["must_not_exist"])
+    if created:
+        os.remove(sc["must_not_exist"])
     trs = json.dumps(res.get("tool_results"), ensure_ascii=False)
     n = res["messages_requests"]
     leaked = [k for k in ("raw_text", "raw_name") if k in res["found"]]
     if sc["expect"] == "none":
         ok = n == 0
     elif sc["expect"] == "deny":
-        ok = "DIODE" in trs and not leaked
+        ok = "DIODE" in trs and not leaked and not created
+    elif sc["expect"] == "deny_nodict":
+        ok = "DIODE" in trs and "dict_word" not in res["found"] and not leaked
+    elif sc["expect"] == "cmd_status":
+        body = json.dumps([d.get("body") for d in rk.load_dumps(out)], ensure_ascii=False)
+        ok = n > 0 and "결과:" in body and "CLAUDE_PLUGIN_ROOT" not in body.replace("${CLAUDE_PLUGIN_ROOT}/diode.py", "") \
+            and "dict_word" not in res["found"] and not leaked
     elif sc["expect"] == "hub_e01":
         ok = '{"sent":false,"error":"E-01"}' in trs.replace(" ", "").replace("\\", "") and not leaked
     elif sc["expect"] == "absent_or_deny":

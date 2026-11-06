@@ -237,7 +237,7 @@ ASK: <ask>
 - 권한 규칙에는 경로를 쓰지 않는다 (L-31). 원자료 폴더 목록은 Diode 설정에만 있다.
 - `statusLine` 의 `python` 은 이름만 (L-30). `<플러그인 자리>` 는 `D:\claude\diode`.
 - **방 상태**: `ok` (표지 있음 · 설정의 sha256 이 표지와 같음 · 설정을 덮는 파일 `.claude\settings.local.json` · `.mcp.json` 이 없음) · `missing` (표지 없음 — 방이 아니다) · `changed` (표지는 있는데 해시가 다름 · 덮는 파일이 있음 · 표지가 깨짐 — 사람이 고쳤거나 바꿔치기). 방인지는 프로젝트 폴더 자체의 표지로만 본다 (위 폴더를 거슬러 찾지 않는다). 코드: [diodelib/room.py](../diodelib/room.py).
-- **만들기를 거부할 때**: 방 자리가 git 저장소 안 · 원자료 폴더 안 · 플러그인 소스 (`D:\claude\diode`) 안 · 위 폴더에 `CLAUDE.md` · `.claude\CLAUDE.md` · `AGENTS.md` 가 있음 (지우거나 옮기라고 알린다 · `claudeMdExcludes` 가 막지만 두 겹으로).
+- **만들기를 거부할 때**: 방 자리가 git 저장소 안 · 원자료 폴더와 겹침 (안 · 위) · 플러그인 소스 (`D:\claude\diode`) 와 겹침 · 방 자리나 위 폴더에 `CLAUDE.md` · `.claude\CLAUDE.md` · `AGENTS.md` 가 있음 (지우거나 옮기라고 알린다 · `claudeMdExcludes` 가 막지만 두 겹으로) · 비어 있지 않은 폴더 · 절대 경로가 아님. 거부 코드: `git` `raw` `plugin` `guide` `nonempty` `path`. 이미 방이면 그대로 (`ok`) · 표지나 해시가 어긋나면 덮어쓰지 않고 `changed` 로 알리기만 한다. 방 자리의 기본은 설정 `room.path` → Windows `D:\claude\room` · 그 밖 `~/claude/room`. 코드: [diodelib/room.py](../diodelib/room.py) `create_room`.
 
 ## SP-11 훅
 
@@ -253,6 +253,8 @@ ASK: <ask>
 | `SessionStart` | 알림 ("원자료 폴더") | `changed` 면 알림 | 설정 전 (`unset`) · `broken` 이면 알림 |
 
 - **안쪽 도구** (`policy.inner_tools` · 기본 `opencode`): 어느 모드에서든 (설정 전에도) `PreToolUse` 가 deny 한다 — 도구 이름에 그 조각이 든 MCP 도구 · 그 이름의 하위 에이전트 · 스킬 · 셸 명령의 낱말. 안쪽 도구의 결과가 Claude 로 곧바로 돌아가는 길을 닫는다 (AL-01) — 안쪽 일은 허브 (`dispatch`) 로만 넘긴다. `mcp__plugin_diode_` 도구는 예외.
+- **내용 검사** (`other` 모드 · 설정이 `ok` 일 때): `Read` 가 파일을 읽기 **전에** 훅이 그 파일의 내용을 사전 (D2 · 별칭 포함) 으로 본다 — 원자료 폴더 목록 밖의 사내 파일도 막는다. 걸리면 deny (`D2 x<개수> @파일` · 단어 · 경로 없음). 4 MiB 를 넘으면 검사하지 못하므로 막는다 (막는 쪽으로 실패). 이진 파일 (앞 8 KiB 에 NUL) 은 못 본다 — 이미지 · PDF 는 알려진 한계. `Grep` · `Glob` · 셸의 `cat` 은 이 검사 밖이다 (셸은 벽이 아니다).
+- **데이터 폴더 · 플러그인 소스 보호** (모든 모드 · AL-12): 데이터 폴더 (사전 · 설정 · 감사 기록 · 대기열) 는 Claude 가 읽지도 고치지도 못한다 — 파일 도구가 그 폴더 안을 가리키거나 (내용을 읽는 `Grep` 은 그 폴더를 품은 위 폴더도) 셸 명령이 그 폴더의 경로 · 이름 (`diode/dictionary` 꼴) 을 말하거나 셸의 작업 폴더가 그 안이면 deny. 이름만 보는 `Glob` 은 위 폴더를 통과시킨다. 플러그인 소스는 쓰기 도구가 deny (읽기는 통과) — 세션 중에 훅 · 허브를 스스로 고치지 못하게. 정책은 사람이 정책 창에서만 바꾼다. 플러그인을 직접 개발할 때는 이 플러그인을 끄고 연다.
 - **까닭 글** (Claude 가 보는 deny 까닭 · 사람이 보는 막은 까닭) 은 고정 문구와 검사 번호 · 개수만 쓴다 (AL-11). 사전 단어 · 경로 · 원자료 폴더 이름을 쓰지 않는다.
 - **출력**: `UserPromptSubmit` 은 막을 때만 종료 코드 2 + 표준 오류 (사람에게만) — 통과면 아무것도 쓰지 않는다 (표준 출력은 Claude 의 맥락에 붙는다). `PreToolUse` 는 deny 일 때만 `hookSpecificOutput.permissionDecision: "deny"` JSON. `SessionStart` 는 `systemMessage` JSON 만. 훅 안의 예외는 막는 쪽 (프롬프트 2 · 도구 deny) 이고, 훅 밖의 고장 (Python 없음 · 시간 초과) 은 `onFailure: "block"` 이 막는다 [실험 R09].
 - **진짜 Claude CLI 재시험** (가짜 서버 · 합성 자리): [kit/run_hooks.py](../kit/run_hooks.py) · 결과는 [kit/results-linux.md](../kit/results-linux.md) › T12. 코드: [diodelib/hook.py](../diodelib/hook.py).
@@ -329,6 +331,10 @@ ASK: <ask>
 | `diode.py confirm <요청 파일>` | 허브 (창 프로세스) |
 | `diode.py scan` | 사람 · 시험 (표준 입력의 글을 D2 · D3 · D5 로 · 표준 출력에 SP-05 꼴의 JSON 한 줄 · 종료 코드 `0` 통과 · `2` 막음 — 훅과 같은 뜻 · 사전이 없거나 비면 `2`) |
 | `diode.py lib names <이름>` | 사람 (`/diode:dict` 처럼 창에서 확정) |
+| `diode.py setup [--check] [--report]` | `/diode:setup` · `/diode:status` — 점검하고 (`--check` 는 읽기만) 정책이 비면 정책 창을 열고 방이 없으면 만든다 · 출력은 개수 · 참거짓뿐 · `--report` 는 종료 코드를 늘 0 (슬래시 명령의 `!` 는 0 이 아니면 명령을 실패로 본다) |
+| `diode.py room [--path <폴더>] [--report]` | `/diode:room` — 방 만들기 (SP-10) |
+| `diode.py dict` | `/diode:dict` — 정책 창을 따로 떼어 연다 (기다리지 않는다) · 사전 · 원자료 폴더 · 안쪽 도구 · 일꾼은 창에서 사람이 입력한다 |
+| `diode.py policy` | 정책 창 프로세스 (사람이 입력하고 저장) — 결과는 개수만 |
 | `diode.py check` · `version` · `help` | 사람 · 설치 절차 |
 
 ## SP-17 반례 묶음

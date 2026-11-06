@@ -23,7 +23,7 @@ import re
 import sys
 
 from . import scan
-from .room import default_data_dir, inside, is_protected, norm, overlaps, room_state, sha256_file
+from .room import PLUGIN_ROOT, default_data_dir, inside, is_protected, norm, overlaps, room_state, sha256_file
 
 PROMPT_CHECKS = ("D2", "D3")
 FILE_TOOLS = ("Read", "Write", "Edit", "MultiEdit", "NotebookEdit", "Glob", "Grep", "LS")
@@ -47,6 +47,9 @@ MSG = {
     "outbox": "DIODE V<Vth: 확정되지 않은 outbox (AL-13)",
     "belt_tool": "DIODE V<Vth: 원자료 폴더 (안전벨트)",
     "inner": "DIODE V<Vth: 안쪽 도구는 허브 (dispatch) 로만 쓴다 (AL-01)",
+    "data": "DIODE V<Vth: 사전 · 설정 · 기록이 든 데이터 폴더는 Claude 가 읽거나 고치지 않는다 (AL-12)",
+    "read_big": "DIODE V<Vth: 파일이 너무 커서 검사하지 못해 읽지 않는다 - 줄이거나 원자료 폴더 목록에 넣으세요",
+    "plugin": "DIODE V<Vth: 플러그인 소스는 Claude 가 고치지 않는다 (AL-12)",
     "e20": "DIODE V<Vth 막힘 · E-20 - 사전 · 설정을 읽지 못해 막았습니다 · /diode:setup",
     "unset": "DIODE: 아직 설정하지 않았습니다 - 이 세션은 지켜지지 않습니다 · /diode:setup",
     "hint": " - 사내 말은 말 봉인 칸을 쓰세요",
@@ -208,6 +211,68 @@ def inner_denied(tool, ti, entries):
     return False
 
 
+READ_SCAN_MAX = 4 * 1024 * 1024         # 이보다 큰 파일은 검사하지 못하므로 막는다 (막는 쪽으로 실패) [제안]
+
+
+def _read_scan(tool, ti, cwd, settings):
+    """`Read` 가 사내 단어가 든 파일을 읽지 않게 — 원자료 폴더 목록 밖의 파일도 내용으로 본다 (사전 D2 만 · 이름이 아니라 내용).
+
+    본 것은 개수만 알린다 (단어 · 경로 없음). 못 보는 것: 이미지 · PDF · 이진 파일 (알려진 한계) · 셸의 `cat`.
+    """
+    if tool != "Read" or settings.state != "ok":
+        return None
+    p = ti.get("file_path")
+    if not isinstance(p, str) or not p:
+        return None
+    p = p if os.path.isabs(p) else os.path.join(cwd, p)
+    if not os.path.isfile(p):
+        return None                                   # 도구가 스스로 오류를 낸다
+    if os.path.getsize(p) > READ_SCAN_MAX:
+        return _deny(MSG["read_big"])
+    with open(p, "rb") as f:
+        raw = f.read()
+    if b"\x00" in raw[:8192]:
+        return None                                   # 이진 파일은 글로 볼 수 없다
+    n = scan.policy_dict_hits(raw.decode("utf-8", "replace"), settings.policy)
+    if n:
+        return _deny("DIODE V<Vth 막힘 · D2 x%d @파일 - 사내 단어가 든 파일은 읽지 않는다 (원자료 폴더 목록에 넣으세요)" % n)
+    return None
+
+
+_DATA_NAMES = re.compile(r"diode[/\\]+(?:dictionary|config|audit|queue|work|usage|tmp|libnames|jobs)", re.I)
+
+
+def _mentions_data(cmd, home, cwd):
+    """셸 명령이 데이터 폴더 (사전 · 설정 · 기록) 를 건드리는가 — 경로 · 폴더 이름 · cwd. 셸은 벽이 아니다 (알려진 한계)."""
+    if home and inside(cwd, home):
+        return True
+    c = cmd.replace("\\", "/").lower()
+    if home:
+        for form in set([os.path.abspath(home), norm(home)]):
+            f = form.replace("\\", "/").lower().rstrip("/")
+            if f and f in c:
+                return True
+    return bool(_DATA_NAMES.search(cmd.replace("\\", "/")))
+
+
+def _guard_data(tool, ti, cwd, settings):
+    """데이터 폴더 · 플러그인 소스 보호 (AL-12) — 모든 모드. 정책은 사람이 창에서만 바꾼다."""
+    if tool in FILE_TOOLS:
+        paths = _tool_paths(tool, ti, cwd)
+        for p in paths or []:
+            if settings.home:
+                names_only = tool in ("Glob", "LS")           # 이름만 보는 도구는 데이터 폴더 안일 때만 (위 폴더는 통과)
+                if inside(p, settings.home) or (not names_only and overlaps(p, settings.home)):
+                    return _deny(MSG["data"])
+            if tool in WRITE_TOOLS and overlaps(p, PLUGIN_ROOT):
+                return _deny(MSG["plugin"])
+    elif tool in ("Bash", "PowerShell"):
+        cmd = ti.get("command")
+        if isinstance(cmd, str) and _mentions_data(cmd, settings.home, cwd):
+            return _deny(MSG["data"])
+    return None
+
+
 def on_tool(data, settings, project_dir):
     mode, st = mode_of(project_dir, settings)
     if mode == "raw":
@@ -221,6 +286,11 @@ def on_tool(data, settings, project_dir):
     # 어느 폴더에서 열었든 안쪽 도구는 허브로만 (settings 가 없어도 기본 목록은 적용)
     if not tool.startswith(DIODE_MCP_PREFIX) and inner_denied(tool, ti, settings.inner_tools):
         return _deny(MSG["inner"])
+
+    if not tool.startswith(DIODE_MCP_PREFIX):
+        g = _guard_data(tool, ti, cwd, settings)
+        if g is not None:
+            return g
 
     if mode == "room":
         if settings.state != "ok":
@@ -254,6 +324,9 @@ def on_tool(data, settings, project_dir):
         return ALLOW
 
     # other — 안전벨트
+    r = _read_scan(tool, ti, cwd, settings)
+    if r is not None:
+        return r
     if not settings.raw_dirs:
         return ALLOW
     if tool in FILE_TOOLS:
