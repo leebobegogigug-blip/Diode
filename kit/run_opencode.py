@@ -35,6 +35,11 @@ DIODE = os.path.join(ROOT, "diode.py")
 SHIM_EXT = (".cmd", ".bat")
 
 
+def mktmp(prefix):
+    """임시 폴더 - 정규 경로로 (Windows 러너의 TEMP 는 8.3 짧은 이름이라 도구의 경로 판정과 어긋날 수 있다)"""
+    return os.path.realpath(tempfile.mkdtemp(prefix=prefix))
+
+
 def is_shim(oc):
     return os.name == "nt" and oc.lower().endswith(SHIM_EXT)
 
@@ -172,7 +177,7 @@ def wait(proc, secs=120):
 
 
 def r1(oc):
-    tmp = tempfile.mkdtemp(prefix="oc-r1-")
+    tmp = mktmp(prefix="oc-r1-")
     model = FakeModel()
     saved = isolate(tmp, model.port)
     try:
@@ -191,7 +196,7 @@ def r1(oc):
 
 
 def r2(oc, allowed):
-    tmp = tempfile.mkdtemp(prefix="oc-r2-")
+    tmp = mktmp(prefix="oc-r2-")
     data = data_dir(tmp)
     os.makedirs(data)
     with open(os.path.join(data, "dictionary.json"), "w", encoding="utf-8") as f:
@@ -230,11 +235,11 @@ def r3(oc, inside):
     권한: edit 허락 · external_directory 거절 (프로젝트 폴더 밖은 못 씀) · bash 는 propose 만. 밖에 쓰는 길이 열려 있으면
     일꾼이 방 (Claude 가 읽는 자리) 에 확정 창을 거치지 않고 글을 둘 수 있다.
     """
-    tmp = tempfile.mkdtemp(prefix="oc-r3-")
+    tmp = mktmp(prefix="oc-r3-")
     home, room_dir = os.path.join(tmp, "dhome"), os.path.join(tmp, "room")
     os.makedirs(os.path.join(room_dir, "work"))
     os.makedirs(home)
-    job_dir = os.path.join(home, "work", "J-0001")
+    job_dir = os.path.realpath(os.path.join(home, "work", "J-0001"))
     target = os.path.join(job_dir, "inside.txt") if inside else os.path.join(room_dir, "work", "outside.txt")
     model = FakeModel(tool="write", tool_args={"filePath": target, "content": "합성 글"})
     permission = {"bash": {"*": "deny", "python3 *diode.py propose *": "allow", "python *diode.py propose *": "allow"},
@@ -246,7 +251,8 @@ def r3(oc, inside):
         code = wait(w.children[-1]) if ok else None
         wrote = os.path.exists(target)
         if inside:
-            return code == 0 and wrote, "종료 %s · 작업 폴더 안에 씀: %s (True 여야)" % (code, wrote)
+            return code == 0 and wrote, "종료 %s · 작업 폴더 안에 씀: %s (True 여야) · 작업 폴더 정규 경로와 같음 %s" % (
+                code, wrote, os.path.realpath(job_dir) == job_dir)
         return code == 0 and not wrote, "종료 %s · 작업 폴더 밖 (방) 에 씀: %s (False 여야)" % (code, wrote)
     finally:
         restore(saved)
@@ -259,7 +265,7 @@ def r4(oc, case):
     case: propose (허락한 명령은 돈다) · outside_cmd (허락 안 한 명령은 안 돈다) · outside_write (작업 폴더 밖 쓰기는 안 된다)
     · other_agent (에이전트를 안 쓰면 전역 그대로 — 평소 사용이 좁아지지 않았다는 확인).
     """
-    tmp = tempfile.mkdtemp(prefix="oc-r4-")
+    tmp = mktmp(prefix="oc-r4-")
     data = data_dir(tmp)
     os.makedirs(data)
     with open(os.path.join(data, "dictionary.json"), "w", encoding="utf-8") as f:
@@ -318,7 +324,7 @@ def r5(oc):
     a. `{prompt}` 를 인자로 주는 설정은 일꾼 부품이 거절한다 (cmd_shim_prompt) - 아무것도 띄우지 않는다
     b. 표준 입력으로 준 글의 & | ^ % ! " 는 명령이 되지 않고 (표지 파일이 안 생김) 모델에 그대로 닿는다
     """
-    tmp = tempfile.mkdtemp(prefix="oc-r5-")
+    tmp = mktmp(prefix="oc-r5-")
     model = FakeModel()
     saved = isolate(tmp, model.port)
     try:

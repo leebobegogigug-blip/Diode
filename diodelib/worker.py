@@ -104,7 +104,8 @@ class CommandWorker(object):
     def _work_dir(self, job):
         d = self.cwd or os.path.join(self.home, "work", job)
         os.makedirs(d, exist_ok=True)
-        return d
+        # 정규 경로로 넘긴다 - Windows 의 8.3 짧은 이름 (RUNNER~1) 과 긴 이름이 섞이면 일꾼 도구가 자기 작업 폴더를 "밖" 으로 본다
+        return os.path.realpath(d)
 
     def _copy_attachments(self, job, names, dest):
         src = os.path.join(self.room_dir, "work")
