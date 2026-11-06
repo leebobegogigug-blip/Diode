@@ -202,7 +202,8 @@ class TestEntryScript(unittest.TestCase):
     def call(self, *argv):
         p = subprocess.run([sys.executable, os.path.join(ROOT, "diode.py")] + list(argv), cwd=self._tmp.name, env=self.env,
                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60)
-        return p.returncode, p.stdout.decode("utf-8"), p.stderr.decode("utf-8")
+        # Windows 의 텍스트 모드 표준 출력은 줄 끝이 \r\n 이다 (프로그램 잘못이 아니다) — 비교는 \n 으로 맞춘다
+        return p.returncode, p.stdout.decode("utf-8").replace("\r\n", "\n"), p.stderr.decode("utf-8").replace("\r\n", "\n")
 
     def test_version(self):
         self.assertEqual(self.call("version"), (0, "Diode 0.0.1\n", ""))

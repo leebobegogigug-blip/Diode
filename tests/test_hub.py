@@ -247,6 +247,8 @@ class RealParts(Base):
 class ProcessConfirmPart(Base):
     """진짜 확정 창 프로세스 (diode.py confirm) — 화면이 없는 환경에서는 E-07 로 보내지 않는다."""
 
+    # Windows 는 DISPLAY 가 없어도 진짜 확정 창이 뜬다 (CI 에서 600초 기다린 뒤에야 건너뛰었다) — 창을 띄우기 전에 건너뛴다
+    @unittest.skipIf(os.name == "nt", "Windows 는 화면이 있다고 본다 - 진짜 확정 창이 뜨므로 시험하지 않는다")
     def test_headless_is_e07_and_temp_removed(self):
         home = os.path.join(self.tmp, "data")
         self.parts.confirm = hub.ProcessConfirm(home)
@@ -255,8 +257,6 @@ class ProcessConfirmPart(Base):
             res = self.h.call("dispatch", {"instruction": "목록 화면을 만들어 달라"})
         finally:
             os.environ.update(saved)
-        if os.name == "nt":
-            self.skipTest("Windows 는 화면이 있다고 본다")
         self.assertEqual(res, {"sent": False, "error": "E-07"})
         self.assertEqual(self.worker.sent, [])
         self.assertEqual(os.listdir(os.path.join(home, "tmp")), [])     # 요청 파일은 지운다
