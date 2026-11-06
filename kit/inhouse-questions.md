@@ -136,11 +136,12 @@ Q32=json=10/10,맞음=9/10
 | # | 하는 일 | 옮길 것 | 옮기지 않을 것 |
 |---|---|---|---|
 | H1 | `python D:\claude\diode\diode.py setup --check --report` | 출력 전부 (개수 · 참거짓뿐이다) | — |
-| H2 | `python D:\claude\diode\kit\run_hooks.py` (사내 CLI 에 가짜 서버를 붙여 R01–R20 을 돌린다) | `R` 로 시작하는 줄과 마지막 `결과:` 줄 | `kit\out\` 폴더 안의 파일 (시스템 프롬프트 원문이 들어 있다) |
+| H2 | `python D:\claude\diode\kit\run_hooks.py` (사내 CLI 에 가짜 서버를 붙여 R01 부터 끝 번호까지 돌린다) | `R` 로 시작하는 줄과 마지막 `결과:` 줄 | `kit\out\` 폴더 안의 파일 (시스템 프롬프트 원문이 들어 있다) |
 | H3 | `python D:\claude\diode\kit\run_kit.py --python python` | `S` 로 시작하는 줄과 마지막 줄 | `kit\out\` 폴더 안의 파일 |
 | H4 | statusLine 칸 이름 — 방 폴더의 `.claude\settings.json` 에 `"statusLine": {"type": "command", "command": "python D:\\claude\\diode\\kit\\statusline_keys.py"}` 를 걸고 Claude Code 를 열어 말 한 마디를 한다 | 상태줄에 나온 한 줄 (칸 이름만 · 값 없음) | — (끝나면 이 설정을 지우고 방을 `/diode:room` 으로 새로 만든다) |
-| H5 | `python D:\claude\diode\kit\run_opencode.py --opencode <opencode 실행 파일>` | `R1` · `R2a` · `R2b` 줄과 `결과:` 줄 | — |
+| H5 | `python D:\claude\diode\kit\run_opencode.py --opencode <opencode 실행 파일>` (npm 으로 깐 `.cmd` 껍데기면 R5 도 돈다) | `R1` · `R2a` · `R2b` · `R3a` · `R3b` · `R4a`–`R4d` · `R5` 줄과 `결과:` 줄 | — |
 | H6 | `/plugin marketplace add "D:\claude\diode"` → `/plugin install diode@diode` → `/diode:status` | 각 단계가 되었나 y/n, 막혔다면 막은 문구의 **첫 다섯 낱말만** | 경로 · 사용자 이름이 든 줄 |
 | H7 | `python D:\claude\diode\kit\run_install.py` (사내 CLI 로 설치 → 설정 → 방 → 훅 · 허브 를 처음부터 끝까지 · 임시 폴더 · 가짜 서버) | `I1`–`I6` 줄과 `결과:` 줄 | — |
+| H8 | 창을 눈으로 본다 - `/diode:dict` (정책 창) · 말 봉인 창 `/diode:speak` 을 열어 본다 | 창이 맨 위에 보이나 · 한글이 쳐지나 (IME) · 글자 크기가 읽히나 (DPI): 각각 y/n | — (CI 는 "프로세스가 떴다" 까지만 안다) |
 
 H1 이 `확인 필요` 로 끝나는 것은 정상이다 (처음에는 사전 · 원자료 폴더가 비어 있다).
