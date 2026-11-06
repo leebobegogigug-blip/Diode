@@ -396,7 +396,15 @@ class TestDocs(unittest.TestCase):
         for target in ("docs/PLAN.md", "docs/SPEC.md", "docs/BLUEPRINT.md", "RULES.md"):
             self.assertIn(target, text)
         self.assertEqual(len(re.findall(r"테스트\s*\d+", text)), 1)       # 검사기가 비교하는 수는 사양 줄의 하나뿐
-        self.assertNotIn("<img", text)                                     # 그림은 아직 없다
+        # 그림: 가리키는 파일이 있고 · 대체 글이 있고 · 너무 무겁지 않다 (README 가 느려지지 않게 2 MiB 이하)
+        imgs = re.findall(r'<img\s[^>]*src="([^"]+)"[^>]*alt="([^"]+)"', text)
+        self.assertEqual(len(imgs), 1)
+        src, alt = imgs[0]
+        self.assertTrue(os.path.isfile(os.path.join(ROOT, src)), src)
+        self.assertLess(os.path.getsize(os.path.join(ROOT, src)), 2 * 1024 * 1024)
+        self.assertGreater(len(alt), 10)
+        self.assertNotIn("http", src)                                       # 바깥 주소로 가져오지 않는다 (W-03)
+        self.assertIn("공식 그림이 아닙니다", text)                           # 제품 그림 고지
 
     def test_readme_uses_the_blueprint_metaphor(self):
         text = read("README.md")

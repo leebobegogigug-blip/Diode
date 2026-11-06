@@ -5,6 +5,13 @@
 <h3 align="center">한쪽으로만 흐르게.</h3>
 
 <p align="center">
+<img src="docs/img/diode-banner.png" alt="왼쪽 Claude (바깥) 에서 지시가 Diode 문을 지나 오른쪽 Opencode (안쪽) 로 흐르고, 거꾸로 가려는 원자료는 문에서 막히는 그림" width="100%">
+<br>
+<sub>바깥 (Claude CLI) · 문 (Diode) · 안쪽 (사내 LLM) — 지시는 안으로 흐르고, 원자료는 되돌아 나가지 못합니다.<br>
+그림 속 Claude · Opencode 는 설명을 위한 표현이며 각 제품의 공식 그림이 아닙니다.</sub>
+</p>
+
+<p align="center">
 Diode 는 회사 안 (사내 LLM · 원자료) 과 회사 밖 (Claude) 사이에 놓는 접합 하나입니다.<br>
 순방향 — 지시는 안으로 흐릅니다. 역방향 — 원자료는 밖으로 막힙니다.<br>
 새어 나가는 것은 설계로 정해 둔 작은 누설, 사람이 확정한 봉인 보고뿐입니다.<br>
