@@ -7,17 +7,17 @@
 
 ---
 
-이 아래는 **에이전트가 실행할 절차**입니다.
+이 아래는 **에이전트가 차례대로 따라 할 절차**입니다. 에이전트는 사람 대신 컴퓨터에서 명령을 돌리는 AI 도우미를 말합니다.
 
 ## 0. 목표와 규칙
 
-**목표**: 이 저장소를 `D:\claude\diode` 에 두고 로컬 마켓플레이스로 더하고, 플러그인 `diode` 를 설치하고, 처음 설정과 방 만들기를 끝낸 뒤 점검을 통과시킨다. 일꾼 (opencode) 연결은 선택이다 (7단계).
+**목표**: 이 저장소를 `D:\claude\diode` 에 두고, 이 PC 안의 폴더를 앱 가게(마켓플레이스)처럼 Claude Code 에 등록한 다음, 플러그인 `diode` 를 설치합니다. 그 뒤 처음 설정과 방 만들기를 마치고 점검을 통과시킵니다. 일꾼 (opencode) 연결은 하고 싶을 때만 합니다 (7단계). 저장소는 이 프로그램의 파일이 통째로 든 폴더이고, 플러그인은 Claude Code 에 덧붙이는 기능 묶음입니다.
 
-**지금은 합성 자료로만 설치해 시험한다 (v0.0).** 훅 · 허브 · 확정 창 · 정책 창 · 명령 (`/diode:setup` · `:room` · `:dict` · `:status`) 까지 있다. 그러나 사내 확인 (Windows · 사내 CLI 판 · 관리형 설정 · 보안 부서의 답) 전이라 **실데이터에는 쓰지 않는다** (`policy.real_data` 는 꺼져 있고, 켜려면 정책 창에서 확인 글을 쳐야 한다 — 에이전트는 켜지 않는다). 사내 확인 항목은 [kit/inhouse-questions.md](kit/inhouse-questions.md) 에 있다.
+**지금은 지어낸 자료(합성 자료)로만 설치해 시험합니다 (v0.0).** 훅 (도구를 쓰기 직전에 검사하는 장치) · 허브 (Claude 와 안쪽 사이의 창구) · 확정 창 · 정책 창 · 명령 (`/diode:setup` · `:room` · `:dict` · `:status`) 까지 만들어져 있습니다. 그래도 사내 확인 (Windows · 사내 CLI 판 · 관리형 설정 · 보안 부서의 답) 이 끝나기 전이라 **진짜 자료(실데이터)에는 쓰지 않습니다** (`policy.real_data` 는 꺼져 있습니다. 켜려면 사람이 정책 창에서 확인 글을 직접 쳐야 하고, 에이전트는 절대 켜지 않습니다). 사내 확인 항목은 [kit/inhouse-questions.md](kit/inhouse-questions.md) 에 있다.
 
 **규칙 — 반드시 지킬 것**
 
-1. **명령은 이 문서에 적힌 것만** 실행한다. 모든 명령은 Git Bash · cmd · PowerShell 어디서나 그대로 동작하게 적었다 (경로는 항상 큰따옴표). `.ps1` · `.cmd` · `.bat` 파일을 새로 만들지 않는다.
+1. **명령은 이 문서에 적힌 것만** 실행한다. 모든 명령은 Git Bash · cmd · PowerShell 어디서 쳐도 똑같이 돌도록 적었다 (경로는 항상 큰따옴표로 감싼다). `.ps1` · `.cmd` · `.bat` 파일 (명령을 모아 두는 파일) 은 새로 만들지 않는다.
 2. **비밀 금지**: 설정 파일의 키 · 토큰과 사내 단어 사전 (`%LOCALAPPDATA%\diode\dictionary.json`) 을 읽기 도구나 `cat` · `type` · `Get-Content` 로 열거나 출력하지 않는다. 사전 · 원자료 폴더 · 일꾼 명령 · 사내 LLM 주소는 **사람이 정책 창에 직접 입력**한다 — 에이전트는 사내 단어를 묻지도, 받지도, 적지도 않는다. 사용자가 키나 사내 단어를 채팅에 치려 하면 말린다 (채팅에 쓴 글은 곧바로 Claude 로 나간다). 이미 썼다면 그 글은 이미 나간 것이니 되풀이하지 말고 그 사실만 알린다.
 3. **관리자 권한 금지.** Claude Code 에 마켓플레이스 · 플러그인을 더하는 것은 사용자 범위 변경이므로 **[질문]** 으로 동의를 받은 뒤에만 하고, [제거](#제거) 절에 되돌리는 방법이 있을 때만 한다. 환경 변수 · PATH 도 에이전트가 고치지 않는다.
 4. **[질문]** 표시가 있는 곳에서는 멈추고 사용자에게 묻는다. 사용자가 거절하면 그 단계를 건너뛰지 말고 멈춘 곳으로 보고한다.
@@ -39,7 +39,7 @@
 
 ## 1. 파이썬 확인
 
-훅 · 허브는 파이썬을 `python` 이라는 **이름 그대로** 부른다 (절대 경로를 적으면 훅이 고장 났을 때 사용자 이름이 든 경로가 Claude 에게 간다). 그러니 이 이름으로 3.8 이상이 찾아져야 한다. 정책 창 (4단계) 은 `tkinter` 가 있어야 뜬다.
+훅 · 허브는 파이썬을 `python` 이라는 **이름 그대로** 부릅니다. 전체 경로를 적어 두면, 훅이 고장 났을 때 사용자 이름이 든 경로가 Claude 에게 넘어가기 때문입니다. 그래서 `python` 이라는 이름으로 3.8 이상이 찾아져야 합니다. 정책 창 (4단계) 은 `tkinter` (파이썬에 들어 있는 창 그리기 도구) 가 있어야 뜹니다.
 
 ```text
 python --version
@@ -99,7 +99,7 @@ python "D:\claude\diode\diode.py" version
 
 ## 3. 마켓플레이스 더하기 · 플러그인 설치
 
-Claude Code 판이 훅의 `onFailure: block` (훅이 고장 나면 막는 설정) 을 아는 판이어야 한다 — 2.1.295 이상 (근거는 [docs/PLAN.md](docs/PLAN.md) 의 `[문헌]` 표시이고 이 저장소에서 직접 시험하지는 못했다).
+Claude Code 가 훅의 `onFailure: block` (훅이 고장 나면 열어 두지 않고 막는 설정) 을 아는 버전이어야 합니다 — 2.1.295 이상입니다 (근거는 [docs/PLAN.md](docs/PLAN.md) 의 `[문헌]` 표시이고, 이 저장소에서 직접 시험하지는 못했습니다).
 
 ```text
 claude --version
@@ -138,13 +138,13 @@ claude plugin details diode
   - `hook … failed; blocking because onFailure is block` (Claude Code 가 내는 글 · 판마다 다를 수 있다) — 훅이 못 돌았다. 대개 `python` 이름이 안 찾아지는 것이다 → 1단계.
   - 슬래시 명령이 없다고 하거나 `${CLAUDE_PLUGIN_ROOT}` 글자가 그대로 보이거나 파일을 못 찾는다고 하면: `claude plugin list` 의 `Status:` 가 enabled 인지 보고, 세션을 새로 열거나 `/reload-plugins` 를 해 본다. 그래도 같으면 출력을 그대로 보여 주고 멈춘다.
 
-설치만 하고 4단계를 마치기 전에는 보호가 없다. 새 세션을 열면 `DIODE: 아직 설정하지 않았습니다 …` 알림이 보이는 것이 정상이다 ([알려진 한계](docs/MANUAL.md#알려진-한계)).
+설치만 하고 4단계를 마치기 전에는 보호가 없습니다. 새 세션 (Claude Code 를 새로 열어 시작하는 대화) 을 열었을 때 `DIODE: 아직 설정하지 않았습니다 …` 알림이 보이는 것이 정상입니다 ([알려진 한계](docs/MANUAL.md#알려진-한계)).
 
 ## 4. 처음 설정
 
-`/diode:setup` 이 하는 일은 이렇다 ([commands/setup.md](commands/setup.md) · [diodelib/setup.py](diodelib/setup.py)). 데이터 폴더 (`%LOCALAPPDATA%\diode`) 를 만들고, 점검하고, **사전 · 원자료 폴더가 비어 있으면 정책 창을 따로 떼어 연다** (기다리지 않는다). 사전 · 원자료 폴더가 채워져 있으면 방이 없을 때 방을 만들고 점검한다. 사전 · 원자료 폴더 · 일꾼 명령 · 사내 LLM 판정 설정은 **사람이 그 창에서 직접 입력**하고 [저장] 한다 — 슬래시 명령도 에이전트도 단어를 묻거나 받지 않는다.
+`/diode:setup` 이 하는 일은 이렇습니다 ([commands/setup.md](commands/setup.md) · [diodelib/setup.py](diodelib/setup.py)). 데이터 폴더 (`%LOCALAPPDATA%\diode`) 를 만들고, 점검하고, **사전 · 원자료 폴더가 비어 있으면 정책 창을 따로 떼어 엽니다** (창이 닫히기를 기다리지 않습니다). 사전 · 원자료 폴더가 채워져 있으면 방이 없을 때 방을 만들고 점검한다. 사전 · 원자료 폴더 · 일꾼 명령 · 사내 LLM 판정 설정은 **사람이 그 창에서 직접 입력**하고 [저장] 한다 — 슬래시 명령도 에이전트도 단어를 묻거나 받지 않는다.
 
-**사전이나 원자료 폴더 목록이 비어 있으면 Diode 는 보내지 않는다.** 아무것도 입력하지 않고 창을 닫아도 설치가 망가지지는 않지만, 그 상태로는 쓸 수 없다. 설정을 마치기 전에는 방 밖의 폴더가 지켜지지 않는다는 점도 알린다.
+**사전 (가릴 사내 단어 목록) 이나 원자료 폴더 목록이 비어 있으면 Diode 는 아무것도 보내지 않습니다.** 아무것도 입력하지 않고 창을 닫아도 설치가 망가지지는 않지만, 그 상태로는 쓸 수 없습니다. 설정을 마치기 전에는 방 밖의 폴더가 지켜지지 않는다는 점도 사용자에게 알린다.
 
 ```text
 python "D:\claude\diode\diode.py" setup
@@ -180,7 +180,7 @@ python "D:\claude\diode\diode.py" setup
 
 ## 5. 방 만들기
 
-방은 원자료가 하나도 없는 Claude 작업 폴더다. `/diode:room` 은 방 폴더에 표지 (`.diode-room`) · 방 설정 (`.claude\settings.json`) · `outbox` · `inbox` · `work` 를 만든다. 이미 있는 방은 덮어쓰지 않는다. 기본 자리는 `D:\claude\room` 이다.
+방은 원자료가 하나도 없는 Claude 작업 폴더입니다. Claude 는 이 안에서만 일하게 됩니다. `/diode:room` 은 방 폴더에 표지 (`.diode-room`) · 방 설정 (`.claude\settings.json`) · `outbox` · `inbox` · `work` 를 만듭니다. 이미 있는 방은 덮어쓰지 않습니다. 기본 자리는 `D:\claude\room` 입니다.
 
 ```text
 python "D:\claude\diode\diode.py" room
@@ -238,7 +238,7 @@ python "D:\claude\diode\diode.py" setup --check
 
 ## 7. (선택) 일꾼 (opencode) 연결
 
-일꾼은 안쪽 일을 맡는 사내 LLM 도구 (opencode) 다. **선택이다** — 연결하지 않아도 방 · 점검은 쓸 수 있고, 일 넘기기 (`dispatch`) 만 `E-01` (일꾼 없음) 이 된다.
+일꾼은 회사 안쪽 일을 대신 해 주는 사내 LLM 도구 (opencode) 입니다. **하고 싶을 때만 합니다** — 연결하지 않아도 방 · 점검은 쓸 수 있고, 일 넘기기 (`dispatch`) 만 `E-01` (일꾼 없음) 이 됩니다.
 
 **[질문]** "일꾼 (opencode) 을 연결할까요? 연결하면 (1) Diode 정책 창의 `04 일꾼 명령` 칸에 사용자가 명령을 직접 넣고, (2) opencode 설정에 일꾼 전용 에이전트 `diode-worker` 를 더해 권한을 좁힙니다 (권하는 두 번째 층). 둘 다 '제거' 절로 되돌릴 수 있습니다." → 거절하면 이 단계를 건너뛰고 보고에 `일꾼: 연결 안 함 (선택)` 이라고 쓴다.
 
@@ -251,7 +251,7 @@ opencode --version
 
 **7-1. 일꾼 명령 (Diode 쪽).** 명령은 **정책 창에서 사용자가 직접** 넣는다 — 에이전트는 실제 이름 · 경로 · 주소를 묻거나 적지 않는다. 창은 `python "D:\claude\diode\diode.py" dict` 로 연다. 바꾸기 전에 설정을 백업해 두고 싶으면 사용자가 데이터 폴더의 `config.json` 을 직접 복사해 둔다 (에이전트는 데이터 폴더를 열지 않는다). 쓰는 모양의 예는 [docs/MANUAL.md](docs/MANUAL.md#알려진-한계) 의 "일꾼은 설정 `worker.command` 가 있어야 돕니다" 항목에 있다.
 
-Windows 에서 주의할 점을 쉬운 말로 말해 준다: npm 으로 깐 도구는 실행 파일이 아니라 `.cmd` 껍데기인 경우가 많다. 껍데기는 인자를 `cmd.exe` 가 한 번 더 읽는데, 그러면 Claude 가 쓴 지시문 속 `&` · `|` · `^` · `%` 같은 글자가 명령으로 실행될 수 있다 (명령 주입). 그래서 Diode 는 껍데기에 `{prompt}` 를 인자로 주는 설정을 거절하고 (`일꾼 명령 문제: …`) 지시문을 표준 입력으로 넘기게 한다 — 명령에 `{prompt}` 를 적지 않으면 된다. 창의 [예시 넣기] 버튼이 넣는 예시에는 `{prompt}` 가 들어 있으니, 껍데기일 때는 그 부분을 지우고 저장한다 ([docs/MANUAL.md](docs/MANUAL.md#알려진-한계) 의 Windows 항목 · [diodelib/worker.py](diodelib/worker.py) 머리말).
+Windows 에서 조심할 점을 쉬운 말로 사용자에게 알려 준다: npm 으로 설치한 도구는 진짜 실행 파일이 아니라 `.cmd` 껍데기 (실행을 대신 걸어 주는 작은 파일) 인 경우가 많다. 껍데기는 받은 인자를 `cmd.exe` 가 한 번 더 읽는데, 그러면 Claude 가 쓴 지시문 속 `&` · `|` · `^` · `%` 같은 글자가 명령으로 실행될 수 있다 (명령 주입). 그래서 Diode 는 껍데기에 `{prompt}` 를 인자로 주는 설정을 거절하고 (`일꾼 명령 문제: …`) 지시문을 표준 입력 (글을 흘려 넣는 길) 으로 넘기게 한다 — 명령에 `{prompt}` 를 적지 않으면 된다. 창의 [예시 넣기] 버튼이 넣는 예시에는 `{prompt}` 가 들어 있으니, 껍데기일 때는 그 부분을 지우고 저장한다 ([docs/MANUAL.md](docs/MANUAL.md#알려진-한계) 의 Windows 항목 · [diodelib/worker.py](diodelib/worker.py) 머리말).
 
 **7-2. 일꾼 전용 opencode 에이전트 (opencode 쪽).** 평소 쓰는 opencode 의 전역 권한은 건드리지 않고 `diode-worker` 에이전트에만 권한을 준다. 권한 예시는 [docs/MANUAL.md](docs/MANUAL.md#알려진-한계) 의 "일꾼 전용 opencode 에이전트를 하나 만들어 권한을 좁히세요" 항목에 있다 — 그 JSON 을 읽어 **한 글자도 바꾸지 말고** opencode 설정의 `agent` 칸에 합친다. 이미 `agent` 칸이 있으면 그 안에 `diode-worker` 만 더하고 다른 에이전트는 건드리지 않는다. `opencode run --auto` (권한 자동 승인) 는 쓰지 않는다.
 
@@ -280,7 +280,7 @@ Windows 에서 주의할 점을 쉬운 말로 말해 준다: npm 으로 깐 도�
 
 ## 8. (선택) 사람이 해 볼 시험
 
-진짜 Claude Code CLI 와 opencode 를 가짜 서버에 붙여 훅 · 방 · 일꾼을 처음부터 끝까지 보는 시험이 `kit/` 에 있다. **사람이 직접 돌린다** — 에이전트는 돌리지 않는다. 어떤 명령을 돌리고 무엇을 옮기고 무엇을 옮기지 않는지는 [kit/inhouse-questions.md](kit/inhouse-questions.md#2부--사람이-직접-돌린다) 2부 (H1–H7) 에 있고, 여기에 옮겨 적지 않는다. 예를 들어 훅 시험은 이렇게 돌린다.
+진짜 Claude Code CLI 와 opencode 를 가짜 서버에 붙여서, 훅 · 방 · 일꾼이 처음부터 끝까지 제대로 도는지 보는 시험이 `kit/` 에 있습니다. **사람이 직접 돌립니다** — 에이전트는 돌리지 않는다. 어떤 명령을 돌리고 무엇을 옮기고 무엇을 옮기지 않는지는 [kit/inhouse-questions.md](kit/inhouse-questions.md#2부--사람이-직접-돌린다) 2부 (H1–H7) 에 있고, 여기에 옮겨 적지 않는다. 예를 들어 훅 시험은 이렇게 돌린다.
 
 ```text
 python "D:\claude\diode\kit\run_hooks.py"
@@ -313,7 +313,7 @@ Diode 설치 완료
 
 ## 문제 해결
 
-출력에 나온 문구로 찾는다. 문구는 코드가 찍는 그대로다 (`<n>` 같은 꺾쇠는 자리표시). 고친 뒤에는 항상 `check` → `결과: OK` 와 `setup --check` 를 다시 돌린다. 방 만들기의 거절 문구는 [5단계](#5-방-만들기) 표에 있다.
+화면에 나온 문구로 찾습니다. 문구는 코드가 찍는 그대로입니다 (`<n>` 같은 꺾쇠는 숫자가 들어갈 자리 표시입니다). 고친 뒤에는 항상 `check` → `결과: OK` 와 `setup --check` 를 다시 돌립니다. 방 만들기의 거절 문구는 [5단계](#5-방-만들기) 표에 있다.
 
 **`diode.py check`**
 
@@ -373,11 +373,11 @@ python "D:\claude\diode\diode.py" setup --check
   - 네트워크 · 권한 오류 — 출력을 보여 주고 멈춘다 (주소를 에이전트가 바꾸지 않는다).
   - 업데이트 뒤 `사전 · 설정을 읽지 못함 (…)` — [문제 해결](#문제-해결) 표.
 
-데이터 (`%LOCALAPPDATA%\diode\`) 는 저장소 밖에 있어서 업데이트로 바뀌지 않는다. 설정 · 사전을 다시 입력할 필요는 없다.
+데이터 (`%LOCALAPPDATA%\diode\`) 는 저장소 밖에 있어서 업데이트해도 바뀌지 않습니다. 설정 · 사전을 다시 입력할 필요는 없습니다.
 
 ## 제거
 
-되돌릴 수 있는 순서다. 제거하면 이 PC 의 Diode 훅 보호가 없어진다는 것을 먼저 알린다.
+원래대로 되돌릴 수 있는 순서입니다. 제거하면 이 PC 에서 Diode 훅의 보호가 없어진다는 것을 사용자에게 먼저 알린다.
 
 0. (7단계를 했다면) **[질문]** "일꾼 연결을 되돌릴까요?" → opencode 설정에서 `diode-worker` 항목만 지운다. 7-2 에서 만든 백업 (`<설정 파일 이름>.diode-backup`) 이 있어도, 그 뒤에 사용자가 설정을 바꿨을 수 있으니 통째로 덮어쓰지 않는다. 백업 파일은 사용자가 확인한 뒤 지운다. Diode 쪽 `04 일꾼 명령` 은 데이터 폴더를 지울 거면 따로 비울 필요가 없고, 남길 거면 사용자가 정책 창에서 칸을 비우고 [저장] 한다 (비운 칸은 설정에서 지워진다).
 1. 플러그인을 지운다: `claude plugin uninstall diode@diode` → `Successfully uninstalled plugin: diode (scope: user)`.
@@ -404,4 +404,4 @@ python "D:\claude\diode\diode.py" setup --check
 | `python "D:\claude\diode\diode.py" scan` | 표준 입력의 글 검사 (`0` 통과 · `2` 막음 · 사전이 없으면 `2`) |
 | `python "D:\claude\diode\diode.py" --status --json` | 상태 (JSON 한 줄 · 읽기 전용 · `/diode:status` 가 점검과 함께 보여 줌) |
 
-이 표에 없는 명령 (`mcp` · `hook` · `propose` · `confirm` · `lib` …) 은 설치 때 부르지 않는다. 전체 목록은 [docs/MANUAL.md](docs/MANUAL.md#명령) 에 있다.
+이 표에 없는 명령 (`mcp` · `hook` · `propose` · `confirm` · `lib` …) 은 설치할 때 부르지 않는다. 전체 목록은 [docs/MANUAL.md](docs/MANUAL.md#명령) 에 있다.
