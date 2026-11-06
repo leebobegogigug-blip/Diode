@@ -683,8 +683,13 @@ class OtherPieces(Base):
         with open(path, "rb") as fh:
             raw = fh.read()
         parsed = scan.parse_brief(raw)
-        probe = "isfile=%s size=%d parsed=%s shape=%s" % (os.path.isfile(path), len(raw), isinstance(parsed, dict),
-                                                       derive.draft_shape_ok(parsed))
+        try:
+            sha_ok = bool(derive.draft_table_sha256(parsed))
+        except Exception as e:
+            sha_ok = type(e).__name__
+        probe = "isfile=%s size=%d parsed=%s shape=%s sha=%s inproc=%s" % (
+            os.path.isfile(path), len(raw), isinstance(parsed, dict), derive.draft_shape_ok(parsed), sha_ok,
+            propose.main_propose(path, home=default_home))
         why = probe + " | " + (p.stdout + b" | " + p.stderr).decode("utf-8", "replace")[-400:]      # 합성 자료뿐 - 실패 때 까닭을 본다
         self.assertEqual(p.returncode, 3, why)
         self.assertEqual(json.loads(p.stdout.decode("utf-8")), {"queued": False, "error": "E-30"})
