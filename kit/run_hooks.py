@@ -100,6 +100,12 @@ def scenarios(lay):
          "expect": "none"},
         {"id": "R15", "what": "한계 기록: 설정 전 (데이터 폴더 없음) 보통 폴더 · 사전 단어 → 지나간다", "cwd": "other",
          "prompt": "이건 %s 야" % word, "no_data": True, "expect": "requests"},
+        {"id": "R16", "what": "방 · 플러그인 허브가 뜨고 dispatch 결과는 고정 꼴 한 줄 (일꾼 없음 → E-01)", "cwd": "room",
+         "prompt": "일을 넘겨", "server": "steps",
+         "vars": {"dispatch": r"mcp__plugin_diode_hub__dispatch"},
+         "steps": [{"tool": "ToolSearch", "input": {"query": "select:{dispatch}", "max_results": 1}},
+                   {"tool": "{dispatch}", "input": {"instruction": "PH_K7Q2 화면을 만들어 달라"}}],
+         "args": ["--allowedTools", "mcp__plugin_diode_hub__dispatch"], "expect": "hub_e01"},
     ]
 
 
@@ -114,7 +120,8 @@ def run_one(sc, a, work, lay):
     if sc.get("local_settings"):
         with open(local, "w", encoding="utf-8") as f:
             json.dump({"permissions": {"allow": ["Bash"]}}, f)
-    srv = rk.start_server(out, sc.get("server", "text"), sc.get("tool", ""), sc.get("tool_input", {}))
+    srv = rk.start_server(out, sc.get("server", "text"), sc.get("tool", ""), sc.get("tool_input", {}),
+                          sc.get("steps"), sc.get("vars"))
     extra = {}
     if sc.get("bad_python"):
         extra["PATH"] = broken_python_dir(work) + os.pathsep + os.environ.get("PATH", "")
@@ -141,6 +148,8 @@ def run_one(sc, a, work, lay):
         ok = n == 0
     elif sc["expect"] == "deny":
         ok = "DIODE" in trs and not leaked
+    elif sc["expect"] == "hub_e01":
+        ok = '{"sent":false,"error":"E-01"}' in trs.replace(" ", "").replace("\\", "") and not leaked
     elif sc["expect"] == "absent_or_deny":
         ok = not leaked and (sc["tool"] not in res["tools"] or "DIODE" in trs)
     else:

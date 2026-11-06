@@ -27,8 +27,6 @@ ALIASES = {"-h": "help", "--help": "help", "--version": "version"}
 
 # 아직 없는 명령 (v0.0) — 계약은 docs/SPEC.md SP-16. (이름, 도움말의 설명)
 PENDING = (
-    ("mcp", "mcp                             허브 (MCP 서버)"),
-    ("propose", "propose <report.json>           일꾼 보고 내기"),
     ("lib", "lib names <이름>                허용 라이브러리의 공개 이름"),
 )
 PENDING_FLAGS = ()
@@ -44,6 +42,8 @@ HELP = """%s %s — Claude Code 플러그인 (개발 중 · v0.0 · 훅만 있�
   hook <session|prompt|tool>      Claude Code 훅 (플러그인이 부른다 · 표준 입력 = 훅 입력 JSON)
   --status --json [--room 폴더]   상태 명령 (읽기 전용 · JSON 한 줄 · 단어는 없음)
   --statusline                    statusLine 기록 (방 설정이 부른다 · 표준 입력 = statusLine JSON)
+  mcp                             허브 (MCP 서버 · 플러그인 .mcp.json 이 띄운다 · 표준 입출력 JSON-RPC)
+  propose <report.json>           일꾼 보고 내기 (미리 보고 걸리면 2 · 통과면 허브의 대기열에 넣고 0)
   confirm <요청 파일>             확정 창 (허브가 부른다 · 결과는 JSON 한 줄 · 0 보냄 · 3 사람이 안 보냄 · 2 꼴 오류 · 1 창 없음)
 
 아직 없는 명령 (v0.0 — 부르면 종료 코드 2 로 끝납니다)
@@ -81,6 +81,8 @@ def build_parser():
     for name in ("version", "help", "check", "scan"):
         sub.add_parser(name, add_help=False)
     sub.add_parser("confirm", add_help=False).add_argument("rest", nargs=argparse.REMAINDER)
+    sub.add_parser("propose", add_help=False).add_argument("rest", nargs=argparse.REMAINDER)
+    sub.add_parser("mcp", add_help=False)
     sub.add_parser("hook", add_help=False).add_argument("event", nargs="?", default="")
     for name, _ in PENDING:
         sub.add_parser(name, add_help=False).add_argument("rest", nargs=argparse.REMAINDER)
@@ -173,6 +175,17 @@ def run(args, out, err, inp=None):
         return scan_command(out, err, inp if inp is not None else _stdin_bytes())
     if args.command == "confirm":
         return confirm_command(out, args.rest)
+    if args.command == "propose":
+        try:
+            from diodelib import propose
+            code, line = propose.main_propose(args.rest[0] if len(args.rest) == 1 else None)
+        except Exception:
+            code, line = 2, '{"queued": false, "error": "E-20"}'
+        out.write(line + "\n")
+        return code
+    if args.command == "mcp":
+        from diodelib import hub
+        return hub.main(stdin=inp if inp is not None else None, stdout=out if out is not sys.stdout else None)
     if args.command == "hook":
         from diodelib import hook
         return hook.main([args.event], stdin=inp if inp is not None else _stdin_bytes(), stdout=out, stderr=err)

@@ -32,8 +32,7 @@ MANIFEST_FIELDS = {"$schema", "name", "displayName", "version", "description", "
                    "keywords", "metadata", "icon", "documentationUrl", "supportUrl", "privacyPolicyUrl", "termsOfServiceUrl",
                    "defaultEnabled", "dependencies", "settings", "userConfig", "types", "channels", "skills", "commands",
                    "agents", "hooks", "mcpServers", "lspServers", "outputStyles", "workflows", "experimental"}
-PENDING_CASES = (["mcp"],
-                 ["propose", "r.json"], ["lib", "names", "pkg"])
+PENDING_CASES = (["lib", "names", "pkg"],)
 
 
 def read_path(path):
@@ -214,7 +213,7 @@ class TestEntryScript(unittest.TestCase):
         self.assertEqual(err, "")
 
     def test_pending_command(self):
-        code, out, err = self.call("mcp")
+        code, out, err = self.call("lib", "names", "pkg")
         self.assertEqual((code, out), (2, ""))
         self.assertIn("아직 없음 (v0.0)", err)
 

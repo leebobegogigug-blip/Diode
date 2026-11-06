@@ -34,11 +34,11 @@ v0.1 에서 채웁니다.
 | `version` | `Diode 0.0.1` 을 찍습니다 (`--version` 도 됩니다) | 있음 |
 | `help` | 도움말 (`-h` · `--help` 도 됩니다) | 있음 |
 | `check` | 자가 점검 — 파이썬 판 (3.8 이상) 과 데이터 폴더 자리를 보입니다. 아무것도 만들거나 바꾸지 않습니다 | 있음 |
-| `mcp` | 허브 (MCP 서버) | 아직 없음 |
+| `mcp` | 허브 (MCP 서버 · 표준 입출력 JSON-RPC · 포트 없음) · 플러그인 `.mcp.json` 이 방에서 띄웁니다 · 도구 `dispatch` `inbox` `jobs` `status` · 방이 아니면 모든 도구가 `E-05` · 일꾼이 없으면 `dispatch` 는 `E-01` ([명세 › SP-08](SPEC.md#sp-08-허브-도구-넷-mcp)) | 있음 |
 | `hook <session \| prompt \| tool>` | Claude Code 훅 (플러그인 `hooks/hooks.json` 이 부릅니다 · 표준 입력 = 훅 입력 JSON) · 모드 방 · 원자료 폴더 · 그 밖 ([명세 › SP-11](SPEC.md#sp-11-훅)) · 막은 까닭에 단어 · 경로를 쓰지 않습니다 | 있음 |
 | `--statusline` | statusLine 기록 — 표준 입력 JSON 의 정해진 여섯 칸만 읽고 (`transcript_path` 는 열지 않습니다) 이번 달 사용을 `usage\` 에 남기고 한 줄 `DIODE  room ok  effort high  month 12%` 를 찍습니다 · 언제나 종료 코드 0 ([명세 › SP-13](SPEC.md#sp-13-statusline-기록)) | 있음 |
 | `--status --json [--room 폴더]` | 상태 명령 (바깥 인터페이스 · 읽기 전용 · JSON 한 줄) · `0` OK · `2` 사용법 오류 · `1` 내부 실패 (JSON 없음) | 있음 |
-| `propose <report.json>` | 일꾼 보고 내기 | 아직 없음 |
+| `propose <report.json>` | 일꾼 (사내 LLM) 이 보고 초안을 내는 명령 · 미리 봉인해 걸리면 `{"queued": false, "hits": [...]}` (단어 없음) 과 종료 코드 `2` · 통과하면 데이터 폴더 `queue\` 에 넣고 `{"queued": true, "job": …}` · 허브가 그 job 의 가명 표로 다시 봉인 → D7 → 확정 창 → outbox ([명세 › SP-09](SPEC.md#sp-09-확정-창--보고-내기-propose)) | 있음 |
 | `confirm <요청 파일>` | 확정 창 (허브가 부릅니다 · 사람이 보낼 바이트를 보고 [보내기] · [넘기기]) · 결과는 표준 출력 JSON 한 줄 · `0` 보냄 · `3` 버림 · 고치기 · 시간 초과 · `2` 요청 꼴 오류 · `1` 창을 못 띄움 ([명세 › SP-09](SPEC.md#sp-09-확정-창--보고-내기-propose)) | 있음 |
 | `scan` | 표준 입력의 글을 데이터 폴더의 사전 · 설정으로 검사 (D2 · D3 · D5) · 표준 출력에 JSON 한 줄 · 표준 오류에 `DIODE …` 한 줄 · 종료 코드 `0` 통과 · `2` 막음 (사전이 없거나 비어도 `2`) · 단어 · 값은 찍지 않습니다 | 있음 |
 | `lib names <이름>` | 허용 라이브러리의 공개 이름 | 아직 없음 |

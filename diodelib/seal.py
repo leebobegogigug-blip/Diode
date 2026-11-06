@@ -141,7 +141,7 @@ def _free_text_paths(brief):
     return out
 
 
-def seal(draft, table, policy):
+def seal(draft, table, policy, known_tokens=()):
     """초안 (dict) → {"ok": true, "text": <펼친 글>, "brief": <봉인한 brief>} 또는 {"ok": false, "hits": [...]}.
 
     - ref 가 있는 entities · fields 에 table 로 토큰을 준다. [[ref]] 를 토큰으로 바꾼다.
@@ -154,12 +154,12 @@ def seal(draft, table, policy):
             return scan.e20()
         if not isinstance(draft, dict):
             return _fail([{"check": "D1", "count": 1, "where": ["(root)"]}])
-        return _seal(draft, table, policy)
+        return _seal(draft, table, policy, frozenset(known_tokens))
     except Exception:
         return scan.e20()
 
 
-def _seal(draft, table, policy):
+def _seal(draft, table, policy, known_tokens=frozenset()):
     b = copy.deepcopy(draft)
     refs = {}
     bad_refs = []
@@ -196,7 +196,7 @@ def _seal(draft, table, policy):
     if left:
         return _fail([{"check": "D1", "count": len(left), "where": ["(ref)"]}])
 
-    pol = policy.derive(tokens=table.tokens(), extra_words=table.reals())
+    pol = policy.derive(tokens=table.tokens() | known_tokens, extra_words=table.reals())
     res = scan.check_brief(b, pol)
     if not res.get("ok"):
         return res

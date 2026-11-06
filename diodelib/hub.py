@@ -89,7 +89,7 @@ class Parts(object):
     """
 
     def __init__(self, confirm=None, worker=None, judge=None, transport=None, audit=None, confirmed=None,
-                 policy=None, propose_cmd=None):
+                 policy=None, propose_cmd=None, reserve=None):
         self.confirm = confirm
         self.worker = worker
         self.judge = judge
@@ -98,6 +98,7 @@ class Parts(object):
         self.confirmed = confirmed
         self.policy = policy
         self.propose_cmd = propose_cmd or 'python "diode.py" propose <report.json>'
+        self.reserve = reserve          # reserve(job) -> bool : 세션들 사이에서 job 번호를 하나만 쓰게
 
 
 class ProcessConfirm(object):
@@ -182,7 +183,8 @@ class Hub(object):
             self._next += 1
             if self._next > 9999:
                 raise RuntimeError("job 번호가 다 찼다")
-            if self._find(name) is None and not os.path.exists(os.path.join(self.project_dir, "outbox", name + ".md")):
+            if self._find(name) is None and not os.path.exists(os.path.join(self.project_dir, "outbox", name + ".md")) \
+                    and (self.parts.reserve is None or self.parts.reserve(name)):
                 j = Job(name)
                 self.jobs.append(j)
                 return j
@@ -343,6 +345,99 @@ class Hub(object):
                      "sha256": sha256_text(text), "checks": [{"check": "D7", "verdict": "pass"}]})
             job.state = "reported"
             return "reported"
+
+
+# ---------------------------------------------------------------- 대기열 (propose → 허브) · 기본 부품
+
+QUEUE_DIR = "queue"
+JOBS_DIR = "jobs"
+QUEUE_MAX_AGE_S = 24 * 3600     # job 의 expired 와 같은 24시간 [제안]
+_QUEUE_RE = re.compile(r"^(J-[0-9]{4})-[0-9a-z]{1,40}\.json$")
+
+
+def file_reserver(home):
+    """데이터 폴더 jobs\\ 에 job 이름의 빈 파일을 배타적으로 만들어 세션들 사이에서 번호가 겹치지 않게."""
+    def reserve(job):
+        d = os.path.join(home, JOBS_DIR)
+        os.makedirs(d, exist_ok=True)
+        try:
+            fd = os.open(os.path.join(d, job), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        except FileExistsError:
+            return False
+        os.close(fd)
+        return True
+    return reserve
+
+
+def poll_queue(hub, home, now=None):
+    """데이터 폴더 queue\\ 의 보고 초안 가운데 이 허브의 working 인 일의 것만 처리한다 → 처리한 수.
+
+    다른 세션의 일 · 이 허브가 모르는 일의 파일은 건드리지 않는다. 24시간 넘은 파일은 지운다 (초안에 진짜 이름이 들 수 있다).
+    읽은 파일은 처리하기 전에 지운다 (같은 보고를 두 번 띄우지 않게).
+    """
+    d = os.path.join(home, QUEUE_DIR)
+    if not os.path.isdir(d):
+        return 0
+    now = time.time() if now is None else now
+    working = set(j.job for j in hub.jobs if j.state == "working")
+    done = 0
+    for fn in sorted(os.listdir(d)):
+        path = os.path.join(d, fn)
+        m = _QUEUE_RE.match(fn)
+        try:
+            if not m or now - os.path.getmtime(path) > QUEUE_MAX_AGE_S:
+                if not m or os.path.isfile(path):
+                    os.unlink(path)
+                continue
+            if m.group(1) not in working:
+                continue
+            with open(path, "r", encoding="utf-8") as f:
+                draft = json.load(f)
+            os.unlink(path)
+        except Exception:
+            continue
+        hub.take_report(draft)
+        done += 1
+    return done
+
+
+def default_parts(home, room, plugin_root=None):
+    """실제 부품 — 확정 창 프로세스 · D7 · room 건네기 · 감사 기록 · 사전 · job 예약. 일꾼은 아직 없다 (E-01)."""
+    from . import audit, judge, transport
+    root = plugin_root or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return Parts(confirm=ProcessConfirm(home, diode_py=os.path.join(root, "diode.py")),
+                 worker=None,
+                 judge=lambda t: judge.judge_home(home, t),
+                 transport=transport.RoomTransport(room),
+                 audit=audit.sink(home),
+                 confirmed=lambda: audit.confirmed_hashes(home),
+                 policy=lambda: scan.policy_from_home(home),
+                 propose_cmd='python "%s" propose <report.json>' % os.path.join(root, "diode.py"),
+                 reserve=file_reserver(home))
+
+
+def main(env=None, stdin=None, stdout=None, home=None, poll_s=1.0):
+    """diode.py mcp — 허브를 띄운다. 프로젝트 폴더는 CLAUDE_PROJECT_DIR (없으면 현재 폴더) · 데이터 폴더는 기본 자리."""
+    from .room import default_data_dir
+    env = os.environ if env is None else env
+    project = env.get("CLAUDE_PROJECT_DIR") or os.getcwd()
+    home = home or default_data_dir()
+    h = Hub(project, default_parts(home, project))
+    stop = threading.Event()
+
+    def loop():
+        while not stop.wait(poll_s):
+            try:
+                if h.in_room():
+                    poll_queue(h, home)
+            except Exception:
+                pass
+    t = threading.Thread(target=loop, daemon=True)
+    t.start()
+    try:
+        return serve(h, stdin, stdout)
+    finally:
+        stop.set()
 
 
 # ---------------------------------------------------------------- JSON-RPC (표준 입출력 · 줄마다 한 메시지)
