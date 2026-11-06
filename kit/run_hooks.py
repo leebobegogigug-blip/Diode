@@ -124,6 +124,10 @@ def scenarios(lay):
          "prompt": "/diode:dict", "expect": "window_unavailable", "needs_display": True},
         {"id": "R22", "what": "슬래시 명령 /diode:setup 첫 실행 (정책 없음) — 정책 창이 뜨고 방은 만들지 않으며 점검 결과가 Claude 에게 간다", "cwd": "other",
          "prompt": "/diode:setup", "no_data": True, "expect": "window", "needs_display": True, "python_tk": True},
+        {"id": "R24", "what": "보통 폴더의 CLAUDE.md 에 사내 단어 — 프롬프트가 막힘 (안내 파일은 모든 요청에 실려 가므로 · 모델 요청 0)", "cwd": "other",
+         "prompt": "안녕", "write": {os.path.join(lay["other"], "CLAUDE.md"): "# 메모\n%s 프로젝트\n" % word}, "expect": "none"},
+        {"id": "R25", "what": "사용자 범위 ~/.claude/CLAUDE.md 에 사내 단어 — 프롬프트가 막힘 (모델 요청 0)", "cwd": "other",
+         "prompt": "안녕", "write": {"{HOME}/.claude/CLAUDE.md": "# 사용자 메모\n%s\n" % word}, "expect": "none"},
         {"id": "R17", "what": "슬래시 명령 /diode:status — ${CLAUDE_PLUGIN_ROOT} 가 풀리고 점검 결과가 Claude 에게 가며 사전 단어는 없다", "cwd": "other",
          "prompt": "/diode:status", "expect": "cmd_status"},
     ]
@@ -187,7 +191,10 @@ def run_one(sc, a, work, lay):
     os.makedirs(home, exist_ok=True)
     if not sc.get("no_data"):
         seed_data(home, lay)
-    for wp, wt in (sc.get("write") or {}).items():
+    sc = dict(sc)
+    sc["write"] = {wp.replace("{HOME}", home): wt for wp, wt in (sc.get("write") or {}).items()}
+    for wp, wt in sc["write"].items():
+        os.makedirs(os.path.dirname(wp), exist_ok=True)
         with open(wp, "w", encoding="utf-8") as f:
             f.write(wt)
     local = os.path.join(lay["room"], ".claude", "settings.local.json")

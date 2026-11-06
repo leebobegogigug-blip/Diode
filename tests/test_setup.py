@@ -31,7 +31,7 @@ class Base(unittest.TestCase):
 
     def ready_policy(self, **kw):
         st = {"words": [WORD], "raw_dirs": [self.raw], "room_path": self.room,
-              "llm": {"base_url": "http://127.0.0.1:1/v1", "model": "m"}, "worker_command": ["opencode", "run", "{prompt}"]}
+              "llm": {"base_url": "http://127.0.0.1:1/v1", "model": "m"}, "worker_command": [sys.executable, "-c", "pass", "{prompt}"]}
         st.update(kw)
         config.apply_state(self.home, st)
 
@@ -118,6 +118,16 @@ class Check(Base):
         lines, code = self.lines()
         self.assertEqual((code, lines[-1]), (0, "결과: OK"))
 
+    def test_worker_command_problems_are_shown(self):
+        self.ready_policy(worker_command=["diode-no-such-exe-xyz", "{prompt}"])
+        lines, code = self.lines()
+        text = "\n".join(lines)
+        self.assertIn("일꾼 명령 문제: 실행 파일을 PATH 에서 찾지 못함", text)
+        self.assertEqual(code, 3)
+        self.assertNotIn("diode-no-such-exe", text)                                    # 명령 이름도 찍지 않는다
+        self.ready_policy(worker_command=[sys.executable, "-c", "pass"])
+        self.assertNotIn("일꾼 명령 문제", "\n".join(self.lines()[0]))
+
     def test_python_missing_fails(self):
         _, code = self.lines(probe=lambda: (False, None))
         self.assertEqual(code, 1)
@@ -138,6 +148,27 @@ class Check(Base):
         text = "\n".join(self.lines()[0])
         for w in (WORD, "kitraw", self.tmp, "opencode run", "127.0.0.1"):
             self.assertNotIn(w, text)
+
+    def test_check_reports_guide_files_here_and_above(self):
+        self.ready_policy()
+        proj = os.path.join(self.tmp, "proj", "sub")
+        os.makedirs(proj)
+        with open(os.path.join(self.tmp, "proj", "AGENTS.md"), "w", encoding="utf-8") as f:
+            f.write("%s 규칙\n" % WORD)
+        self.assertEqual(setup.guide_hits_here(self.home, cwd=proj, env={"CLAUDE_CONFIG_DIR": os.path.join(self.tmp, "u")}), 1)
+        cwd = os.getcwd()
+        os.chdir(proj)
+        try:
+            from unittest import mock
+            with mock.patch.dict(os.environ, {"CLAUDE_CONFIG_DIR": os.path.join(self.tmp, "u")}):
+                lines, code = setup.check(self.home, python_probe=lambda: (True, "3.12"))
+        finally:
+            os.chdir(cwd)
+        text = "\n".join(lines)
+        self.assertIn("안내 파일", text)
+        self.assertIn("사전 단어가 1개", text)
+        self.assertNotIn(WORD, text)
+        self.assertEqual(code, 3)
 
     def test_user_guide_with_dictionary_word(self):
         self.ready_policy()

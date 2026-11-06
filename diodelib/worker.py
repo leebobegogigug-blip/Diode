@@ -15,6 +15,10 @@ opencode 를 어떻게 설치했든 (명령줄 · 서버) 같은 자리에서 �
 - 첨부는 방 `work\\` 의 파일 이름만 받아 안쪽 작업 폴더로 복사한다 (이름은 한 칸 · 덮어쓰지 않음). 바깥으로 부르는 코드
   (U3) 가 든 첨부는 확정 창 전에 허브가 막으므로 (hub.check_attachments) 여기서는 복사만 한다.
 - `check()` 는 실행 파일이 PATH 에서 찾아지는지만 본다 (띄워 보지 않는다).
+- **Windows 의 `.cmd` · `.bat` 껍데기 (npm 으로 깐 opencode 가 보통 그렇다)**: 이것을 부르면 `cmd.exe` 가 인자를 다시 해석한다 —
+  프롬프트 (Claude 가 쓴 글) 의 `&` · `|` · `^` · `%` 가 명령이 된다 (명령 주입). 그래서 껍데기면 `{prompt}` 를 인자로 주는 설정을
+  거절하고 (`command_problem` → "cmd_shim_prompt") 표준 입력만 쓰게 한다 (진짜 opencode 1.19.5 는 표준 입력으로 받는다 [실험]).
+  `{cwd}` 도 껍데기가 해석하는 글자가 든 폴더면 거절한다. 실행 파일은 PATH 에서 찾은 전체 경로로 부른다 (`.cmd` 는 이름만으로 안 뜬다).
 """
 
 import os
@@ -30,6 +34,34 @@ MAX_ARG_LEN = 4096
 
 class WorkerConfigError(Exception):
     pass
+
+
+_CMD_META = set('&|<>^%!"()')
+_SHIM_EXT = (".cmd", ".bat")
+
+
+def _resolve(executable, which=None):
+    which = which or shutil.which
+    return which(executable) or (executable if os.path.isfile(executable) else None)
+
+
+def command_problem(command, os_name=None, which=None, cwd=None):
+    """설정한 일꾼 명령의 문제 코드 (없으면 None): not_found · cmd_shim_prompt · cmd_shim_cwd. 띄워 보지 않는다.
+
+    cmd_shim_prompt: Windows 에서 .cmd · .bat 껍데기를 `{prompt}` 인자로 부름 (명령 주입 길 · 표준 입력을 쓰라).
+    cmd_shim_cwd: 껍데기를 부르는데 작업 폴더 이름에 cmd.exe 가 해석하는 글자가 있음.
+    """
+    exe = _resolve(command[0], which)
+    if exe is None:
+        return "not_found"
+    if (os_name or os.name) == "nt" and exe.lower().endswith(_SHIM_EXT):
+        if any("{prompt}" in x for x in command):
+            return "cmd_shim_prompt"
+        if cwd is not None and any(ch in _CMD_META for ch in cwd):
+            return "cmd_shim_cwd"
+        if any("{cwd}" in x for x in command) and cwd is None:
+            return None          # 폴더는 보낼 때 본다
+    return None
 
 
 def load_command(cfg):
@@ -52,17 +84,22 @@ def load_command(cfg):
 class CommandWorker(object):
     """허브의 worker 부품 (check · send)."""
 
-    def __init__(self, command, home, room_dir, cwd=None, popen=None):
+    def __init__(self, command, home, room_dir, cwd=None, popen=None, os_name=None, which=None):
         self.command = list(command)
         self.home = home
         self.room_dir = room_dir
         self.cwd = cwd
         self._popen = popen or subprocess.Popen
+        self._os_name = os_name
+        self._which = which
         self.children = []
         self._lock = threading.Lock()
 
+    def problem(self, cwd=None):
+        return command_problem(self.command, self._os_name, self._which, cwd)
+
     def check(self):
-        return shutil.which(self.command[0]) is not None or os.path.isfile(self.command[0])
+        return self.problem() is None
 
     def _work_dir(self, job):
         d = self.cwd or os.path.join(self.home, "work", job)
@@ -89,8 +126,12 @@ class CommandWorker(object):
         """지시를 일꾼에게 넣는다 → 띄웠으면 True. 일꾼의 출력은 읽지 않는다."""
         try:
             dest = self._work_dir(job)
+            if self.problem(dest) is not None:
+                return False
             self._copy_attachments(job, attachments or [], dest)
             argv = [x.replace("{cwd}", dest).replace("{prompt}", text) for x in self.command]
+            exe = _resolve(self.command[0], self._which)
+            argv[0] = exe if exe else argv[0]                # PATH 에서 찾은 전체 경로 (Windows 의 .cmd 는 이름만으로 안 뜬다)
             use_stdin = not any("{prompt}" in x for x in self.command)
             env = dict(os.environ)
             env["DIODE_JOB"] = job

@@ -94,13 +94,18 @@ Terminal–1 같은 다른 도구가 부르는 읽기 전용 상태 명령 (`--s
 - **확정 창의 글은 마우스로 골라 복사할 수 있습니다.** 손으로 옮긴 글은 감사 기록에 남지 않습니다.
 - **확정 창은 화면이 있어야 뜹니다.** 화면이 없는 환경 (원격 셸 · Windows 밖에서 `DISPLAY` 없음) 에서는 보내지 않습니다 (`E-07`). 글꼴은 Unifont 가 있으면 그것, 없으면 Consolas · D2Coding 순입니다.
 - **안쪽 도구 (opencode) 는 Claude 가 직접 부를 수 없습니다.** CLI 안에 opencode 가 물려 있어도 훅이 막습니다 (이름에 `opencode` 가 든 MCP 도구 · 하위 에이전트 · 스킬 · 셸 명령). 다른 이름으로 물렸다면 설정 `policy.inner_tools` 에 이름 조각을 더하세요. 안쪽 일은 허브로만 넘깁니다.
-- **일꾼의 셸 권한은 opencode 쪽에서도 좁혀 두세요 (두 번째 층).** 안내문은 벽이 아닙니다 (AL-09). 예 (opencode 설정 · 규칙은 **나중에 적은 것이 이깁니다** — 전부 거절 `*` 를 맨 앞에):
+- **일꾼 전용 opencode 에이전트를 하나 만들어 권한을 좁히세요 (두 번째 층).** 안내문은 벽이 아닙니다 (AL-09) — 일꾼이 셸이나 파일 쓰기로 방 (Claude 가 읽는 자리) 에 확정 창을 거치지 않고 글을 두는 길을 opencode 쪽에서 닫습니다. **평소 쓰는 opencode 의 전역 권한은 건드리지 않고** 이 에이전트에만 권한을 줍니다 (opencode 설정 · 규칙은 **나중에 적은 것이 이깁니다** — 전부 거절 `*` 를 맨 앞에 · 패턴은 Windows 경로의 역슬래시에도 맞게 `*diode.py` 꼴):
   ```json
-  {"permission": {"bash": {"*": "deny", "python */diode.py propose *": "allow", "python3 */diode.py propose *": "allow"},
-                  "edit": "deny", "webfetch": "deny"}}
+  {"agent": {"diode-worker": {
+      "description": "Diode 일꾼", "mode": "primary",
+      "permission": {
+        "bash": {"*": "deny", "python *diode.py propose *": "allow", "python3 *diode.py propose *": "allow"},
+        "edit": "allow", "external_directory": "deny", "webfetch": "deny"}}}}
   ```
-  `opencode run --auto` (권한 자동 승인) 는 쓰지 않습니다. 이 예시는 진짜 opencode 1.19.5 로 확인했습니다 (`kit/run_opencode.py` — 허락한 `propose` 는 돌고 허락하지 않은 명령은 돌지 않음).
-- **일꾼은 설정 `worker.command` 가 있어야 돕니다.** 예: `["opencode", "run", "--dir", "{cwd}", "{prompt}"]` — `--dir` 을 빼면 opencode 의 셸이 일꾼의 작업 폴더 밖에서 돌아 보고 파일을 찾지 못합니다. 없으면 `dispatch` 는 `E-01` 입니다. 일꾼의 출력은 읽지 않습니다 — 결과는 일꾼이 `propose` 로만 냅니다.
+  `edit: allow` 는 일꾼의 작업 폴더 안에서만 듣습니다 (`external_directory: deny` 가 폴더 밖 — 방 포함 — 을 막습니다). `opencode run --auto` (권한 자동 승인) 는 쓰지 않습니다. 이 설정은 진짜 opencode 1.19.5 로 확인했습니다 (`kit/run_opencode.py` R2–R4 — 허락한 `propose` 는 돌고, 허락하지 않은 명령은 작업 폴더 **안에서도** 안 돌고, 방에는 못 쓰고, 에이전트를 안 쓰면 전역 설정 그대로).
+- **일꾼은 설정 `worker.command` 가 있어야 돕니다.** 예: `["opencode", "run", "--agent", "diode-worker", "--dir", "{cwd}"]` — 프롬프트는 표준 입력으로 줍니다 (`{prompt}` 를 적지 않으면 그렇게 됩니다). `--dir` 을 빼면 opencode 의 셸이 일꾼의 작업 폴더 밖에서 돌아 보고 파일을 찾지 못합니다.
+- **Windows 에서 opencode 가 `.cmd` 껍데기면 `{prompt}` 를 인자로 주지 마세요.** `cmd.exe` 가 인자를 다시 해석해서 프롬프트 (Claude 가 쓴 글) 의 `&` · `|` · `^` · `%` 가 명령이 됩니다 (명령 주입). Diode 는 이 조합을 거절하고 (`일꾼 명령 문제: cmd_shim_prompt`) 표준 입력을 쓰게 합니다. 진짜 opencode 는 표준 입력으로 받고 특수문자도 그대로 옵니다.
+- **안내 파일 (`CLAUDE.md` · `AGENTS.md`) 에 사내 단어가 있으면 프롬프트가 막힙니다.** 안내 파일은 모든 요청에 실려 가므로, 사용자 범위 (`~/.claude`) 와 작업 폴더에서 위로 올라가며 (CLAUDE.md · CLAUDE.local.md · AGENTS.md · `.claude/CLAUDE.md` · `rules/*.md`) 훅이 사전으로 검사합니다. 걸리면 개수만 알리고 (`D2 x<개수> @안내파일`) 보내지 않습니다 — 지우거나 옮기세요. `@` 로 끌어오는 다른 파일 · 하위 폴더의 안내 파일은 보지 않습니다 (알려진 한계). 없으면 `dispatch` 는 `E-01` 입니다. 일꾼의 출력은 읽지 않습니다 — 결과는 일꾼이 `propose` 로만 냅니다.
 - **정책 창은 화면이 있어야 뜹니다.** 화면이 없는 환경 (원격 셸) 이나 tkinter 가 없는 파이썬에서는 `E-07` 로 알리고 열지 않습니다 — 정책은 그 창에서만 바뀌므로 화면이 있는 PC 에서 여세요. 창 두 개를 동시에 열면 나중에 저장한 쪽이 이깁니다.
 - **정책 창에서 `llm` 칸을 비우면 지우는 것이 아니라 그대로 둡니다.** 지우려면 `config.json` 의 `llm` 을 직접 지우세요 (사람이 · 데이터 폴더는 Claude 가 못 만집니다).
 - **사내 단어가 든 파일은 위치와 상관없이 `Read` 가 막힙니다** (그 밖의 폴더에서). 원자료 폴더 목록에 빠진 폴더도 내용으로 지킵니다. 다만 이미지 · PDF · 이진 파일, `Grep` 의 결과, 셸의 `cat` 은 못 봅니다 — 사내 자료가 있는 폴더는 원자료 폴더 목록에 넣으세요 (그러면 폴더째로 막힙니다). 4 MiB 가 넘는 파일은 검사하지 못해 막습니다.

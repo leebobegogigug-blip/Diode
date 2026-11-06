@@ -46,6 +46,15 @@ def user_guide_hits(home, user_md=None):
         return None
 
 
+def guide_hits_here(home, cwd=None, env=None):
+    """훅과 같은 안내 파일 검사 (사용자 범위 + 지금 폴더에서 위로) → 걸린 단어 수 · 못 보면 None."""
+    try:
+        policy = scan.policy_from_home(home)
+        return hook.guide_hits(cwd or os.getcwd(), hook.user_claude_dir(os.environ if env is None else env), policy)
+    except Exception:
+        return None
+
+
 def hook_selftest(plugin_root=None):
     """`diode.py hook prompt` 를 임시 폴더에서 하위 프로세스로 한 번 돌려 본다 — 평범한 말은 통과 (종료 0 · 출력 없음)."""
     import json
@@ -91,6 +100,18 @@ def check(home, plugin_root=None, python_probe=None):
         lines.append("일꾼 명령 %s · 사내 LLM 판정 (D7) %s" % ("설정함" if c["worker"] else "없음 (일 넘기기는 E-01)",
                                                               "설정함" if c["llm"] else "없음 (보내기는 막힘)"))
         lines.append("실데이터 %s" % ("허용됨 (보안 승인 뒤에만)" if c["real_data"] else "꺼짐 (기본)"))
+        if c["worker"]:
+            from . import worker as wk
+            try:
+                cmd, _cwd = wk.load_command(config.read_config(home))
+                prob = wk.command_problem(cmd)
+            except Exception:
+                prob = "config"
+            if prob:
+                lines.append("일꾼 명령 문제: %s" % {"not_found": "실행 파일을 PATH 에서 찾지 못함",
+                                                      "cmd_shim_prompt": "Windows .cmd 껍데기에 {prompt} 를 인자로 줌 (명령 주입 길 - 표준 입력으로 받게 {prompt} 를 빼세요)",
+                                                      "config": "설정을 읽지 못함"}.get(prob, prob))
+                confirms.append("일꾼 명령에 문제가 있음 (%s) — 일 넘기기는 E-01" % prob)
         if not c["dictionary"]:
             confirms.append("사전이 비어 있음 — 보내기를 막습니다")
         if not c["raw_dirs"]:
@@ -98,12 +119,12 @@ def check(home, plugin_root=None, python_probe=None):
         if not c["llm"]:
             confirms.append("사내 LLM 판정 (D7) 설정이 없음 — 보내기를 막습니다")
         if c["dictionary"]:
-            hits = user_guide_hits(home)
+            hits = guide_hits_here(home)
             if hits is None:
-                confirms.append("사용자 범위 안내 파일을 사전으로 검사하지 못함")
+                confirms.append("안내 파일 (CLAUDE.md · AGENTS.md) 을 사전으로 검사하지 못함")
             elif hits:
-                lines.append("사용자 범위 ~/.claude/CLAUDE.md 에 사전 단어가 %d개 있음 — Claude 가 읽어 갑니다" % hits)
-                confirms.append("사용자 범위 안내 파일에 사전 단어가 있음 (L-29) — 지우세요")
+                lines.append("안내 파일 (사용자 범위 · 이 폴더와 위 폴더의 CLAUDE.md · AGENTS.md) 에 사전 단어가 %d개 있음 — Claude 가 모든 요청에 읽어 갑니다" % hits)
+                confirms.append("안내 파일에 사전 단어가 있음 (L-29) — 지우거나 옮기세요 · 그 전에는 프롬프트가 막힙니다")
     st = room.room_state(room_folder(home))
     lines.append("방 %s" % {"ok": "ok", "missing": "없음 (/diode:room)", "changed": "changed (방 설정이 바뀜 — 막힘)"}[st])
     if st != "ok":

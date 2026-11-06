@@ -112,6 +112,71 @@ class Send(unittest.TestCase):
         self.assertTrue(wait_for(os.path.join(fixed, "J-0006.got")))
 
 
+class WindowsShims(unittest.TestCase):
+    """Windows 의 .cmd 껍데기: cmd.exe 가 인자를 다시 해석한다 — 프롬프트를 인자로 주면 명령 주입 (BatBadBut 류)."""
+
+    def setUp(self):
+        self.tmp = os.path.realpath(tempfile.mkdtemp(prefix="diode-shim-"))
+        self.home = os.path.join(self.tmp, "data")
+        self.room = os.path.join(self.tmp, "room")
+        make_room(self.room)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def which(self, name):
+        return r"C:\tools\opencode.CMD" if name == "opencode" else (r"C:\tools\opencode.exe" if name == "oc-exe" else None)
+
+    def test_problem_codes(self):
+        p = lambda cmd, **kw: worker.command_problem(cmd, os_name="nt", which=self.which, **kw)   # noqa: E731
+        self.assertEqual(p(["opencode", "run", "{prompt}"]), "cmd_shim_prompt")
+        self.assertEqual(p(["opencode", "run", "--dir", "{cwd}", "pre-{prompt}-post"]), "cmd_shim_prompt")
+        self.assertIsNone(p(["opencode", "run", "--dir", "{cwd}"]))                   # 표준 입력으로 줌 — 안전
+        self.assertIsNone(p(["oc-exe", "run", "{prompt}"]))                          # 진짜 .exe 는 껍데기가 아니다
+        self.assertEqual(p(["nothing", "{prompt}"]), "not_found")
+        self.assertEqual(p(["opencode", "run"], cwd="D:\\a&b\\work"), "cmd_shim_cwd")
+        self.assertEqual(p(["opencode", "run"], cwd="D:\\50%\\work"), "cmd_shim_cwd")
+        self.assertIsNone(p(["opencode", "run"], cwd="D:\\data\\work\\J-0001"))
+
+    def test_not_a_problem_off_windows(self):
+        self.assertIsNone(worker.command_problem(["opencode", "run", "{prompt}"], os_name="posix", which=self.which))
+
+    def test_send_refuses_a_shim_with_prompt_in_argv_and_starts_nothing(self):
+        started = []
+        w = worker.CommandWorker(["opencode", "run", "{prompt}"], self.home, self.room, popen=lambda *a, **k: started.append(a),
+                                 os_name="nt", which=self.which)
+        self.assertFalse(w.check())
+        self.assertFalse(w.send("J-0001", "x & calc | echo %PATH% ^ \"", []))
+        self.assertEqual(started, [])                                               # 아무것도 띄우지 않았다
+
+    def test_send_with_stdin_and_resolved_path(self):
+        calls = []
+
+        class P(object):
+            stdin = None
+
+            def __init__(self, argv, **kw):
+                calls.append((argv, kw))
+                import io
+                self.stdin = io.BytesIO()
+                self.stdin.close = lambda: None
+                self.written = self.stdin
+
+            def poll(self):
+                return 0
+
+            def wait(self):
+                return 0
+        w = worker.CommandWorker(["opencode", "run", "--dir", "{cwd}"], self.home, self.room, popen=P, os_name="nt", which=self.which)
+        self.assertTrue(w.check())
+        self.assertTrue(w.send("J-0001", "한글 & | ^ % \" 지시", []))
+        argv, kw = calls[0]
+        self.assertEqual(argv[0], r"C:\tools\opencode.CMD")                         # PATH 에서 찾은 전체 경로
+        self.assertNotIn("지시", " ".join(argv))                                      # 프롬프트는 인자에 없다
+        self.assertFalse(kw.get("shell"))
+        self.assertEqual(w.children[-1].written.getvalue().decode("utf-8"), "한글 & | ^ % \" 지시")
+
+
 class HubParts(unittest.TestCase):
     def setUp(self):
         self.tmp = os.path.realpath(tempfile.mkdtemp(prefix="diode-worker-"))

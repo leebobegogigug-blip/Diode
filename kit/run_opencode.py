@@ -33,8 +33,10 @@ DIODE = os.path.join(ROOT, "diode.py")
 class FakeModel(object):
     """도구 결과를 받으면 끝, 도구 목록이 있고 아직 결과가 없으면 정해진 셸 명령을 부르는 가짜 모델."""
 
-    def __init__(self, command=None):
+    def __init__(self, command=None, tool="bash", tool_args=None):
         self.command = command
+        self.tool = tool
+        self.tool_args = tool_args
         self.requests = []
         self.tool_results = []
         outer = self
@@ -64,11 +66,11 @@ class FakeModel(object):
                     self.wfile.write(("data: " + json.dumps(o) + "\n\n").encode())
                     self.wfile.flush()
                 usage = {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}
-                if outer.command and req.get("tools") and not done:
+                if (outer.command or outer.tool_args) and req.get("tools") and not done:
+                    args = outer.tool_args if outer.tool_args is not None else {"command": outer.command, "description": "propose"}
                     ch({"role": "assistant", "content": None, "tool_calls": [{
                         "index": 0, "id": "call_1", "type": "function",
-                        "function": {"name": "bash", "arguments": json.dumps(
-                            {"command": outer.command, "description": "propose"})}}]})
+                        "function": {"name": outer.tool, "arguments": json.dumps(args)}}]})
                     ch({}, "tool_calls", usage)
                 else:
                     ch({"role": "assistant", "content": ""})
@@ -81,7 +83,15 @@ class FakeModel(object):
         self.port = self.srv.server_address[1]
 
 
-def isolate(tmp, port, permission=None):
+AGENT = "diode-worker"
+
+
+def agent_config(permission):
+    """일꾼 전용 에이전트 하나에만 권한을 준다 — 전역 설정은 평소 쓰던 대로 (허락) 둔다."""
+    return {"description": "Diode 일꾼 - propose 만 셸로 · 작업 폴더 밖에는 쓰지 않는다", "mode": "primary", "permission": permission}
+
+
+def isolate(tmp, port, permission=None, agent=None):
     """opencode 가 이 PC 의 설정 · 로그인 · 기록을 건드리지 않게 환경을 격리한다. 돌려주는 것: 이전 환경 (복구용)."""
     cfg = {"$schema": "https://opencode.ai/config.json", "autoupdate": False, "share": "disabled",
            "provider": {"fake": {"npm": "@ai-sdk/openai-compatible", "name": "fake",
@@ -91,6 +101,8 @@ def isolate(tmp, port, permission=None):
            "model": "fake/m", "small_model": "fake/m"}
     if permission:
         cfg["permission"] = permission
+    if agent:
+        cfg["agent"] = {AGENT: agent}
     env = {"HOME": tmp, "USERPROFILE": tmp, "XDG_CONFIG_HOME": tmp + "/cfg", "XDG_DATA_HOME": tmp + "/xdgdata",
            "XDG_CACHE_HOME": tmp + "/cache", "XDG_STATE_HOME": tmp + "/state",
            "OPENCODE_CONFIG_CONTENT": json.dumps(cfg), "OPENCODE_DISABLE_AUTOUPDATE": "true",
@@ -142,11 +154,12 @@ def r2(oc, allowed):
     os.makedirs(data)
     with open(os.path.join(data, "dictionary.json"), "w", encoding="utf-8") as f:
         json.dump({"format": 1, "words": ["KITWORDALPHA"]}, f)
-    marker = os.path.join(tmp, "MARKER")
+    # 표지는 일꾼의 작업 폴더 **안** 에 둔다 — 작업 폴더 밖 경로라서 막힌 것 (external_directory) 과 bash 규칙이 막은 것을 구별한다
+    marker = os.path.join(tmp, "dhome", "work", "J-0001", "marker-inside.txt")
     py = os.path.basename(sys.executable) if os.path.basename(sys.executable) in ("python", "python3") else "python3"
-    cmd = ("%s %s propose report.json" % (py, DIODE)) if allowed else ("touch %s" % marker)
+    cmd = ("%s %s propose report.json" % (py, DIODE)) if allowed else "touch marker-inside.txt"
     model = FakeModel(cmd)
-    permission = {"bash": {"*": "deny", "python3 */diode.py propose *": "allow", "python */diode.py propose *": "allow"},
+    permission = {"bash": {"*": "deny", "python3 *diode.py propose *": "allow", "python *diode.py propose *": "allow"},
                   "edit": "deny", "webfetch": "deny"}
     saved = isolate(tmp, model.port, permission)
     try:
@@ -170,6 +183,84 @@ def r2(oc, allowed):
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def r3(oc, inside):
+    """일꾼이 방으로 새는 길 — `write` 로 작업 폴더 안 (허락) 과 밖 (거절) 에 파일을 쓰게 해 본다.
+
+    권한: edit 허락 · external_directory 거절 (프로젝트 폴더 밖은 못 씀) · bash 는 propose 만. 밖에 쓰는 길이 열려 있으면
+    일꾼이 방 (Claude 가 읽는 자리) 에 확정 창을 거치지 않고 글을 둘 수 있다.
+    """
+    tmp = tempfile.mkdtemp(prefix="oc-r3-")
+    home, room_dir = os.path.join(tmp, "dhome"), os.path.join(tmp, "room")
+    os.makedirs(os.path.join(room_dir, "work"))
+    os.makedirs(home)
+    job_dir = os.path.join(home, "work", "J-0001")
+    target = os.path.join(job_dir, "inside.txt") if inside else os.path.join(room_dir, "work", "outside.txt")
+    model = FakeModel(tool="write", tool_args={"filePath": target, "content": "합성 글"})
+    permission = {"bash": {"*": "deny", "python3 *diode.py propose *": "allow", "python *diode.py propose *": "allow"},
+                  "edit": "allow", "external_directory": "deny", "webfetch": "deny"}
+    saved = isolate(tmp, model.port, permission)
+    try:
+        w = worker.CommandWorker([oc, "run", "-m", "fake/m", "--dir", "{cwd}"], home, room_dir)
+        ok = w.send("J-0001", "[diode J-0001]\n파일을 써라", [])
+        code = wait(w.children[-1]) if ok else None
+        wrote = os.path.exists(target)
+        if inside:
+            return code == 0 and wrote, "종료 %s · 작업 폴더 안에 씀: %s (True 여야)" % (code, wrote)
+        return code == 0 and not wrote, "종료 %s · 작업 폴더 밖 (방) 에 씀: %s (False 여야)" % (code, wrote)
+    finally:
+        restore(saved)
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def r4(oc, case):
+    """전역은 느슨하게 (평소 쓰는 opencode) 두고 일꾼 전용 에이전트 (--agent diode-worker) 에만 권한을 준다.
+
+    case: propose (허락한 명령은 돈다) · outside_cmd (허락 안 한 명령은 안 돈다) · outside_write (작업 폴더 밖 쓰기는 안 된다)
+    · other_agent (에이전트를 안 쓰면 전역 그대로 — 평소 사용이 좁아지지 않았다는 확인).
+    """
+    tmp = tempfile.mkdtemp(prefix="oc-r4-")
+    data = os.path.join(tmp, ".local", "share", "diode")
+    os.makedirs(data)
+    with open(os.path.join(data, "dictionary.json"), "w", encoding="utf-8") as f:
+        json.dump({"format": 1, "words": ["KITWORDALPHA"]}, f)
+    home, room_dir = os.path.join(tmp, "dhome"), os.path.join(tmp, "room")
+    os.makedirs(os.path.join(room_dir, "work"))
+    os.makedirs(home)
+    with open(os.path.join(room_dir, "work", "report.json"), "w", encoding="utf-8") as f:
+        json.dump({"format": 1, "kind": "report", "data_class": "synthetic", "job": "J-0001", "status": "done",
+                   "summary": ["화면을 만들었다"]}, f, ensure_ascii=False)
+    marker = os.path.join(home, "work", "J-0001", "marker-inside.txt")      # 작업 폴더 안 — bash 규칙만이 막고 푼다
+    outside = os.path.join(room_dir, "work", "outside.txt")
+    py = "python3"
+    if case == "propose":
+        model = FakeModel(("%s %s propose report.json" % (py, DIODE)))
+    elif case in ("outside_cmd", "other_agent"):
+        model = FakeModel("touch marker-inside.txt")
+    else:
+        model = FakeModel(tool="write", tool_args={"filePath": outside, "content": "x"})
+    loose = {"bash": "allow", "edit": "allow", "webfetch": "allow"}                # 평소 쓰는 느슨한 전역 설정
+    strict = {"bash": {"*": "deny", "python3 *diode.py propose *": "allow", "python *diode.py propose *": "allow"},
+              "edit": "allow", "external_directory": "deny", "webfetch": "deny"}
+    saved = isolate(tmp, model.port, loose, agent_config(strict))
+    try:
+        cmd = [oc, "run", "-m", "fake/m", "--dir", "{cwd}"] + ([] if case == "other_agent" else ["--agent", AGENT])
+        w = worker.CommandWorker(cmd, home, room_dir)
+        ok = w.send("J-0001", "[diode J-0001]\n해라", ["report.json"])
+        code = wait(w.children[-1]) if ok else None
+        q = os.path.join(data, "queue")
+        queued = len(os.listdir(q)) if os.path.isdir(q) else 0
+        if case == "propose":
+            return code == 0 and queued == 1, "종료 %s · 대기열 %d (1이어야)" % (code, queued)
+        if case == "outside_cmd":
+            return code == 0 and not os.path.exists(marker), "종료 %s · 거절돼야 할 명령이 돌았나 %s" % (code, os.path.exists(marker))
+        if case == "outside_write":
+            return code == 0 and not os.path.exists(outside), "종료 %s · 방에 썼나 %s" % (code, os.path.exists(outside))
+        return code == 0 and os.path.exists(marker), "종료 %s · 에이전트를 안 쓰면 전역 (느슨) 그대로 — 평소 사용이 안 좁아짐: %s" % (code, os.path.exists(marker))
+    finally:
+        restore(saved)
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--opencode", default="opencode")
@@ -181,7 +272,13 @@ def main(argv=None):
         return 3
     results = [("R1 일꾼 부품이 진짜 opencode 를 띄운다", r1(oc)),
                ("R2a 허락한 명령 (propose) 은 돈다", r2(oc, True)),
-               ("R2b 허락하지 않은 명령은 돌지 않는다", r2(oc, False))]
+               ("R2b 허락하지 않은 명령은 돌지 않는다", r2(oc, False)),
+               ("R3a 일꾼이 작업 폴더 안에는 파일을 쓸 수 있다", r3(oc, True)),
+               ("R3b 일꾼이 작업 폴더 밖 (방) 에는 파일을 쓰지 못한다", r3(oc, False)),
+               ("R4a 일꾼 전용 에이전트 — propose 는 돈다", r4(oc, "propose")),
+               ("R4b 일꾼 전용 에이전트 — 허락하지 않은 명령은 안 돈다", r4(oc, "outside_cmd")),
+               ("R4c 일꾼 전용 에이전트 — 방에는 파일을 못 쓴다", r4(oc, "outside_write")),
+               ("R4d 에이전트를 안 쓰면 전역 설정 그대로 (평소 사용이 좁아지지 않음)", r4(oc, "other_agent"))]
     bad = 0
     for name, (ok, why) in results:
         print("%s %-4s %s" % (name.split(" ")[0], "OK" if ok else "실패", name.split(" ", 1)[1] + " — " + why))

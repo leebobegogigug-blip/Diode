@@ -52,6 +52,7 @@ class Base(unittest.TestCase):
         with open(os.path.join(self.raw, "secret.txt"), "w", encoding="utf-8") as f:
             f.write("KIT_RAW_TEXT_CANARY")
         make_room(self.room)
+        self.userdir = os.path.join(self.tmp, "userclaude")                      # 훅이 읽는 사용자 폴더 (이 PC 의 것을 건드리지 않는다)
         write_json(os.path.join(self.home, "dictionary.json"), {"format": 1, "words": [WORD]})
         write_json(os.path.join(self.home, "config.json"), {"format": 1, "policy": {"raw_dirs": [self.raw]}})
 
@@ -62,7 +63,7 @@ class Base(unittest.TestCase):
         data = dict(data)
         data.setdefault("cwd", project)
         code, out, err = hook.run(event, json.dumps(data).encode("utf-8"), home=home or self.home,
-                                  env={"CLAUDE_PROJECT_DIR": project})
+                                  env={"CLAUDE_PROJECT_DIR": project, "CLAUDE_CONFIG_DIR": self.userdir})
         for text in (out, err):
             self.assertNotIn(WORD, text.upper())
             self.assertNotIn("kitraw", text)
@@ -412,6 +413,74 @@ class ReadScan(Base):
         with open(p, "w", encoding="utf-8") as f:
             f.write("평범한 글")
         self.assertAllowed(self.tool("Read", {"file_path": p}, self.room))
+
+
+class GuideFiles(Base):
+    """CLAUDE.md · AGENTS.md 는 모든 요청에 실려 간다 — 사내 단어가 있으면 프롬프트를 보내지 않는다 (사용자 입력이 없어도 나가는 길)."""
+
+    def _write(self, path, text):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(text)
+
+    def test_user_scope_guide_with_a_word_blocks_the_prompt(self):
+        self._write(os.path.join(self.userdir, "CLAUDE.md"), "# 메모\n%s 프로젝트\n" % WORD)
+        code, out, err = self.prompt("평범한 질문", self.other)
+        self.assertEqual((code, out), (2, ""))
+        self.assertIn("D2 x1 @안내파일", err)
+        self.assertNotIn(WORD, err)
+
+    def test_project_and_parent_guides_and_rules(self):
+        sub = os.path.join(self.other, "a", "b")
+        os.makedirs(sub)
+        for rel in (os.path.join(self.other, "CLAUDE.md"), os.path.join(self.other, "a", "AGENTS.md"),
+                    os.path.join(sub, ".claude", "CLAUDE.md"), os.path.join(sub, "CLAUDE.local.md"),
+                    os.path.join(sub, ".claude", "rules", "r.md"), os.path.join(self.userdir, "rules", "u.md")):
+            self._write(rel, "kit-word alpha 가 있다")
+            self.assertEqual(self.prompt("질문", sub)[0], 2, rel)
+            os.remove(rel)
+        self.assertEqual(self.prompt("질문", sub), (0, "", ""))
+
+    def test_clean_guides_pass(self):
+        self._write(os.path.join(self.userdir, "CLAUDE.md"), "평범한 선호 설정\n")
+        self._write(os.path.join(self.other, "AGENTS.md"), "코딩 규칙\n")
+        self.assertEqual(self.prompt("질문", self.other), (0, "", ""))
+
+    def test_counts_distinct_words_per_file(self):
+        write_json(os.path.join(self.home, "dictionary.json"), {"format": 1, "words": [WORD, "가람소재"]})
+        self._write(os.path.join(self.userdir, "CLAUDE.md"), "%s 와 가람소재 와 %s\n" % (WORD, WORD))
+        self.assertIn("D2 x2", self.prompt("질문", self.other)[2])
+
+    def test_too_big_or_unreadable_blocks(self):
+        from diodelib import hook
+        self._write(os.path.join(self.userdir, "CLAUDE.md"), "가" * 20)
+        saved = hook.GUIDE_MAX_BYTES
+        hook.GUIDE_MAX_BYTES = 5
+        try:
+            code, _, err = self.prompt("질문", self.other)
+        finally:
+            hook.GUIDE_MAX_BYTES = saved
+        self.assertEqual(code, 2)                                                  # 검사하지 못하면 막는 쪽
+
+    def test_a_failing_scan_blocks_instead_of_letting_it_through(self):
+        from unittest import mock
+        from diodelib import hook, scan
+        self._write(os.path.join(self.userdir, "CLAUDE.md"), "평범한 글\n")
+        with mock.patch.object(scan, "policy_dict_hits", side_effect=RuntimeError("x")):
+            code, out, err = self.prompt("질문", self.other)
+        self.assertEqual(code, 2)                                                  # 검사가 실패하면 통과가 아니라 막음
+        self.assertIn("D2 x1", err)
+
+    def test_room_and_session_message(self):
+        self._write(os.path.join(self.userdir, "CLAUDE.md"), "%s\n" % WORD)
+        self.assertEqual(self.prompt("질문", self.room)[0], 0)                      # 방은 claudeMdExcludes 로 안내 파일을 싣지 않는다
+        code, out, _ = self.call("session", {}, self.other)
+        self.assertIn("D2 x1", json.loads(out)["systemMessage"])                   # 세션 시작 때도 알린다
+
+    def test_unset_state_does_not_scan(self):
+        empty = os.path.join(self.tmp, "empty")
+        self._write(os.path.join(self.userdir, "CLAUDE.md"), "%s\n" % WORD)
+        self.assertEqual(self.prompt("질문", self.other, home=empty)[0], 0)
 
 
 class Session(Base):

@@ -48,6 +48,7 @@ MSG = {
     "belt_tool": "DIODE V<Vth: 원자료 폴더 (안전벨트)",
     "inner": "DIODE V<Vth: 안쪽 도구는 허브 (dispatch) 로만 쓴다 (AL-01)",
     "data": "DIODE V<Vth: 사전 · 설정 · 기록이 든 데이터 폴더는 Claude 가 읽거나 고치지 않는다 (AL-12)",
+    "guide": "DIODE V<Vth 막힘 · D2 x%d @안내파일 - CLAUDE.md · AGENTS.md 에 사내 단어가 있어 Claude 가 읽어 갑니다 - 지우거나 옮기세요 (/diode:status)",
     "read_big": "DIODE V<Vth: 파일이 너무 커서 검사하지 못해 읽지 않는다 - 줄이거나 원자료 폴더 목록에 넣으세요",
     "plugin": "DIODE V<Vth: 플러그인 소스는 Claude 가 고치지 않는다 (AL-12)",
     "e20": "DIODE V<Vth 막힘 · E-20 - 사전 · 설정을 읽지 못해 막았습니다 · /diode:setup",
@@ -65,7 +66,9 @@ INNER_TOOLS_DEFAULT = ("opencode",)
 class Settings(object):
     """훅이 쓰는 설정. state: "unset" (데이터 폴더에 사전 · 설정이 없음) · "ok" · "broken"."""
 
-    def __init__(self, state, policy=None, raw_dirs=(), web_search=True, home=None, inner_tools=INNER_TOOLS_DEFAULT):
+    def __init__(self, state, policy=None, raw_dirs=(), web_search=True, home=None, inner_tools=INNER_TOOLS_DEFAULT,
+                 user_dir=None):
+        self.user_dir = user_dir
         self.state = state
         self.policy = policy
         self.raw_dirs = tuple(raw_dirs)
@@ -102,6 +105,68 @@ def load_settings(home):
         return Settings("ok", policy=policy, raw_dirs=raw_dirs, web_search=web_search, home=home, inner_tools=inner)
     except Exception:
         return Settings("broken", home=home)
+
+
+GUIDE_NAMES = ("CLAUDE.md", "CLAUDE.local.md", "AGENTS.md", os.path.join(".claude", "CLAUDE.md"))
+MAX_GUIDES = 64
+GUIDE_MAX_BYTES = 1024 * 1024
+
+
+def user_claude_dir(env):
+    """Claude Code 의 사용자 폴더: CLAUDE_CONFIG_DIR → 없으면 홈 아래 .claude."""
+    d = env.get("CLAUDE_CONFIG_DIR")
+    if d:
+        return d
+    return os.path.join(env.get("USERPROFILE") or env.get("HOME") or os.path.expanduser("~"), ".claude")
+
+
+def guide_files(project_dir, user_dir):
+    """Claude 가 모든 요청에 싣는 안내 파일들: 사용자 범위 (CLAUDE.md · rules) + 작업 폴더에서 위로 올라가며 (CLAUDE.md ·
+    CLAUDE.local.md · AGENTS.md · .claude/CLAUDE.md · .claude/rules/*.md). 한 번에 64개까지."""
+    files, seen = [], set()
+
+    def add(p):
+        if len(files) < MAX_GUIDES and p not in seen and os.path.isfile(p):
+            seen.add(p)
+            files.append(p)
+
+    def rules(base):
+        d = os.path.join(base, "rules")
+        if os.path.isdir(d):
+            for fn in sorted(os.listdir(d)):
+                if fn.lower().endswith(".md"):
+                    add(os.path.join(d, fn))
+    if user_dir:
+        add(os.path.join(user_dir, "CLAUDE.md"))
+        rules(user_dir)
+    cur = norm(project_dir)
+    while True:
+        for n in GUIDE_NAMES:
+            add(os.path.join(cur, n))
+        rules(os.path.join(cur, ".claude"))
+        parent = os.path.dirname(cur)
+        if parent == cur:
+            break
+        cur = parent
+    return files
+
+
+def guide_hits(project_dir, user_dir, policy):
+    """안내 파일들에 든 사전 단어 수 (파일마다 서로 다른 단어 수의 합 · 단어는 내지 않는다). 검사하지 못하면 1 (막는 쪽)."""
+    n = 0
+    for f in guide_files(project_dir, user_dir):
+        try:
+            if os.path.getsize(f) > GUIDE_MAX_BYTES:
+                n += 1
+                continue
+            with open(f, "rb") as fh:
+                raw = fh.read()
+            if b"\x00" in raw[:8192]:
+                continue
+            n += scan.policy_dict_hits(raw.decode("utf-8", "replace"), policy)
+        except Exception:
+            n += 1
+    return n
 
 
 def mode_of(project_dir, settings):
@@ -154,9 +219,13 @@ def on_prompt(data, settings, project_dir):
             return ALLOW
         return _block(MSG["e20"])
     res = scan.check_text(prompt, settings.policy, PROMPT_CHECKS)
-    if res.get("ok"):
-        return ALLOW
-    return _block(scan.format_line(res) + MSG["hint"])
+    if not res.get("ok"):
+        return _block(scan.format_line(res) + MSG["hint"])
+    if mode == "other":                      # 안내 파일은 모든 요청에 실린다 — 사내 단어가 있으면 이 프롬프트를 보내지 않는다
+        n = guide_hits(project_dir, settings.user_dir, settings.policy)
+        if n:
+            return _block(MSG["guide"] % n)
+    return ALLOW
 
 
 def _tool_paths(tool, ti, cwd):
@@ -369,6 +438,10 @@ def on_session(data, settings, project_dir):
         return 0, json.dumps({"systemMessage": MSG["unset"]}, ensure_ascii=False), ""
     if settings.state != "ok":
         return 0, json.dumps({"systemMessage": MSG["e20"]}, ensure_ascii=False), ""
+    if mode == "other":
+        n = guide_hits(project_dir, settings.user_dir, settings.policy)
+        if n:
+            return 0, json.dumps({"systemMessage": MSG["guide"] % n}, ensure_ascii=False), ""
     return ALLOW
 
 
@@ -386,6 +459,7 @@ def run(event, stdin_bytes, home=None, env=None):
             raise ValueError("입력 꼴")
         project_dir = env.get("CLAUDE_PROJECT_DIR") or data.get("cwd") or os.getcwd()
         settings = load_settings(home or default_data_dir())
+        settings.user_dir = user_claude_dir(env)
         return EVENTS[event](data, settings, project_dir)
     except Exception:
         if event == "tool":
