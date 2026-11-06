@@ -28,3 +28,48 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: diode 규칙 검사 (차단 모드 — 위반이 하나라도 있으면 실패)
         run: python tools/diode_check.py --strict
+
+  # 진짜 Claude CLI (고정판) 를 가짜 서버에 붙여 훅 · 허브 · 설치 흐름을 처음부터 끝까지 돌린다 (kit/).
+  # 사내 Windows 에서 사람이 돌릴 시험 (kit/inhouse-questions.md 2부) 을 먼저 CI 의 Windows 에서 돌려 본다.
+  # 진짜 Anthropic 으로는 아무것도 가지 않는다 (127.0.0.1 가짜 서버 · 가짜 키 · 임시 HOME).
+  real-cli:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 50
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: utf-8
+      CLAUDE_CLI_VERSION: "2.1.318"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Claude Code CLI 설치 (고정판)
+        run: npm install -g @anthropic-ai/claude-code@${{ env.CLAUDE_CLI_VERSION }}
+      - name: claude 실행 파일 찾기 (Windows 의 .cmd 껍데기를 거치지 않는다)
+        shell: python
+        run: |
+          import os, shutil, subprocess
+          shell = os.name == "nt"
+          root = subprocess.check_output(["npm", "root", "-g"], shell=shell, text=True).strip()
+          exe = os.path.join(root, "@anthropic-ai", "claude-code", "bin", "claude.exe")
+          if not os.path.isfile(exe):
+              exe = shutil.which("claude") or ""
+          print("claude 실행 파일:", "있음" if exe else "없음")
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as f:
+              f.write("CLAUDE_BIN=%s\n" % exe)
+          out = subprocess.run([exe, "--version"], capture_output=True, text=True)
+          print(out.stdout.strip(), out.stderr.strip())
+      - name: 처음부터 끝까지 (설치 → 설정 → 방 → 훅 · 허브) I1–I6
+        run: python kit/run_install.py --claude "$env:CLAUDE_BIN"
+        if: runner.os == 'Windows'
+      - name: 처음부터 끝까지 (설치 → 설정 → 방 → 훅 · 허브) I1–I6
+        run: python kit/run_install.py --claude "$CLAUDE_BIN"
+        if: runner.os != 'Windows'
