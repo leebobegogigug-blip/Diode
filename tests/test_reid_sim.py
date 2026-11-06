@@ -27,7 +27,7 @@ SIM = os.path.join(KIT, "reid_sim.py")
 
 
 def small_table(second):
-    """20행. 0열 = 0..19 (수치) · 1열 = second 방식으로 만든 열. 표본 = 원본 전체 (행 20 · k 5)."""
+    """20행. 0열 = 0..19 (수치) · 1열 = second 방식으로 만든 열. 표본 = 원본 전체 (행 20 · k 10 = 최소 k)."""
     n = 20
     a = [i for i in range(n)]
     if second == "cat":
@@ -39,7 +39,7 @@ def small_table(second):
     return [a, b], kinds
 
 
-def metrics(data, kinds, aux, transform="bucket", k=5):
+def metrics(data, kinds, aux, transform="bucket", k=derive.MIN_K):
     idx = list(range(len(data[0])))
     job = reid_sim.build_job(data, kinds, idx, transform, k, aux)
     return reid_sim.evaluate_jobs([job], aux, len(kinds))
@@ -75,28 +75,28 @@ class ReidSimTest(unittest.TestCase):
             self.assertNotIn(name, src)
         # 열별 칸이 derive 함수의 결과와 같다 (build_job 이 build_sample 과도 맞춰 본다)
         data, kinds = small_table("num")
-        job = reid_sim.build_job(data, kinds, list(range(20)), "bucket", 5, [0])
+        job = reid_sim.build_job(data, kinds, list(range(20)), "bucket", 10, [0])
         self.assertEqual(job.cells[0], derive.bucket_cells([float(v) for v in data[0]], derive.parse_quantiles(None)))
-        job = reid_sim.build_job(data, kinds, list(range(20)), "rank", 5, [0])
+        job = reid_sim.build_job(data, kinds, list(range(20)), "rank", 10, [0])
         self.assertEqual(job.cells[0], derive.rank_cells([float(v) for v in data[0]]))
         # derive 의 한도가 그대로 적용된다 (행 < 2k 면 거절)
         with self.assertRaises(derive.DeriveError):
-            reid_sim.build_job(data, kinds, list(range(8)), "bucket", 5, [0])
+            reid_sim.build_job(data, kinds, list(range(8)), "bucket", 10, [0])
 
     def test_mosaic_exclusion_never_widens_and_rates_ordered(self):
         rng = random.Random(7)
         data, kinds = reid_sim.make_table(rng, 40, 4, 5, "uniform", False)
         idx = list(range(40))
         rng.shuffle(idx)
-        jobs = [reid_sim.build_job(data, kinds, idx[:20], "rank", 5, [0, 1]),
-                reid_sim.build_job(data, kinds, idx[20:], "rank", 5, [0, 1])]
+        jobs = [reid_sim.build_job(data, kinds, idx[:20], "rank", 10, [0, 1]),
+                reid_sim.build_job(data, kinds, idx[20:], "rank", 10, [0, 1])]
         r = reid_sim.evaluate_jobs(jobs, [0, 1], 4)
         self.assertEqual(len(r["raw"]), 40)
         self.assertTrue(all(1 <= e <= a for a, e in zip(r["raw"], r["excl"])))
         self.assertGreaterEqual(sum(1 for e in r["excl"] if e == 1), sum(1 for a in r["raw"] if a == 1))
 
     def test_deterministic_and_seed_sensitive(self):
-        p = dict(n=200, cols=4, aux=2, jobs=1)
+        p = dict(n=1000, cols=4, aux=2, jobs=1)
         a = reid_sim.scenario(p, {}, 5, 1, 2)
         b = reid_sim.scenario(p, {}, 5, 1, 2)
         c = reid_sim.scenario(p, {}, 6, 1, 2)
@@ -124,6 +124,26 @@ class ReidSimTest(unittest.TestCase):
             # 같은 시드로 한 번 더 -> 같은 JSON
             again = reid_sim.run(quick=True)
             self.assertEqual(json.dumps(again, sort_keys=True), json.dumps(rep, sort_keys=True))
+
+    def test_scenarios_obey_the_derive_limits(self):
+        # rank 시나리오도 rank 열은 최대 2개 (나머지 수치 열은 bucket) - build_sample 의 한도를 통과해야 한다
+        kinds = ["num", "cat"] * 4
+        tfs = reid_sim.column_transforms(kinds, "rank")
+        self.assertEqual(tfs.count("rank"), derive.MAX_RANK_COLUMNS)
+        self.assertEqual(tfs.count("bucket"), 2)
+        self.assertEqual(reid_sim.column_transforms(kinds, "bucket").count("rank"), 0)
+        rng = random.Random(3)
+        data, kinds = reid_sim.make_table(rng, 1000, 8, 20, "uniform", False)
+        job = reid_sim.build_job(data, kinds, list(range(30)), "rank", derive.DEFAULT_K, [0, 2, 4])
+        self.assertEqual(len(job.cells), 8)
+        # 원본 1,000행: 표본 30행 · 누계 100행 -> job 3개까지. 4개는 건너뜀
+        self.assertFalse(reid_sim.scenario(dict(n=1000, jobs=3), {}, 5, 1, 1)["skipped"])
+        self.assertTrue(reid_sim.scenario(dict(n=1000, jobs=4), {}, 5, 1, 1)["skipped"])
+        self.assertEqual(reid_sim.scenario(dict(n=1000), {}, 5, 1, 1)["rows"], 30)
+        self.assertEqual(reid_sim.scenario(dict(n=10000), {}, 5, 1, 1)["rows"], 50)
+        for params in reid_sim.scenarios_full() + reid_sim.scenarios_quick():
+            self.assertGreaterEqual(params.get("n", 1000), derive.MIN_SOURCE_ROWS)
+            self.assertGreaterEqual(params.get("k", derive.DEFAULT_K), derive.MIN_K)
 
     def test_bad_usage_exit_code(self):
         proc = subprocess.run([sys.executable, SIM, "--nope"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30)

@@ -52,9 +52,10 @@ def canaries(n=50):
     return out
 
 
-def dialog(job="J-0007", k="", picks=None, go="y"):
+def dialog(job="J-0007", k="", picks=None, go="y", source="10000"):
+    """사람이 치는 순서: job -> 원본 표의 전체 행 수 -> k -> 열 줄들 (빈 줄로 끝) -> y. 원본 10,000행이면 표본 50행 · 누계 200행까지 쓸 수 있다."""
     picks = picks if picks is not None else ["%s=bucket" % HEAD_NUM, "2=category", "%s=rank" % HEAD_SCORE]
-    return "%s\n%s\n%s\n\n%s\n" % (job, k, "\n".join(picks), go)
+    return "%s\n%s\n%s\n%s\n\n%s\n" % (job, source, k, "\n".join(picks), go)
 
 
 class Base(unittest.TestCase):
@@ -223,11 +224,11 @@ class Limits(Base):
     def test_more_than_eight_columns_is_refused(self):
         header = ["c%d" % i for i in range(10)]
         rows = [[str(i + j) for j in range(10)] for i in range(20)]
-        picks = [(i, "rank", None) for i in range(9)]
+        picks = [(i, "rank" if i < derive.MAX_RANK_COLUMNS else "bucket", None) for i in range(9)]
         with self.assertRaises(DeriveError) as cm:
-            derive.build_sample(header, rows, picks, 5, PseudonymTable())
+            derive.build_sample(header, rows, picks, 10, PseudonymTable())
         self.assertEqual(cm.exception.code, "E-31")
-        sample, counts = derive.build_sample(header, rows, picks[:8], 5, PseudonymTable())
+        sample, counts = derive.build_sample(header, rows, picks[:8], 10, PseudonymTable())
         self.assertEqual(len(sample["columns"]), 8)
 
     def test_no_pick_means_nothing_goes(self):
@@ -244,20 +245,23 @@ class Limits(Base):
 
     def test_k_range(self):
         header, rows = ["a"], [[str(i)] for i in range(50)]
-        for k in (0, 4, 26, 100):
-            with self.assertRaises(DeriveError, msg=str(k)):
+        self.assertEqual(derive.MIN_K, 10)
+        self.assertGreaterEqual(derive.DEFAULT_K, derive.MIN_K)
+        for k in (0, 4, 5, 9, 26, 100):                            # 5 도 거절 - 최소 k 는 10
+            with self.assertRaises(DeriveError, msg=str(k)) as cm:
                 derive.build_sample(header, rows, [(0, "rank", None)], k, PseudonymTable())
-        derive.build_sample(header, rows, [(0, "rank", None)], 5, PseudonymTable())
+            self.assertEqual(cm.exception.code, "E-31")
+        derive.build_sample(header, rows, [(0, "rank", None)], 10, PseudonymTable())
         derive.build_sample(header, rows, [(0, "rank", None)], 25, PseudonymTable())
 
     def test_same_column_twice_is_refused(self):
         with self.assertRaises(DeriveError):
-            derive.build_sample(["a"], [[str(i)] for i in range(20)], [(0, "rank", None), (0, "bucket", None)], 5, PseudonymTable())
+            derive.build_sample(["a"], [[str(i)] for i in range(20)], [(0, "rank", None), (0, "bucket", None)], 10, PseudonymTable())
 
     def test_text_in_a_numeric_column_is_refused(self):
         rows = [[str(i)] for i in range(19)] + [["x"]]
         with self.assertRaises(DeriveError) as cm:
-            derive.build_sample(["a"], rows, [(0, "rank", None)], 5, PseudonymTable())
+            derive.build_sample(["a"], rows, [(0, "rank", None)], 10, PseudonymTable())
         self.assertEqual(cm.exception.code, "E-04")
 
     def test_topic_cumulative_limit_is_two_hundred_rows(self):
@@ -272,6 +276,204 @@ class Limits(Base):
         code, line, _ = self.run_derive(text=dialog(job="J-0008"), out=self.out_path("other.json"))      # 다른 주제는 따로 센다
         self.assertEqual(code, 0, line)
         self.assertEqual(audit.derived_rows(self.home, "J-0008"), 50)
+
+
+# ---------------------------------------------------------------- 재식별 시뮬레이션의 권고 (kit/results-reid.md › 적용한 권고)
+
+def numeric_csv(n=50, cols=4):
+    """수치 열만 있는 합성 표 (rank 열 수 시험용). 머리 글은 지어낸 것."""
+    lines = [",".join("kitn_col%d" % c for c in range(cols))]
+    for i in range(n):
+        lines.append(",".join(str(1000 + ((i * 37 + c * 11) % n) * (c + 3)) for c in range(cols)))
+    return "\n".join(lines) + "\n"
+
+
+class ReidRecommendations(Base):
+    def setUp(self):
+        Base.setUp(self)
+        self.configure()
+
+    def run_json(self, text, out="r.json"):
+        code, line, err = self.run_derive(text=text, out=self.out_path(out))
+        return code, json.loads(line), err
+
+    # 1. 원본 행 수를 사람이 알려 준다
+    def test_source_999_is_refused_and_1000_is_allowed(self):
+        self.write_csv(csv_text(30))                              # 원본 5,000행 미만이면 표본 30행까지
+        code, res, err = self.run_json(dialog(source="999"))
+        self.assertEqual((code, res), (2, {"derived": False, "error": "E-31"}))
+        self.assertIn(derive.NOTE_SOURCE_SMALL, err)
+        self.assertFalse(os.path.exists(self.out_path("r.json")))
+        self.assertEqual(audit.derived_rows(self.home, "J-0007"), 0)
+        code, res, _ = self.run_json(dialog(source="1000"))
+        self.assertEqual((code, res["derived"]), (0, True), res)
+        code, res, _ = self.run_json(dialog(job="J-0008", source="1,000"), out="r2.json")      # 천 단위 쉼표는 받는다
+        self.assertEqual((code, res["derived"]), (0, True), res)
+
+    def test_source_rows_must_be_a_plain_integer(self):
+        self.write_csv(csv_text(30))
+        for bad in ("", "abc", "1000.5", "-1000", "1e4", "1,00", "1,0000", "10 000", "１０００", "9999999999", "0"):
+            code, res, _ = self.run_json(dialog(source=bad))
+            self.assertEqual(code, 2, bad)
+            self.assertFalse(res["derived"], bad)
+            self.assertFalse(os.path.exists(self.out_path("r.json")), bad)
+        self.assertEqual(audit.derived_rows(self.home, "J-0007"), 0)
+
+    def test_the_source_rows_prompt_is_asked_and_says_it_trusts_the_human(self):
+        code, res, err = self.run_json(dialog())
+        self.assertEqual(code, 0, res)
+        self.assertIn("원본 표의 전체 행 수", err)
+        self.assertIn("믿습니다", err)
+
+    # 6. 표본 행 수 기본값
+    def test_sample_rows_are_capped_at_30_below_5000_source_rows(self):
+        self.assertEqual((derive.sample_row_cap(1000), derive.sample_row_cap(4999), derive.sample_row_cap(5000),
+                          derive.sample_row_cap(10 ** 6)), (30, 30, 50, 50))
+        self.assertEqual(derive.MAX_ROWS, 50)
+        for source in ("1000", "4999"):                           # 50행 파일은 30행 상한에 걸린다
+            code, res, _ = self.run_json(dialog(source=source))
+            self.assertEqual((code, res), (2, {"derived": False, "error": "E-31"}), source)
+        self.assertEqual(self.run_json(dialog(source="5000"))[0], 0)
+        self.write_csv(csv_text(31))
+        self.assertEqual(self.run_json(dialog(source="4999"), out="r2.json")[1], {"derived": False, "error": "E-31"})
+        self.write_csv(csv_text(30))
+        self.assertEqual(self.run_json(dialog(source="4999"), out="r3.json")[0], 0)
+
+    # 2. 한 주제 누계 행 <= 원본의 10% (200 과 함께 작은 쪽)
+    def test_topic_total_is_at_most_ten_percent_of_the_source(self):
+        self.assertEqual((derive.topic_row_cap(1000), derive.topic_row_cap(1999), derive.topic_row_cap(2000),
+                          derive.topic_row_cap(10000), derive.topic_row_cap(10 ** 6)), (100, 199, 200, 200, 200))
+        self.write_csv(csv_text(30))
+        for i in range(3):                                        # 30 x 3 = 90 <= 100
+            code, res, _ = self.run_json(dialog(source="1000"), out="d%d.json" % i)
+            self.assertEqual(code, 0, res)
+        self.assertEqual(audit.derived_rows(self.home, "J-0007"), 90)
+        code, res, _ = self.run_json(dialog(source="1000"), out="d3.json")          # 120 > 100
+        self.assertEqual((code, res), (2, {"derived": False, "error": "E-31"}))
+        self.assertFalse(os.path.exists(self.out_path("d3.json")))
+        self.assertEqual(audit.derived_rows(self.home, "J-0007"), 90)
+        code, res, _ = self.run_json(dialog(job="J-0008", source="1000"), out="o.json")      # 다른 주제는 따로 센다
+        self.assertEqual(code, 0, res)
+
+    def test_a_bigger_source_later_does_not_loosen_the_topic_limit(self):
+        self.write_csv(csv_text(30))
+        for i in range(3):
+            self.assertEqual(self.run_json(dialog(source="1000"), out="d%d.json" % i)[0], 0)
+        code, res, _ = self.run_json(dialog(source="100000"), out="late.json")      # 앞서 말한 1,000 보다 큰 수로 풀지 못한다
+        self.assertEqual((code, res["error"]), (2, "E-31"))
+        self.assertEqual(audit.derived_source_rows(self.home, "J-0007"), 1000)
+
+    def test_topic_limit_stays_two_hundred_for_a_big_source(self):
+        self.configure()
+        for i in range(4):
+            self.assertEqual(self.run_json(dialog(source="1000000"), out="d%d.json" % i)[0], 0)
+        self.assertEqual(audit.derived_rows(self.home, "J-0007"), 200)
+        self.assertEqual(self.run_json(dialog(source="1000000"), out="d4.json")[1]["error"], "E-31")
+
+    # 3. rank 열은 최대 2개
+    def test_three_rank_columns_are_refused_with_a_fixed_note_and_two_are_allowed(self):
+        self.write_csv(numeric_csv())
+        code, res, err = self.run_json(dialog(picks=["1=rank", "2=rank", "3=rank"]))
+        self.assertEqual((code, res), (2, {"derived": False, "error": "E-31"}))
+        self.assertIn(derive.NOTE_RANK, err)
+        self.assertNotIn("kitn_col", err)                         # 안내에 열 이름이 없다
+        self.assertFalse(os.path.exists(self.out_path("r.json")))
+        self.assertEqual(audit.derived_rows(self.home, "J-0007"), 0)
+        code, res, _ = self.run_json(dialog(picks=["1=rank", "2=rank", "3=bucket", "4=bucket"]))
+        self.assertEqual((code, res["transforms"]), (0, {"bucket": 2, "rank": 2, "category": 0}), res)
+
+    def test_build_sample_also_refuses_three_rank_columns(self):
+        header = ["a", "b", "c"]
+        rows = [[str(i), str(i * 3 % 50), str(i * 7 % 50)] for i in range(50)]
+        with self.assertRaises(DeriveError) as cm:
+            derive.build_sample(header, rows, [(0, "rank", None), (1, "rank", None), (2, "rank", None)], 10, PseudonymTable())
+        self.assertEqual(cm.exception.code, "E-31")
+        derive.build_sample(header, rows, [(0, "rank", None), (1, "rank", None), (2, "bucket", None)], 10, PseudonymTable())
+
+    # 4. 기본 변환은 bucket
+    def test_the_default_transform_is_bucket_and_rank_must_be_typed(self):
+        header = ["alpha", "beta", "gamma"]
+        self.assertEqual(derive.DEFAULT_TRANSFORM, "bucket")
+        for line in ("alpha", "alpha=", " alpha ", "1", "1="):
+            col, tf, q = derive.parse_pick(line, header)
+            self.assertEqual((col, tf), (0, "bucket"), line)
+            self.assertEqual(len(q), 4)                           # 기본 분위수
+        self.assertEqual(derive.parse_pick("alpha=rank", header)[1], "rank")
+        self.assertEqual(derive.parse_pick("alpha=category", header)[1], "category")
+        with self.assertRaises(DeriveError):
+            derive.parse_pick("nothere", header)
+        with self.assertRaises(DeriveError):
+            derive.parse_pick("alpha=ranks", header)             # 오타를 rank 나 bucket 으로 읽지 않는다 (열 이름 "alpha=ranks" 가 없다)
+
+    def test_bare_column_lines_in_the_dialog_become_bucket(self):
+        self.write_csv(numeric_csv())
+        code, res, _ = self.run_json(dialog(picks=["1", "2=", "3=rank"]))
+        self.assertEqual((code, res["transforms"]), (0, {"bucket": 2, "rank": 1, "category": 0}), res)
+        self.write_csv(csv_text())
+        code, res, _ = self.run_json(dialog(picks=["2"]), out="c.json")           # 범주 열을 변환 없이 적으면 bucket 이라 거절 (E-04)
+        self.assertEqual((code, res["error"]), (2, "E-04"))
+
+    # 5. MIN_K 10
+    def test_min_k_is_ten_and_the_default_k_too(self):
+        self.assertEqual((derive.MIN_K, derive.DEFAULT_K), (10, 10))
+        code, res, err = self.run_json(dialog(k="9"))
+        self.assertEqual((code, res["error"]), (2, "E-31"))
+        code, res, _ = self.run_json(dialog(k=""), out="k.json")
+        self.assertEqual(code, 0, res)
+        self.assertIn("10 이상", derive.PROMPT_K)
+
+    def test_a_table_under_twenty_rows_is_refused(self):
+        self.write_csv(csv_text(19))
+        code, res, _ = self.run_json(dialog())
+        self.assertEqual((code, res["error"]), (2, "E-31"))
+
+    # 감사 기록
+    def test_the_audit_record_has_the_source_rows_as_an_integer_and_old_records_still_count(self):
+        self.run_derive()
+        files = glob.glob(os.path.join(self.home, "audit", "*", "J-0007-001-derive.json"))
+        with open(files[0], encoding="utf-8") as f:
+            rec = json.load(f)
+        self.assertIs(type(rec["source_rows"]), int)
+        self.assertEqual(rec["source_rows"], 10000)
+        self.assertEqual(audit.derived_source_rows(self.home, "J-0007"), 10000)
+        # 옛 기록 (source_rows 없음) 은 누계에는 세고 원본 행 수는 모른다 (호환)
+        audit.derive_record(self.home, "J-0009", {"bucket": 1, "rank": 0, "category": 0}, 20)
+        self.assertEqual(audit.derived_rows(self.home, "J-0009"), 20)
+        self.assertIsNone(audit.derived_source_rows(self.home, "J-0009"))
+        for bad in (True, 0, -5, "1000", 1000.0, 10 ** 10):
+            with self.assertRaises(audit.AuditError, msg=repr(bad)):
+                audit.derive_record(self.home, "J-0009", {"bucket": 1, "rank": 0, "category": 0}, 20, source_rows=bad)
+
+    def test_the_old_record_without_source_rows_uses_the_declared_source_for_the_cap(self):
+        audit.derive_record(self.home, "J-0007", {"bucket": 1, "rank": 0, "category": 0}, 40)       # 옛 기록 40행
+        self.write_csv(csv_text(30))
+        code, res, _ = self.run_json(dialog(source="1000"))                       # 40 + 30 = 70 <= 100
+        self.assertEqual(code, 0, res)
+        code, res, _ = self.run_json(dialog(source="1000"), out="r2.json")        # 70 + 30 = 100 (한도 그대로)
+        self.assertEqual(code, 0, res)
+        code, res, _ = self.run_json(dialog(source="1000"), out="r3.json")        # 100 + 30 > 100
+        self.assertEqual((code, res["error"]), (2, "E-31"))
+
+    # 7. 안내 · 출력에 값 · 열 이름이 없다
+    def test_the_overlap_note_is_shown_and_nothing_secret_is_printed(self):
+        code, line, err = self.run_derive()
+        self.assertEqual(code, 0, line)
+        self.assertIn(derive.NOTE_OVERLAP, err)
+        self.assertIn("겹치지 않게", derive.NOTE_OVERLAP)
+        self.assertIn("막지 못합니다", derive.NOTE_OVERLAP)                       # 자동으로 막는다고 말하지 않는다
+        for c in canaries() + [self.tmp, self.csv, "kit.csv"]:
+            self.assertNotIn(c, line + err)
+        self.assertNotIn("10000", line)                                            # 표준 출력은 개수 · 코드뿐 (원본 행 수도 없다)
+
+    def test_every_refusal_prints_no_value_or_column_name(self):
+        self.write_csv(numeric_csv())
+        for text in (dialog(source="999"), dialog(picks=["1=rank", "2=rank", "3=rank"]), dialog(k="9"), dialog(source="x")):
+            code, line, err = self.run_derive(text=text, out=self.out_path("x.json"))
+            self.assertEqual(code, 2, text)
+            for c in ("kitn_col", "1000", self.tmp, self.csv):
+                self.assertNotIn(c, line, text)
+            self.assertNotIn("kitn_col", err, text)
+            self.assertNotIn(self.tmp, err, text)
 
 
 # ---------------------------------------------------------------- 문 (꺼짐 · 실데이터 · 환경 변수 · 명령줄)
@@ -586,7 +788,8 @@ class EndToEnd(Base):
         with open(files[0], encoding="utf-8") as f:
             rec = json.load(f)
         self.assertEqual(set(rec), {"format", "at", "job", "direction", "kind", "transforms", "columns", "rows",
-                                    "tokens", "table_sha256"})
+                                    "tokens", "table_sha256", "source_rows"})
+        self.assertEqual(rec["source_rows"], 10000)                              # 사람이 알려 준 원본 행 수 (정수 하나 · 값이 아니다)
         self.assertEqual((rec["direction"], rec["kind"], rec["columns"], rec["rows"], rec["transforms"]),
                          ("derive", "derive", 3, 50, {"bucket": 1, "rank": 1, "category": 1}))
         with open(self.out_path(), encoding="utf-8") as f:
@@ -656,12 +859,14 @@ class EndToEnd(Base):
         code, line, _ = self.run_derive(text=dialog(k="30"))
         self.assertEqual((code, json.loads(line)["error"]), (2, "E-31"))
 
-    def test_k_below_five_is_refused(self):
-        code, line, _ = self.run_derive(text=dialog(k="4"))
-        self.assertEqual((code, json.loads(line)["error"]), (2, "E-31"))
+    def test_k_below_ten_is_refused(self):
+        for k in ("4", "5", "9"):
+            code, line, _ = self.run_derive(text=dialog(k=k))
+            self.assertEqual((code, json.loads(line)["error"]), (2, "E-31"), k)
+        self.assertEqual(self.run_derive(text=dialog(k="10"))[0], 0)
 
     def test_nine_picks_is_refused(self):
-        picks = ["%s=rank" % HEAD_NUM] * 9
+        picks = ["%s=bucket" % HEAD_NUM] * 9
         code, line, _ = self.run_derive(text=dialog(picks=picks))
         self.assertEqual((code, json.loads(line)["error"]), (2, "E-31"))
 

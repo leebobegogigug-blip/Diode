@@ -49,10 +49,10 @@ from diodelib.render import SAMPLE_OTHER  # noqa: E402
 from diodelib.seal import PseudonymTable  # noqa: E402
 
 DEFAULT_SEED = 20260
-SAMPLE_ROWS = derive.MAX_ROWS            # 표본 한 번의 행 (derive 의 한도 그대로)
-TOPIC_LIMIT = derive.MAX_TOPIC_ROWS      # 한 주제의 누계 한도
+# 표본 한 번의 행 (rows=None) 과 한 주제의 누계 한도는 원본 행 수로 정해진다 - derive 의 규칙 그대로 (derive.sample_row_cap · topic_row_cap).
+# rank 열은 최대 derive.MAX_RANK_COLUMNS 개이고 나머지 수치 열은 bucket 이다 (변환 rank 시나리오의 뜻).
 BASE = {"n": 1000, "cols": 4, "transform": "bucket", "card": 20, "dist": "uniform",
-        "aux": 2, "jobs": 1, "outlier": False, "rows": SAMPLE_ROWS, "k": derive.DEFAULT_K}
+        "aux": 2, "jobs": 1, "outlier": False, "rows": None, "k": derive.DEFAULT_K}
 
 
 # ───────────────────────────────────────────────────────── 합성 표 (전부 난수 · 진짜 자료 없음)
@@ -140,10 +140,25 @@ def _allowed_numeric(values, cells, transform):
     return allowed
 
 
+def column_transforms(kinds, transform):
+    """열마다 변환. transform 이 rank 면 앞의 수치 열 MAX_RANK_COLUMNS 개만 rank, 나머지 수치 열은 bucket (derive 의 한도)."""
+    out, ranks = [], 0
+    for kind in kinds:
+        if kind != "num":
+            out.append("category")
+        elif transform == "rank" and ranks < derive.MAX_RANK_COLUMNS:
+            out.append("rank")
+            ranks += 1
+        else:
+            out.append("bucket")
+    return out
+
+
 def build_job(data, kinds, idx, transform, k, aux):
     """원본 data 의 idx 행을 derive 로 파생하고, 보조 열 aux 에 대한 호환 규칙을 만든다."""
     header = ["c%d" % i for i in range(len(kinds))]
-    picks = [(c, "category" if kinds[c] == "cat" else transform, None) for c in range(len(kinds))]
+    tfs = column_transforms(kinds, transform)
+    picks = [(c, "category" if kinds[c] == "cat" else tfs[c], None) for c in range(len(kinds))]
     table = PseudonymTable()
     rows_text = [[str(data[c][i]) for c in range(len(kinds))] for i in idx]
     sample, _counts = derive.build_sample(header, rows_text, picks, k, table)     # 한도 · 정렬까지 실제 경로
@@ -152,7 +167,7 @@ def build_job(data, kinds, idx, transform, k, aux):
     for c, kind in enumerate(kinds):
         vals = [data[c][i] for i in idx]
         if kind == "num":
-            if transform == "bucket":
+            if tfs[c] == "bucket":
                 cc = derive.bucket_cells([float(v) for v in vals], derive.parse_quantiles(None))
             else:
                 cc = derive.rank_cells([float(v) for v in vals])
@@ -172,7 +187,7 @@ def build_job(data, kinds, idx, transform, k, aux):
     for a in aux:
         vals = [data[a][i] for i in idx]
         if kinds[a] == "num":
-            fns.append(_allowed_numeric([float(v) for v in vals], cells[a], transform))
+            fns.append(_allowed_numeric([float(v) for v in vals], cells[a], tfs[a]))
         else:
             vmap = {}
             for v, t in zip(vals, cells[a]):
@@ -322,7 +337,7 @@ def aux_sets(seed, cols, aux_n, limit):
 
 def run_eval(data, kinds, jobs_n, rows_n, aux, transform, k, rng, force=None):
     n = len(data[0])
-    if jobs_n * rows_n > min(n, TOPIC_LIMIT):
+    if jobs_n * rows_n > min(n, derive.topic_row_cap(n)) or rows_n > derive.sample_row_cap(n):
         return None
     rest = [i for i in range(n) if i != force]
     take = jobs_n * rows_n - (1 if force is not None else 0)
@@ -353,7 +368,8 @@ def scenario(params, data_cache, seed, reps, aux_draws):
     rng = random.Random(_seed_of(seed, "eval|" + label))
     raws, excls, hit, base, tries, outl = [], [], 0, 0, 0, []
     done = 0
-    rows_n, k = p["rows"], p["k"]
+    rows_n, k = p["rows"] or derive.sample_row_cap(p["n"]), p["k"]
+    p["rows"] = rows_n
     combos = aux_sets(seed, p["cols"], p["aux"], aux_draws)
     for aux in [c for c in combos for _ in range(reps)]:
         r = run_eval(data, kinds, p["jobs"], rows_n, aux, p["transform"], k, rng,
@@ -389,26 +405,29 @@ def scenario(params, data_cache, seed, reps, aux_draws):
 # ───────────────────────────────────────────────────────── 시나리오 목록
 
 def scenarios_full():
+    """derive 가 받는 설정만 잰다 (원본 1,000행 이상 · 표본 행은 원본이 5,000 미만이면 30 · 누계는 원본의 10% 와 200 중 작은 쪽 · rank 열 최대 2개)."""
     out = []
     seen = set()
 
     def add(**kw):
+        if kw.get("rows") == derive.sample_row_cap(kw.get("n", BASE["n"])):
+            del kw["rows"]                       # 기본 표본 행과 같으면 같은 시나리오다 (중복으로 재지 않는다)
         key = tuple(sorted(dict(BASE, **kw).items()))
         if key not in seen:
             seen.add(key)
             out.append(kw)
-    # 가: 주 격자 - 원본 행 x 열 x 변환 x 범주 가짓수 (보조 열 2개 · job 1과 4)
-    for n in (100, 1000, 10000):
+    # 가: 주 격자 - 원본 행 x 열 x 변환 x 범주 가짓수 x job 수 (보조 열 2개). 한도를 넘는 job 수는 건너뜀으로 나온다
+    for n in (1000, 10000):
         for cols in (2, 4, 8):
             for tr in ("bucket", "rank"):
                 for card in (5, 20, 200):
-                    for jobs in (1, 2, 4):
+                    for jobs in (1, 2, 3, 4):
                         add(n=n, cols=cols, transform=tr, card=card, jobs=jobs)
     # 나: 보조 열 3개 (더 센 공격자)
-    for n in (100, 1000, 10000):
+    for n in (1000, 10000):
         for cols in (4, 8):
             for tr in ("bucket", "rank"):
-                for jobs in (1, 4):
+                for jobs in (1, 3, 4):
                     add(n=n, cols=cols, transform=tr, aux=3, jobs=jobs)
     # 다: 기준 설정 한 칸씩 바꾸기
     for aux in (0, 1, 2, 3):
@@ -417,21 +436,20 @@ def scenarios_full():
     for jobs in (1, 2, 3, 4):
         for tr in ("bucket", "rank"):
             add(jobs=jobs, transform=tr)
-    # 라: 권고의 근거 - 표본 행 수 · k 를 바꾸면 얼마나 줄어드나
-    for n in (100, 1000):
+    # 라: 표본 행 수 · k 를 바꾸면 얼마나 줄어드나
+    for n, row_list, k_list in ((1000, (20, 30), (10, 15)), (10000, (20, 30, 50), (10, 25))):
         for tr in ("bucket", "rank"):
-            for rows in (20, 30, 50):
+            for rows in row_list:
                 add(n=n, cols=8, transform=tr, aux=3, rows=rows)
                 add(n=n, cols=4, transform=tr, aux=2, rows=rows, card=5)
-            for kk in (5, 10, 25):
-                add(n=n, cols=4, transform=tr, aux=2, card=5, k=kk)
+            for kk in k_list:
+                add(n=n, cols=4, transform=tr, aux=2, card=5, k=kk, rows=2 * kk if 2 * kk <= derive.sample_row_cap(n) else None)
     for tr in ("bucket", "rank"):
         for card in (5, 20, 200):
             add(dist="skew", card=card, transform=tr)
-            add(dist="skew", card=card, transform=tr, jobs=4)
+            add(dist="skew", card=card, transform=tr, jobs=3)
         add(outlier=True, transform=tr)
         add(outlier=True, transform=tr, aux=3)
-        add(outlier=True, transform=tr, n=100)
     return out
 
 
@@ -440,11 +458,9 @@ def scenarios_quick():
     for tr in ("bucket", "rank"):
         for aux in (0, 2):
             out.append(dict(n=1000, transform=tr, aux=aux, jobs=1))
-        out.append(dict(n=1000, transform=tr, aux=2, jobs=4))
-    out.append(dict(n=100, cols=4, aux=2, jobs=1))
-    out.append(dict(n=100, cols=4, aux=2, jobs=2))
-    out.append(dict(n=100, cols=8, transform="rank", aux=3, jobs=1))
-    out.append(dict(n=100, cols=4, transform="rank", card=5, aux=2, jobs=2))
+        out.append(dict(n=1000, transform=tr, aux=2, jobs=3))
+    out.append(dict(n=1000, cols=4, transform="rank", card=5, aux=2, jobs=3))
+    out.append(dict(n=1000, cols=8, transform="rank", aux=3, jobs=1))
     out.append(dict(n=1000, cols=2, aux=2, card=5, jobs=1))
     out.append(dict(n=1000, cols=8, aux=3, card=200, jobs=1))
     out.append(dict(n=1000, dist="skew", aux=2, jobs=1))
@@ -474,7 +490,7 @@ def _row(r):
         r["n"], r["cols"], r["transform"], r["card"], r["dist"] + ("+이상치" if r["outlier"] else ""),
         r["aux"], r["jobs"], r["rows"], r["k"])
     if r.get("skipped"):
-        return head + "  (누계 행이 원본 행 수나 200 한도를 넘어 건너뜀)"
+        return head + "  (derive 의 한도 - 표본 행 상한 · 누계가 원본의 10% 와 200 중 작은 쪽 - 를 넘어 건너뜀)"
     return head + " %7s %7s %8.1f %6.0f %5d %7s %7s%s" % (
         _pct(r["unique_rate"]), _pct(r["unique_rate_excl"]), r["cand_mean"], r["cand_median"], r["cand_min"],
         _pct(r["attr_acc"]), _pct(r["attr_base"]),

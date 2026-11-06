@@ -253,10 +253,14 @@ def table_sha256(sample):
     return hashlib.sha256(sample_text(sample).encode("utf-8")).hexdigest()
 
 
-def derive_record(home, job, transforms, rows, now=None, tokens=None, table_sha256=None):
+MAX_SOURCE_ROWS = 10 ** 9        # 사람이 알려 준 원본 행 수의 상한 (꼴 점검용)
+
+
+def derive_record(home, job, transforms, rows, now=None, tokens=None, table_sha256=None, source_rows=None):
     """파생 표본을 만들었다는 기록 한 건 -> 쓴 자리. transforms 는 {변환 종류: 열 수}. 꼴이 틀리거나 못 쓰면 예외 (만들지 않는다).
 
     tokens (표에 나온 서로 다른 가명 토큰 수) · table_sha256 (표 글의 해시) 은 둘이 같이 있어야 하고, 있으면 기록한다.
+    source_rows (사람이 알려 준 원본 표의 전체 행 수 · 정수 하나 · 값이 아니다) 는 있으면 기록한다 - 옛 기록에는 없다.
     파일 이름은 `<job>-<순번>-derive.json` - 보낸 것 (out) 이 아니라서 확정 목록 · job 상태에는 끼지 않는다.
     """
     if not isinstance(job, str) or not JOB_RE.match(job):
@@ -280,6 +284,10 @@ def derive_record(home, job, transforms, rows, now=None, tokens=None, table_sha2
             raise AuditError("tokens · table_sha256 꼴")
         rec["tokens"] = tokens
         rec["table_sha256"] = table_sha256
+    if source_rows is not None:
+        if isinstance(source_rows, bool) or not isinstance(source_rows, int) or not 0 < source_rows <= MAX_SOURCE_ROWS:
+            raise AuditError("source_rows 꼴")
+        rec["source_rows"] = source_rows
     return write(home, rec)
 
 
@@ -315,6 +323,20 @@ def derived_rows(home, job):
             if isinstance(r, int) and not isinstance(r, bool) and r > 0:
                 total += r
     return total
+
+
+def derived_source_rows(home, job):
+    """그 job 의 derive 기록에 적힌 원본 행 수 중 가장 작은 것 (없으면 None · 옛 기록은 건너뛴다 · 읽기만 한다).
+
+    사람이 나중에 더 큰 수를 말해도 누계 한도가 느슨해지지 않게 하는 데 쓴다 (벽은 아니다 - 새 job 번호를 쓰면 된다).
+    """
+    best = None
+    for _, rec in _records(home, ("-derive.json",)):
+        if rec.get("format") == FORMAT and rec.get("direction") == "derive" and rec.get("job") == job:
+            r = rec.get("source_rows")
+            if isinstance(r, int) and not isinstance(r, bool) and r > 0 and (best is None or r < best):
+                best = r
+    return best
 
 
 def sink(home, transport="room", kind="report"):

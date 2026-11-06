@@ -18,8 +18,10 @@
     (run_command - 벽은 아니다 · 같은 계정의 셸 앞에서는 PC 안의 어떤 장치도 단단한 벽이 아니다 L-11).
   - 열 · 변환은 사람이 터미널에서 직접 고른다 (표준 입력). 고른 것은 파일에 저장하지 않는다.
 
-한도 (넘으면 거절): 열 8 · 행 50 · 행 수 k x 2 미만 거절 (작은 표는 한 행이 곧 식별) · 한 주제 (job) 의 파생 누계 행 200 (L-05).
-감사 기록에는 변환 종류별 열 수 · 행 수 · 토큰 수 · 표 글의 sha256 만 남긴다 (audit.derive_record - 값 · 열 이름 · 토큰 없음).
+한도 (넘으면 거절 · kit/results-reid.md 의 권고): 열 8 · 행 50 (원본이 5,000행 미만이면 30) · 행 수 k x 2 미만 거절 (작은 표는 한 행이 곧 식별) ·
+한 주제 (job) 의 파생 누계 행은 200 과 원본 행 수의 10% 중 작은 쪽 (L-05) · 원본 행 수 1,000 미만이면 거절 · rank 열은 최대 2개 · k 는 10 이상.
+원본 표의 전체 행 수는 사람이 알려 준다 - 파일은 표본 50행뿐이라 derive 가 스스로 알 수 없다 (사람의 말에 기댄다 · 벽이 아니다).
+감사 기록에는 변환 종류별 열 수 · 행 수 · 원본 행 수 (정수) · 토큰 수 · 표 글의 sha256 만 남긴다 (audit.derive_record - 값 · 열 이름 · 토큰 없음).
 
 만든 초안이 나가는 길 (propose · 허브 · SP-18): 초안의 sample 표 글이 위 감사 기록의 sha256 과 맞아야 한다 (check_draft).
 가명 표는 이 프로세스의 메모리에만 있다가 사라지므로 (D6) 허브의 표에는 이 토큰이 없다 - 그래서 이 초안의 토큰은 "일방향 토큰" 이다:
@@ -46,10 +48,17 @@ from .unseal import write_new
 # ---------------------------------------------------------------- 상수 (코드가 정한다 · 설정 키로 풀리지 않는다)
 
 MAX_COLUMNS = 8                 # 한 sample 의 열
-MAX_ROWS = 50                   # 한 sample 의 행
-MAX_TOPIC_ROWS = 200            # 한 주제 (job) 의 파생 자료 누계 행 (L-05)
+MAX_ROWS = 50                   # 한 sample 의 행 (원본이 SMALL_SOURCE_ROWS 미만이면 SMALL_SAMPLE_ROWS)
+MAX_TOPIC_ROWS = 200            # 한 주제 (job) 의 파생 자료 누계 행 (L-05) - 원본 행 수의 TOPIC_PERCENT % 와 함께 둘 중 작은 쪽
+MIN_SOURCE_ROWS = 1000          # 사람이 알려 주는 원본 표의 전체 행 수의 하한 (kit/results-reid.md - 원본 100행은 재식별이 위험하다)
+MAX_SOURCE_ROWS = 999999999
+TOPIC_PERCENT = 10              # 한 주제 누계 행은 원본 행 수의 이 % 이하
+SMALL_SOURCE_ROWS = 5000        # 원본이 이보다 작으면 표본 행 상한을 SMALL_SAMPLE_ROWS 로 줄인다
+SMALL_SAMPLE_ROWS = 30
+MAX_RANK_COLUMNS = 2            # rank (10칸) 열은 최대 둘 - 나머지는 bucket (5칸). 칸 조합 수를 원본 행 수의 1/10 아래로 둔다
+DEFAULT_TRANSFORM = "bucket"    # 대화에서 변환을 안 적으면 (열 이름만 적으면) 이것
 DEFAULT_K = 10                  # 범주 억제 · 최소 셀 크기
-MIN_K = 5
+MIN_K = 10
 MAX_K = 25                      # 행 50 이 k x 2 이상이어야 한다
 MAX_FILE_BYTES = 1024 * 1024    # 읽을 표 파일의 상한 (넘으면 행 한도 전에 거절)
 MAX_FILE_COLUMNS = 256          # 표 파일의 열 상한 (고르는 열은 8 까지)
@@ -65,6 +74,7 @@ DRAFT_ASK = "표본을 보고 화면에서 쓸 열 구성을 제안해 주세요
 JOB_RE = re.compile(r"^J-[0-9]{4}\Z")
 _NUMBER_RE = re.compile(r"^[+-]?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\Z")
 _PICK_RE = re.compile(r"^(.*)=(bucket|rank|category)(?::([0-9.,\s]+))?\Z")
+_SOURCE_RE = re.compile(r"^(?:[0-9]{1,3}(?:,[0-9]{3})+|[0-9]{1,9})\Z")
 
 EXIT_OK, EXIT_FAIL, EXIT_USAGE, EXIT_CONFIRM = 0, 1, 2, 3
 
@@ -73,6 +83,23 @@ E_SHAPE = "E-04"                # 표 · 입력이 꼴 · 길이를 벗어남
 E_OFF = "E-30"                  # 파생 표본이 꺼져 있다 (또는 허락 밖의 자리)
 E_LIMIT = "E-31"                # 한도 (열 · 행 · 작은 표 · 주제 누계)
 E_INTERNAL = "E-20"
+
+
+# 사람에게 보이는 고정 안내 (숫자 · 한도뿐 · 열 이름 없음)
+NOTE_SOURCE_SMALL = "원본 표가 1,000행 미만이면 파생 표본을 쓰지 않습니다 (작은 원본은 줄인 값으로도 한 줄이 한 사람으로 좁혀집니다)."
+NOTE_RANK = "rank 열은 최대 2개입니다. 나머지 수치 열은 bucket 으로 고르세요 (열 이름만 적으면 bucket 입니다)."
+NOTE_OVERLAP = ("같은 원본에서 job 을 나눠 뽑을 때는 job 사이에 같은 행이 겹치지 않게 뽑으세요. "
+                "derive 는 파일의 값을 저장하지 않아 겹침을 막지 못합니다 (사람의 절차입니다).")
+
+
+def sample_row_cap(source_rows):
+    """원본 행 수 -> 표본 행 상한: 5,000 미만이면 30 · 아니면 50 (MAX_ROWS)."""
+    return SMALL_SAMPLE_ROWS if source_rows < SMALL_SOURCE_ROWS else MAX_ROWS
+
+
+def topic_row_cap(source_rows):
+    """원본 행 수 -> 한 주제의 파생 누계 행 상한: 200 (MAX_TOPIC_ROWS) 과 원본의 10% 중 작은 쪽."""
+    return min(MAX_TOPIC_ROWS, source_rows * TOPIC_PERCENT // 100)
 
 
 class DeriveError(Exception):
@@ -230,6 +257,8 @@ def build_sample(header, rows, picks, k, table):
         raise DeriveError(E_LIMIT)
     if len(set(p[0] for p in picks)) != len(picks):
         raise DeriveError(E_SHAPE)
+    if sum(1 for p in picks if p[1] == "rank") > MAX_RANK_COLUMNS:
+        raise DeriveError(E_LIMIT)
     columns, cells, counts = [], [], dict((t, 0) for t in TRANSFORMS)
     for col, transform, quantiles in picks:
         column = [r[col] for r in rows]
@@ -331,14 +360,18 @@ def _read_line(stream):
 
 
 def parse_pick(line, header):
-    """`<열>=<변환>[:<분위수>]` 한 줄 -> (열 번호 0부터, 변환, 분위수 또는 None). 열은 머리 글 그대로 · 아니면 1부터의 번호.
+    """`<열>[=<변환>[:<분위수>]]` 한 줄 -> (열 번호 0부터, 변환, 분위수 또는 None). 열은 머리 글 그대로 · 아니면 1부터의 번호.
+
+    변환을 안 적으면 (`열` 또는 `열=`) bucket 이다 (기본). rank · category 는 명시적으로 적어야 한다.
 
     머리 글이 겹치면 (같은 이름이 둘) 글로는 못 고른다 - 번호로 고른다. 못 읽으면 E-04. 글 · 열 이름을 되풀이하지 않는다.
     """
-    m = _PICK_RE.match(line.strip())
-    if not m:
-        raise DeriveError(E_SHAPE)
-    name, transform, qtext = m.group(1).strip(), m.group(2), m.group(3)
+    text = line.strip()
+    m = _PICK_RE.match(text)
+    if m:
+        name, transform, qtext = m.group(1).strip(), m.group(2), m.group(3)
+    else:
+        name, transform, qtext = (text[:-1] if text.endswith("=") else text).strip(), DEFAULT_TRANSFORM, None
     hits = [i for i, h in enumerate(header) if h.strip() == name]
     if len(hits) == 1:
         col = hits[0]
@@ -352,15 +385,20 @@ def parse_pick(line, header):
 
 
 PROMPT_JOB = "주제 job 번호 (예 J-0007) - 파생 자료 누계를 이 번호로 셉니다: "
-PROMPT_K = "k - 범주에서 이보다 적은 행에만 나온 값은 묶습니다 (5 이상 · 비우면 10): "
+PROMPT_SOURCE = ("원본 표의 전체 행 수 (정수 · %s 이상 · 이 파일은 그 일부 표본입니다 - derive 는 원본 크기를 스스로 알 수 없어 "
+                 "알려 주신 수를 믿습니다): ")
+PROMPT_K = "k - 범주에서 이보다 적은 행에만 나온 값은 묶습니다 (10 이상 · 비우면 10): "
 PROMPT_PICKS = ("열마다 `열=변환` 을 한 줄에 하나씩 적고 빈 줄로 끝내세요 (열은 머리 글 그대로 또는 1부터의 번호 · 열은 %d개 · "
-                "변환은 bucket · rank · category · bucket 은 `열=bucket:0.2,0.4,0.6,0.8` 처럼 분위수를 고를 수 있습니다 · "
-                "적지 않은 열은 나가지 않습니다)\n")
+                "변환은 bucket · rank · category · 변환을 적지 않으면 (열 이름만) bucket · rank 는 최대 %d열이라 `rank` 를 직접 적어야 합니다 · "
+                "bucket 은 `열=bucket:0.2,0.4,0.6,0.8` 처럼 분위수를 고를 수 있습니다 · 적지 않은 열은 나가지 않습니다)\n")
 PROMPT_GO = "%d열 x %d행을 만듭니다 - 계속하려면 y: "
 
 
 def ask(inp, err):
-    """표준 입력으로 (job, k, 고른 줄 목록) 를 받는다. 입력이 끊기면 DeriveError(E-04). 열 이름 · 값을 묻는 글에 쓰지 않는다."""
+    """표준 입력으로 (job, 원본 행 수, k) 를 받는다. 입력이 끊기면 DeriveError(E-04) · 원본 행 수가 1,000 미만이면 DeriveError(E-31).
+
+    열 이름 · 값을 묻는 글에 쓰지 않는다. job 사이 행이 겹치지 않게 하라는 안내를 먼저 보인다 (자동으로 막지는 못한다).
+    """
     def line(prompt):
         err.write(prompt)
         err.flush()
@@ -368,9 +406,19 @@ def ask(inp, err):
         if got is None:
             raise DeriveError(E_SHAPE)
         return got.strip()
+    err.write(NOTE_OVERLAP + "\n")
     job = line(PROMPT_JOB)
     if not JOB_RE.match(job):
         raise DeriveError(E_SHAPE)
+    stext = line(PROMPT_SOURCE % "{:,}".format(MIN_SOURCE_ROWS))
+    if not _SOURCE_RE.match(stext):
+        raise DeriveError(E_SHAPE)
+    source = int(stext.replace(",", ""))
+    if source > MAX_SOURCE_ROWS:
+        raise DeriveError(E_SHAPE)
+    if source < MIN_SOURCE_ROWS:
+        err.write(NOTE_SOURCE_SMALL + "\n")
+        raise DeriveError(E_LIMIT)
     ktext = line(PROMPT_K)
     if ktext == "":
         k = DEFAULT_K
@@ -378,11 +426,11 @@ def ask(inp, err):
         k = int(ktext)
     else:
         raise DeriveError(E_SHAPE)
-    return job, k
+    return job, source, k
 
 
 def ask_picks(inp, err, ncols):
-    err.write(PROMPT_PICKS % MAX_COLUMNS)
+    err.write(PROMPT_PICKS % (MAX_COLUMNS, MAX_RANK_COLUMNS))
     err.flush()
     lines = []
     while True:
@@ -425,11 +473,15 @@ def main_derive(home, home_is_default, csv_path, out_path, inp, err):
         header, rows = read_table(csv_path)
         if len(rows) < 2 * MIN_K:
             return EXIT_USAGE, _line({"derived": False, "error": E_LIMIT})
-        job, k = ask(inp, err)
-        if len(rows) < 2 * k:
+        job, source, k = ask(inp, err)
+        if len(rows) < 2 * k or len(rows) > sample_row_cap(source):
             return EXIT_USAGE, _line({"derived": False, "error": E_LIMIT})
         picks = [parse_pick(x, header) for x in ask_picks(inp, err, len(header))]
-        if audit.derived_rows(home, job) + len(rows) > MAX_TOPIC_ROWS:
+        if sum(1 for p in picks if p[1] == "rank") > MAX_RANK_COLUMNS:
+            err.write(NOTE_RANK + "\n")
+            return EXIT_USAGE, _line({"derived": False, "error": E_LIMIT})
+        recorded = audit.derived_source_rows(home, job)       # 같은 job 에서 앞서 말한 원본 행 수보다 큰 수로 한도를 풀지 못한다
+        if audit.derived_rows(home, job) + len(rows) > topic_row_cap(min(source, recorded) if recorded else source):
             return EXIT_USAGE, _line({"derived": False, "error": E_LIMIT})
         table = PseudonymTable()
         sample, counts = build_sample(header, rows, picks, k, table)
@@ -440,7 +492,7 @@ def main_derive(home, home_is_default, csv_path, out_path, inp, err):
             return EXIT_USAGE, _line({"derived": False, "hits": res.get("hits", [])})
         confirm_go(inp, err, len(sample["columns"]), len(sample["rows"]))
         audit.derive_record(home, job, counts, len(rows), tokens=len(sample_tokens(sample)),
-                            table_sha256=audit.table_sha256(sample))
+                            table_sha256=audit.table_sha256(sample), source_rows=source)
         write_new(out_path, json.dumps(draft, ensure_ascii=False, indent=1) + "\n")
         return EXIT_OK, _line({"derived": True, "columns": len(sample["columns"]), "rows": len(sample["rows"]),
                                "transforms": counts})

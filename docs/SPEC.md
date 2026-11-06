@@ -247,7 +247,7 @@ SAMPLE: coarse cells (bucket or rank class, not values; PH_other = pooled rare g
 | E-07 | 창을 띄울 수 없음 | 확정 창을 띄울 수 없어 보내지 않았습니다 |
 | E-08 | 일일 상한 · 월 한도 넘음 | 오늘 · 이번 달 한도를 넘었습니다 |
 | E-30 | 파생 표본이 꺼져 있음 (`policy.derived_level` 0 · 실데이터 승인 없음 · 기본 자리가 아님 · 표준 입력이 터미널이 아님 — `derive` · 표가 든 초안을 내는 `propose`) | 파생 표본이 꺼져 있습니다 |
-| E-31 | 파생 표본의 한도 (열 · 행 · k × 2 미만의 작은 표 · 주제 누계 200행 · k 범위) | 파생 표본의 한도를 넘었습니다 |
+| E-31 | 파생 표본의 한도 (열 · 행 · k × 2 미만의 작은 표 · 주제 누계 (200행과 원본의 10% 중 작은 쪽) · k 범위 (10–25) · 알려 준 원본 행 수 1,000 미만 · rank 열 3개 이상 · 원본이 5,000행 미만인데 표본이 30행 초과 — 새 번호 없이 이 번호를 쓴다) | 파생 표본의 한도를 넘었습니다 |
 | E-20 | 검사 · 내부 오류 (막는 쪽으로 실패) | 검사 중 오류로 보내지 않았습니다 |
 
 ## SP-09 확정 창 · 보고 내기 (propose)
@@ -355,7 +355,7 @@ SAMPLE: coarse cells (bucket or rank class, not values; PH_other = pooled rare g
 - `direction: "in"` (Claude 의 답) 은 `text` 를 남기지 않는다 — 해시 · 크기 · U1–U4 결과만 [제안].
 - `sent` 인 `out` · `dispatch` 는 `text` 가 있어야 하고, `sha256` · `bytes` 가 그 글과 다르면 쓰지 않는다.
 - 넘기기 (안쪽으로) 는 `direction: "dispatch"` · `kind: "instruction"` · `transport: "worker"` · `text` 에 되돌리기 전의 지시 (토큰 꼴) 를 남기고, `sha256` 도 그 글의 것이다 (진짜 단어가 든 되돌린 글의 해시는 남기지 않는다 · AL-05).
-- 파생 표본을 만들면 `<job>-<순번>-derive.json` 을 남긴다 (`derive_record`): `{"format": 1, "at", "job", "direction": "derive", "kind": "derive", "transforms": {"bucket": n, "rank": n, "category": n}, "columns": n, "rows": n, "tokens": n, "table_sha256": "<표 글의 해시>"}` — 변환 종류별 열 수 · 열 수 · 행 수 · 표에 나온 서로 다른 가명 토큰의 수 · 표 글 (`render.sample_text` · 창이 보이고 보내는 바이트) 의 sha256 뿐이다 (값 · 열 이름 · 토큰 없음). 해시와 토큰 수는 propose · 허브가 "derive 가 만든 초안 그대로인가" 를 볼 때 쓴다 ([SP-18](#sp-18-파생-표본-l2)) — 이 둘이 없는 옛 기록은 어떤 초안과도 맞지 않는다. 보낸 것 (`out`) 이 아니라서 확정 목록 · job 상태에 끼지 않는다. 같은 job 의 `rows` 합이 주제별 누계 (L-05) 다.
+- 파생 표본을 만들면 `<job>-<순번>-derive.json` 을 남긴다 (`derive_record`): `{"format": 1, "at", "job", "direction": "derive", "kind": "derive", "transforms": {"bucket": n, "rank": n, "category": n}, "columns": n, "rows": n, "tokens": n, "table_sha256": "<표 글의 해시>", "source_rows": n}` — 변환 종류별 열 수 · 열 수 · 행 수 · 표에 나온 서로 다른 가명 토큰의 수 · 사람이 알려 준 원본 표의 전체 행 수 (정수 하나 · 값이 아니다 · 이 칸이 생기기 전의 옛 기록에는 없고 그대로 읽힌다) · 표 글 (`render.sample_text` · 창이 보이고 보내는 바이트) 의 sha256 뿐이다 (값 · 열 이름 · 토큰 없음). 해시와 토큰 수는 propose · 허브가 "derive 가 만든 초안 그대로인가" 를 볼 때 쓴다 ([SP-18](#sp-18-파생-표본-l2)) — 이 둘이 없는 옛 기록은 어떤 초안과도 맞지 않는다. 보낸 것 (`out`) 이 아니라서 확정 목록 · job 상태에 끼지 않는다. 같은 job 의 `rows` 합이 주제별 누계 (L-05) 다. 같은 job 의 기록에 적힌 `source_rows` 중 가장 작은 수가 누계 한도 계산에 쓰인다 (나중에 더 큰 수를 말해도 한도가 풀리지 않는다 · 새 job 번호는 따로 센다).
 - 표가 든 파생 초안 (plan · ui) 을 보내면 보통의 `out` 기록 (`kind: "plan"` 또는 `"ui"` · 보낸 펼친 글 그대로 · `sha256` · `bytes`) 에 칸 `sample` 이 더해진다: `{"transforms": {"bucket": n, "rank": n, "category": n}, "columns": n, "rows": n}` — 정수뿐이다 (값은 이미 보낸 글에 있으므로 따로 남기지 않는다 · 열 이름 · 토큰 없음). `sample` 은 이 꼴의 기록에만 쓸 수 있다 (`audit.build` 가 다른 방향 · 종류면 거절한다).
 - 가명 표 · 원자료 · 사전 단어는 어디에도 남기지 않는다. `decision` 은 `sent` · `discarded` · `blocked` · `timeout`.
 
@@ -450,16 +450,17 @@ SAMPLE: coarse cells (bucket or rank class, not values; PH_other = pooled rare g
 
 쉽게 말하면: 숫자 표를 "실제 값은 가리고 대략 몇 번째 구간인지만" 남긴 작은 표로 바꿔 보내는 기능입니다. 기본은 꺼져 있고, 그래도 **누구의 자료인지 알아내는 위험(재식별)이 없다고는 증명할 수 없습니다.**
 
-> 구현했다. 기본은 꺼짐이고 켜는 곳은 정책 창뿐이다 (SP-15 `policy.derived_level`). **재식별은 증명할 수 없다** — 정보 상한은 SP-05 의 `sample` 항목, 합격선은 보안 부서가 정한다. 제안의 까닭은 [PROPOSAL-derived.md](PROPOSAL-derived.md).
+> 구현했다. 기본은 꺼짐이고 켜는 곳은 정책 창뿐이다 (SP-15 `policy.derived_level`). **재식별은 증명할 수 없다** — 정보 상한은 SP-05 의 `sample` 항목, 합격선은 보안 부서가 정한다. 재식별 시뮬레이션 ([kit/results-reid.md](../kit/results-reid.md)) 의 권고를 한도로 적용했다 (아래 한도 · 원본 행 수 · 기본 bucket). 제안의 까닭은 [PROPOSAL-derived.md](PROPOSAL-derived.md).
 
 - **명령**: `python diode.py derive <csv 경로> --out <초안 json 경로>` (SP-16). 코드: [diodelib/derive.py](../diodelib/derive.py). 사람이 안쪽 터미널에서 직접 돌린다 — 표준 입력이 터미널이 아니면 (파이프 · Claude 의 Bash) 돌지 않는다 (벽은 아니다 · L-11). 결과는 초안 파일 하나 (plan · `data_class: real` · `sample` 포함 · 고정 `goal` · `ask`) 와 개수뿐인 한 줄이다.
 - **변환은 셋뿐이고 결정적 코드가 한다** (사내 LLM 은 값을 보지 않는다):
   - `bucket` — 수치 열 → 사람이 고른 분위수 수준 (기본 0.2 · 0.4 · 0.6 · 0.8 · 각 0.1–0.9 · 간격 0.1 이상) 으로 0–4. 경계 = 정렬한 값의 [floor(q × n)] 번째 (분수로 셈) · 칸 = 그 값 이상인 경계의 개수. 경계값은 나가지 않는다.
   - `rank` — 수치 열 → 순위 백분위 (x 보다 작은 수 + 같은 수 / 2) / n 을 0–9 로. 동률은 같은 칸 · 무작위 동점 깨기 없음 · 정수 셈.
-  - `category` — 범주 열 → 이 자문의 `PseudonymTable` 토큰 (AL-05 · 메모리에만). 행이 k 미만인 값은 모두 `PH_other` 하나로 묶고 (묶인 값에는 토큰을 만들지 않는다), 묶음이 k 미만이면 가장 작은 값을 하나씩 더 묶는다. k 는 사람이 정한다 (기본 10 · 5–25).
+  - `category` — 범주 열 → 이 자문의 `PseudonymTable` 토큰 (AL-05 · 메모리에만). 행이 k 미만인 값은 모두 `PH_other` 하나로 묶고 (묶인 값에는 토큰을 만들지 않는다), 묶음이 k 미만이면 가장 작은 값을 하나씩 더 묶는다. k 는 사람이 정한다 (기본 10 · 10–25).
 - **나가는 것**: 열 이름은 토큰 · 종류 (`수치` · `범주`) 뿐 · 고르지 않은 열은 나가지 않는다 (기본 전부 거부). 출력 행은 칸 값으로 정렬한다 — 원래 표의 행 순서가 새지 않게. 토큰은 실행마다 새로 뽑는다 (AL-05) 이므로 같은 입력의 `category` · 열 이름 토큰은 실행마다 다르다 (수치 칸은 같다).
-- **한도** (코드 상수 · 넘으면 거절): 열 8 · 행 50 · 자문 하나에 `sample` 하나 · 행 수가 k × 2 미만인 표는 거절 (작은 표는 한 행이 곧 식별) · 한 주제 (job) 의 파생 누계 행 200 (L-05 · 감사 기록 SP-14 의 `derive` 기록으로 센다) · 읽는 표 파일 1 MiB.
-- **사람이 고른다** (표준 입력 · 파일에 저장하지 않는다): 주제 job 번호 → k → `열=변환` 줄들 (열은 머리 글을 직접 치거나 1부터의 번호 · 묻는 글에 열 이름을 쓰지 않는다) → 만들기 전 `y`. 입력이 끊기거나 틀리면 만들지 않는다.
+- **한도** (코드 상수 · 넘으면 거절 · 모두 `E-31` — 새 오류 번호 없음 · 근거는 [kit/results-reid.md](../kit/results-reid.md) 의 재식별 시뮬레이션과 "적용한 권고"): 열 8 · 행 50 (**원본이 5,000행 미만이면 30**) · 자문 하나에 `sample` 하나 · 행 수가 k × 2 미만인 표는 거절 (작은 표는 한 행이 곧 식별) · **k 는 10 이상 25 이하** (`MIN_K` 10) · **알려 준 원본 행 수가 1,000 미만이면 거절** · 한 주제 (job) 의 파생 누계 행은 **200 (`MAX_TOPIC_ROWS`) 과 원본 행 수의 10% 중 작은 쪽** (L-05 · 감사 기록 SP-14 의 `derive` 기록으로 센다 · 원본 1,000행이면 100행) · **`rank` 열은 최대 2개** (넘으면 거절하고 "나머지는 bucket 으로 고르세요" 고정 안내를 터미널에 보인다) · 읽는 표 파일 1 MiB.
+- **원본 행 수는 사람이 알려 준다 (한계)**: 파일은 원본에서 뽑은 표본 50행 이하뿐이라 `derive` 가 원본 크기를 스스로 알 수 없다. 그래서 터미널에서 "원본 표의 전체 행 수" 를 정수로 묻고 (쉼표 가능) 알려 준 수를 믿는다. 사람이 더 큰 수를 말하면 한도를 속일 수 있다 - **벽이 아니다** (L-11). 막는 것은 확정 창에서 사람이 표를 보는 일이고, 감사 기록의 `source_rows` 는 나중에 확인할 흔적이다.
+- **사람이 고른다** (표준 입력 · 파일에 저장하지 않는다): 주제 job 번호 → **원본 표의 전체 행 수** → k → `열[=변환]` 줄들 (열은 머리 글을 직접 치거나 1부터의 번호 · **변환을 안 적으면 (열 이름만, 또는 `열=`) `bucket`** · `rank` · `category` 는 직접 쳐야 한다 · 묻는 글에 열 이름을 쓰지 않는다) → 만들기 전 `y`. 입력이 끊기거나 틀리면 만들지 않는다. 처음에 "같은 원본에서 job 을 나눠 뽑을 때는 job 사이에 같은 행이 겹치지 않게 뽑으세요" 안내를 보인다 - **겹치는 행을 자동으로 막지는 못한다** (파일의 값을 저장하지 않으므로 · 사람의 절차다).
 - **문**: `policy.derived_level` 이 정수 1 이고 `policy.real_data` 가 참 (bool) 일 때만 돈다 (`derive.effective_level`) · 데이터 폴더가 기본 자리가 아니면 돌지 않는다 (AL-12). `derive.py` 는 설정을 읽기만 하고 환경 변수 · 명령줄을 읽지 않는다.
 - **나가는 길** (구현했다 · 코드 [diodelib/propose.py](../diodelib/propose.py) · [diodelib/hub.py](../diodelib/hub.py) `take_derived`): 초안은 새 우회 길 없이 기존 흐름 (D1–D7 → 확정 창 D8 → 건네기 → 감사 기록) 을 거쳐 방 `outbox\<job>.md` 로 간다.
   1. **`propose <초안.json>`** (사람이 터미널에서): 칸이 `derive` 가 만든 그대로 (`format` · `kind` plan 또는 ui · `data_class` real · `goal` · `ask` · `sample` — `entities` · `fields` · `context` 가 있으면 `E-04`) · `policy.derived_level` 1 + `real_data` (아니면 `E-30` · 종료 3) · 표준 입력이 터미널 (아니면 `E-30`) · `sample` 표 글의 sha256 이 `derive` 의 감사 기록 (SP-14) 과 맞아야 한다 (아니면 `E-04` — **일꾼 (사내 LLM) 이 지어낸 표 · 사람이 칸 하나를 고친 표는 받지 않는다**). 맞으면 `seal` 미리 보기 (D1–D6) 를 거쳐 대기열에 넣는다. 초안에는 job 이 없다 — 맞는 기록의 job 을 쓴다.
