@@ -32,7 +32,6 @@ MANIFEST_FIELDS = {"$schema", "name", "displayName", "version", "description", "
                    "keywords", "metadata", "icon", "documentationUrl", "supportUrl", "privacyPolicyUrl", "termsOfServiceUrl",
                    "defaultEnabled", "dependencies", "settings", "userConfig", "types", "channels", "skills", "commands",
                    "agents", "hooks", "mcpServers", "lspServers", "outputStyles", "workflows", "experimental"}
-PENDING_CASES = (["lib", "names", "pkg"],)
 
 
 def read_path(path):
@@ -103,12 +102,25 @@ class TestCommands(unittest.TestCase):
         self.assertIn("개발 중", out)
 
     def test_pending_commands_say_so_and_exit_2(self):
-        for argv in PENDING_CASES:
-            with self.subTest(argv):
-                code, out, err = run(*argv)
-                self.assertEqual(code, 2)
-                self.assertEqual(out, "")
-                self.assertIn("아직 없음 (v0.0)", err)
+        """아직 없는 명령 (PENDING) 은 아직 없음을 알리고 2 로 끝난다 - 지금은 없어서 (lib names 가 마지막이었다) 가짜 하나를 끼워 시험한다"""
+        with mock.patch.object(cli, "PENDING", (("future", "future x                       없는 명령"),)):
+            for argv in (["future"], ["future", "x"]):
+                with self.subTest(argv):
+                    code, out, err = run(*argv)
+                    self.assertEqual(code, 2)
+                    self.assertEqual(out, "")
+                    self.assertIn("아직 없음 (v0.0)", err)
+                    self.assertIn("future", err)
+
+    def test_lib_names_is_a_real_command_now(self):
+        """lib names 는 더 이상 '아직 없음' 이 아니다 (SP-16) - 허용 목록이 빈 곳에서는 고정 문구와 2 (자세한 시험은 test_libnames.py)"""
+        self.assertNotIn("lib", [n for n, _ in cli.PENDING + cli.PENDING_FLAGS])
+        with tempfile.TemporaryDirectory() as tmp:
+            code, out, err = run("lib", "names", "pkg", env=dict(home_env(tmp), DIODE_HOME=os.path.join(tmp, "data")))
+            self.assertEqual((code, out), (2, ""))
+            self.assertTrue(err.startswith("사용법 오류: 허용 목록 (policy.lib_allow) 에 없는 이름입니다"), err)
+            self.assertNotIn("아직 없음", err)
+            self.assertEqual(os.listdir(tmp), [])
 
     def test_usage_errors_exit_2_with_a_korean_message(self):
         for argv in ([], ["frobnicate"], ["check", "extra"], ["--json"], ["--room", "x", "check"], ["--status", "check"],
@@ -213,10 +225,14 @@ class TestEntryScript(unittest.TestCase):
         self.assertEqual((code, last_line(out)), (0, "결과: OK"))
         self.assertEqual(err, "")
 
-    def test_pending_command(self):
+    def test_lib_names_command(self):
+        """스크립트로 부른 lib names - 허용 목록에 없는 이름은 아직 없음이 아니라 고정 문구와 2, 이름을 되풀이하지 않고 아무것도 만들지 않는다"""
         code, out, err = self.call("lib", "names", "pkg")
         self.assertEqual((code, out), (2, ""))
-        self.assertIn("아직 없음 (v0.0)", err)
+        self.assertTrue(err.startswith("사용법 오류: 허용 목록 (policy.lib_allow) 에 없는 이름입니다"), err)
+        self.assertNotIn("아직 없음", err)
+        self.assertNotIn("pkg", err)
+        self.assertEqual(os.listdir(self._tmp.name), [])
 
     def test_no_command(self):
         code, out, err = self.call()
@@ -441,7 +457,113 @@ class TestDocs(unittest.TestCase):
         self.assertIn("[질문]", text)
         for place in ("D:\\claude\\diode", "D:\\claude\\room", "%LOCALAPPDATA%\\diode"):
             self.assertIn(place, text)
-        self.assertIn("v0.1 에서 채운다", text)
+
+        # 뼈대가 아니다: 채우지 않은 자리 · 뼈대 문구가 없고, 실제 주소도 없다 (W-12 — 주소는 [질문] 으로 받는다)
+        for gone in ("v0.1", "뼈대"):
+            self.assertNotIn(gone, text)
+        self.assertNotRegex(text, r"https?://")
+        self.assertIn("<저장소 주소>", text)
+
+        # 단계 0–9 가 차례로 있다. 1–8 단계마다 명령(코드 블록) → 확인 → 실패하면 의 표지와 [질문] 이 있다
+        parts = re.split(r"^## (\d+)\. (.+)$", text, flags=re.M)
+        steps = {}
+        for i in range(1, len(parts) - 2, 3):
+            steps[int(parts[i])] = (parts[i + 1], parts[i + 2].split("\n## ", 1)[0])
+        self.assertEqual(sorted(steps), list(range(0, 10)))
+        positions = [m.start() for m in re.finditer(r"^## \d+\. ", text, flags=re.M)]
+        self.assertEqual(positions, sorted(positions))
+        for n, word in {1: "파이썬", 2: "코드", 3: "플러그인", 4: "설정", 5: "방", 6: "점검", 9: "보고"}.items():
+            self.assertIn(word, steps[n][0], "%d단계 제목" % n)
+        for n in (7, 8):
+            self.assertIn("(선택)", steps[n][0], "%d단계는 선택이다" % n)
+        for n in range(1, 9):
+            body = steps[n][1]
+            for mark in ("```", "**확인**", "**실패하면**", "[질문]"):
+                self.assertIn(mark, body, "%d단계에 %s 가 없다" % (n, mark))
+            self.assertLess(body.index("```"), body.index("**확인**"), "%d단계: 명령이 확인보다 먼저다" % n)
+            self.assertLess(body.index("**확인**"), body.index("**실패하면**"), "%d단계: 확인이 실패하면보다 먼저다" % n)
+        # 명령은 어느 셸에서나 돈다: 드라이브 경로는 큰따옴표 안에 있다 (S-05)
+        for ln in text.splitlines():
+            if ln.strip().startswith(("python ", "git ", "claude ", "/plugin ")):
+                self.assertNotRegex(ln, r'(?<!")\b[A-Za-z]:\\', ln)
+        # 단계가 가리키는 명령 · 절
+        self.assertIn('claude plugin marketplace add "D:\\claude\\diode"', steps[3][1])
+        self.assertIn("claude plugin install diode@diode", steps[3][1])
+        self.assertIn('/plugin marketplace add "D:\\claude\\diode"', steps[3][1])
+        self.assertIn("/plugin install diode@diode", steps[3][1])
+        self.assertIn("py -3", steps[1][1])                                  # `python` 이름만 인정한다
+        self.assertIn('git -C "D:\\claude\\diode" pull --ff-only', steps[2][1])
+        self.assertIn("setup --check", steps[6][1])
+        self.assertIn("kit/inhouse-questions.md", steps[8][1])
+        for word in ("백업", "diode-worker", "docs/MANUAL.md"):
+            self.assertIn(word, steps[7][1])
+        for rule in ("사전", "원자료 폴더", "직접 입력"):                         # 사내 단어는 사람이 창에서만 (AL-11 · AL-12)
+            self.assertIn(rule, steps[4][1])
+        for label in ("위치", "파이썬", "코드", "플러그인", "설정", "방", "일꾼", "점검", "멈춘 곳", "쓰는 법"):
+            self.assertRegex(steps[9][1], r"(?m)^- %s\s*:" % label)
+        sections = {h: text.split("\n## " + h, 1)[1].split("\n## ", 1)[0] for h in ("업데이트", "제거")}
+        self.assertIn('git -C "D:\\claude\\diode" pull --ff-only', sections["업데이트"])
+        self.assertIn("claude plugin update diode@diode", sections["업데이트"])
+        self.assertIn("claude plugin uninstall diode@diode", sections["제거"])
+        self.assertIn("claude plugin marketplace remove diode", sections["제거"])
+        self.assertGreaterEqual(sections["제거"].count("[질문]"), 4)           # 방 · 데이터 · 소스 · 일꾼은 묻고서야 지운다
+        self.assertIn("감사 기록", sections["제거"])
+
+        # 문제 해결 표의 문구는 코드가 찍는 그대로다 — 코드가 바뀌면 이 시험이 문서를 고치게 한다
+        from diodelib import hook as hook_mod, setup as setup_mod
+        setup_src, cli_src = read("diodelib/setup.py"), read("diode.py")
+        for sentence in setup_mod.REFUSE_TEXT.values():                      # 방 거절 여섯
+            self.assertIn(sentence, text)
+        self.assertEqual(sorted(setup_mod.REFUSE_TEXT), ["git", "guide", "nonempty", "path", "plugin", "raw"])
+        for key in ("unset", "e20", "changed", "raw_prompt", "auto"):
+            self.assertIn(hook_mod.MSG[key], text, key)
+        self.assertIn(hook_mod.MSG["guide"].replace("%d", "<개수>"), text)
+        for phrase in ("사전이 비어 있음 — 보내기를 막습니다", "원자료 폴더 목록이 비어 있음 — 보내기를 막습니다",
+                       "사내 LLM 판정 (D7) 설정이 없음 — 보내기를 막습니다", "훅 자체 시험", "방이 ok 가 아님",
+                       "설정을 읽지 못해 창을 열지 않았습니다", "사전 · 설정을 읽지 못함", "python 명령 (훅 · 허브가 부름)",
+                       "방이 이미 있는데 설정이 바뀌었습니다 (changed) — 덮어쓰지 않습니다. 지우고 다시 만들거나 되돌리세요",
+                       "방을 만들었습니다 (표지 · 방 설정 · outbox · inbox · work)", "방이 이미 있고 ok 입니다",
+                       "정책 (사전 · 원자료 폴더) 이 비어 있는데 정책 창을 띄울 수 없습니다 (E-07) - 화면이 없거나 이 파이썬에 tkinter 가 없습니다",
+                       "정책 (사전 · 원자료 폴더) 이 비어 있어 정책 창을 엽니다 — 창에서 직접 입력하고 [저장] 하세요",
+                       "단어는 이 대화로 보내지 않습니다 (입력하면 곧바로 Claude 로 나갑니다)",
+                       "저장한 뒤 /diode:setup 을 다시 실행하면 방을 만들고 점검합니다",
+                       "일꾼 명령 문제:", "일꾼 명령에 문제가 있음", "일 넘기기는 E-01",
+                       "실행 파일을 PATH 에서 찾지 못함",
+                       "Windows .cmd 껍데기에 {prompt} 를 인자로 줌 (명령 주입 길 - 표준 입력으로 받게 {prompt} 를 빼세요)",
+                       "안내 파일에 사전 단어가 있음 (L-29) — 지우거나 옮기세요 · 그 전에는 프롬프트가 막힙니다",
+                       "안내 파일 (CLAUDE.md · AGENTS.md) 을 사전으로 검사하지 못함",
+                       "없음 (/diode:room)", "changed (방 설정이 바뀜 — 막힘)"):      # 앞의 "방 " 은 코드가 서식으로 붙인다
+            self.assertIn(phrase, text, phrase)
+            self.assertTrue(phrase in setup_src, phrase)
+        self.assertIn("방 없음 (/diode:room)", text)
+        self.assertIn("방 changed (방 설정이 바뀜 — 막힘)", text)
+        guide_line = "안내 파일 (사용자 범위 · 이 폴더와 위 폴더의 CLAUDE.md · AGENTS.md) 에 사전 단어가 %d개 있음 — Claude 가 모든 요청에 읽어 갑니다"
+        self.assertTrue(guide_line in setup_src)
+        self.assertIn(guide_line.replace("%d", "<n>"), text)
+        for phrase in ("파이썬 3.8 이상이 필요합니다", "DIODE_HOME 이 설정되어 있습니다", "데이터 폴더 자리에 파일이 있습니다"):
+            self.assertIn(phrase, text, phrase)
+        for piece in ("이상이 필요합니다", "이 설정되어 있습니다", "데이터 폴더 자리에 파일이 있습니다", "diode.py %s: 실패 (E-20)",
+                      "정책 창을 열었습니다 - "):
+            self.assertTrue(piece in cli_src, piece)
+        for phrase in ("diode.py room: 실패 (E-20)", "diode.py setup: 실패 (E-20)", "정책 창을 열었습니다 - "):
+            self.assertIn(phrase, text, phrase)
+        # 정책 창의 칸 · 버튼 · 제목 이름 (사람이 그 이름으로 찾는다)
+        window_src = read("diodelib/policy_window.py")
+        for label in ("01 사전", "02 원자료 폴더", "04 일꾼 명령", "06 방 자리", "06 llm", "Diode - 정책", "예시 넣기"):
+            self.assertTrue(label in window_src, label)
+            self.assertIn(label, text, label)
+        # 플러그인이 실제로 싣는 것과 문서가 말하는 것이 같다 (claude plugin details 의 확인 줄)
+        hooks = json.loads(read("hooks/hooks.json"))["hooks"]
+        for event in hooks:
+            self.assertIn(event, steps[3][1])
+        for server in json.loads(read(".mcp.json"))["mcpServers"]:
+            self.assertIn("`%s`" % server, steps[3][1])
+        for cmd in sorted(os.listdir(os.path.join(ROOT, "commands"))):
+            name = cmd[:-len(".md")]
+            self.assertIn("/diode:" + name, text)
+            self.assertIn("`%s`" % name, steps[3][1])
+        self.assertIn("2.1.295", read("docs/PLAN.md"))                        # 3단계가 요구하는 Claude Code 판의 출처
+        self.assertIn("2.1.295", steps[3][1])
 
     def test_inhouse_keeps_the_boundary(self):
         text = read("docs/INHOUSE.md")

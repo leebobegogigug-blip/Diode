@@ -25,7 +25,7 @@ Diode 는 회사 안 (사내 LLM · 원자료) 과 회사 밖 (Claude) 사이에
 <p align="center"><sub>
 CLAUDE CODE 플러그인 · 저장소 하나 = 플러그인 하나 = 마켓플레이스 하나<br>
 파이썬 3.8+ · 표준 라이브러리만<br>
-테스트 689 · WINDOWS + UBUNTU CI
+테스트 748 · WINDOWS + UBUNTU CI
 </sub></p>
 
 <br>
@@ -53,7 +53,7 @@ CLAUDE CODE 플러그인 · 저장소 하나 = 플러그인 하나 = 마켓플�
 
 <p align="center">
 설치하면 훅이 걸리고 허브가 뜹니다. 그러나 사내 확인 전에는 실데이터를 맡기지 마세요 (보호가 있다는 착각이 가장 위험합니다).<br>
-설치 절차의 뼈대는 <a href="INSTALL.md">INSTALL.md</a> 에 있고, 단계는 v0.1 에서 채웁니다.
+설치 절차는 <a href="INSTALL.md">INSTALL.md</a> 에 있습니다 — Claude Code 가 그대로 따라 하는 단계별 가이드입니다.
 </p>
 
 <br>

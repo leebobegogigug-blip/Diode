@@ -2,12 +2,13 @@
 # -*- coding: utf-8 -*-
 """diode - Claude Code 플러그인 Diode 의 진입점 (표준 라이브러리만 · Python 3.8+)
 
-  diode.py version | help | check | scan | hook <session|prompt|tool>
+  diode.py version | help | check | scan | lib names <이름> | hook <session|prompt|tool>
 
 개발 중 (v0.0) — 훅 · 허브 · 확정 창 · 정책 창 · 명령까지 있다. 합성 자료로만 시험했다 (사내 확인 전 · docs/PLAN.md › 10 로드맵).
-아직 없는 명령 (mcp · --statusline · --status · propose · confirm · lib) 은 종료 코드 2 로 끝난다.
+아직 없는 명령은 PENDING 에 적는다 - 부르면 종료 코드 2 로 끝난다 (지금은 없다).
 hook 은 Claude Code 훅 (SP-11) — 플러그인 hooks/hooks.json 이 부른다.
 scan 은 표준 입력의 글을 검사한다 (D2 · D3 · D5) — 종료 코드 0 통과 · 2 막음 (SP-16 · 훅과 같은 뜻).
+lib names 는 허용 라이브러리의 공개 이름을 안쪽 PC 에 설치된 판에서 뽑아 데이터 폴더의 libnames/<이름>.json 에 쓴다 (SP-05 D5a).
 종료 코드: 0 OK · 1 점검 실패 · 2 사용법 오류 · 3 사람 확인 필요 (RULES.md › S-03)
 점검 출력의 마지막 줄은 결과: OK · 결과: 확인 필요 · 결과: 점검 실패 중 하나 (에이전트가 이 줄로 판단한다)
 """
@@ -25,11 +26,18 @@ MIN_PYTHON = (3, 8)
 HOME_ENV = "DIODE_HOME"        # 테스트용 — 데이터 폴더를 옮긴다 (docs/PLAN.md › AL-12). 그 밖의 설정은 환경 변수로 받지 않는다
 ALIASES = {"-h": "help", "--help": "help", "--version": "version"}
 
-# 아직 없는 명령 (v0.0) — 계약은 docs/SPEC.md SP-16. (이름, 도움말의 설명)
-PENDING = (
-    ("lib", "lib names <이름>                허용 라이브러리의 공개 이름"),
-)
+# 아직 없는 명령 (v0.0) — 계약은 docs/SPEC.md SP-16. (이름, 도움말의 설명). 지금은 없다 (lib names 가 마지막이었다)
+PENDING = ()
 PENDING_FLAGS = ()
+
+
+def _pending_help():
+    """도움말의 '아직 없는 명령' 절 (없으면 빈 글 - 뒤의 빈 줄까지 이 글에 든다)"""
+    items = [d for _, d in PENDING] + [d for _, d in PENDING_FLAGS]
+    if not items:
+        return ""
+    return "아직 없는 명령 (v0.0 — 부르면 종료 코드 2 로 끝납니다)\n  %s\n\n" % "\n  ".join(items)
+
 
 HELP = """%s %s — Claude Code 플러그인 (개발 중 · v0.0 · 합성 자료로만 시험했습니다)
 
@@ -45,13 +53,11 @@ HELP = """%s %s — Claude Code 플러그인 (개발 중 · v0.0 · 합성 자�
   mcp                             허브 (MCP 서버 · 플러그인 .mcp.json 이 띄운다 · 표준 입출력 JSON-RPC)
   propose <report.json>           일꾼 보고 내기 (미리 보고 걸리면 2 · 통과면 허브의 대기열에 넣고 0)
   confirm <요청 파일>             확정 창 (허브가 부른다 · 결과는 JSON 한 줄 · 0 보냄 · 3 사람이 안 보냄 · 2 꼴 오류 · 1 창 없음)
+  lib names <이름>                허용 라이브러리의 공개 이름 목록 만들기 (허용 목록에 있는 이름만 · 0 OK · 1 설치 안 됨 등 · 2 허용 목록 밖)
 
-아직 없는 명령 (v0.0 — 부르면 종료 코드 2 로 끝납니다)
-  %s
-
-종료 코드  0 OK · 1 점검 실패 · 2 사용법 오류 · 3 사람 확인 필요
+%s종료 코드  0 OK · 1 점검 실패 · 2 사용법 오류 · 3 사람 확인 필요
 설계는 docs/PLAN.md · 계약은 docs/SPEC.md (SP-16) 에 있습니다.
-""" % (NAME, VERSION, "\n  ".join([d for _, d in PENDING] + [d for _, d in PENDING_FLAGS]))
+""" % (NAME, VERSION, _pending_help())
 
 
 class UsageError(Exception):
@@ -92,6 +98,7 @@ def build_parser():
     for name in ("dict", "policy"):
         sub.add_parser(name, add_help=False)
     sub.add_parser("hook", add_help=False).add_argument("event", nargs="?", default="")
+    sub.add_parser("lib", add_help=False).add_argument("rest", nargs=argparse.REMAINDER)
     for name, _ in PENDING:
         sub.add_parser(name, add_help=False).add_argument("rest", nargs=argparse.REMAINDER)
     return p
@@ -162,6 +169,29 @@ def confirm_command(out, rest):
     return code
 
 
+def lib_command(rest, out, err):
+    """lib names <이름> - 허용 라이브러리의 공개 이름 목록을 데이터 폴더의 libnames/ 에 쓴다 (SP-05 D5a).
+
+    출력은 개수 · 코드뿐이다 - 이름 목록도, 틀린 이름도 되풀이하지 않는다 (AL-11). 2 는 사용법 오류로 알린다.
+    """
+    if len(rest) != 2 or rest[0] != "names":
+        raise UsageError("lib 는 `lib names <이름>` 꼴로 씁니다")
+    try:
+        from diodelib import libnames
+        code, lines, text = libnames.main_names(data_dir()[0], rest[1])
+    except Exception:
+        out.write('{"ok": false, "error": "failed"}\n결과: 점검 실패\n')
+        err.write("diode.py lib: 실패 (E-20)\n")
+        return FAIL
+    if code == USAGE:
+        raise UsageError(text)
+    for line in lines:
+        out.write(line + "\n")
+    if text:
+        err.write(text + "\n")
+    return code
+
+
 def setup_command(name, args, out, err):
     """/diode:setup · :room · :dict 가 부르는 명령. 출력은 개수 · 참거짓 · 코드뿐이다 (슬래시 명령의 출력은 Claude 의 맥락에 붙는다)."""
     try:
@@ -218,6 +248,8 @@ def run(args, out, err, inp=None):
         return scan_command(out, err, inp if inp is not None else _stdin_bytes())
     if args.command == "confirm":
         return confirm_command(out, args.rest)
+    if args.command == "lib":
+        return lib_command(args.rest, out, err)
     if args.command == "propose":
         try:
             from diodelib import propose
