@@ -6,6 +6,7 @@ M0 (앱 코드 0줄 · 합성 자료만) 동안만 쓰는 폴더다. M0 가 끝�
 |---|---|
 | `security-brief.md` | 보안 부서에 보일 한 장 (T4 · KIT-5) |
 | `results-linux.md` | 리눅스판 결과 (KIT-1 · KIT-2 · KIT-7) |
+| `results-ci.md` | CI 의 Windows · Linux 에서 돌린 진짜 Claude CLI 시험 결과 (I1–I6 · R01–R25 · S01–S18) 와 그것이 증명하지 않는 것 |
 | `run_kit.py` | 시나리오 S01–S18 을 돌린다 (S18 은 DISPLAY 가 있을 때만) — 합성 자리 · 가짜 서버 · 빈 환경의 Claude CLI |
 | `corpus/` · `canary_variants.py` · `leak_rate.py` · `test_corpus.py` | KIT-3 합성 말뭉치 40과제 (plan 15 · ui 15 · lib 10 · 카나리아 361) · 카나리아 변형 · 검사기 전후 새는 비율 · 시험 — 사내 절차와 G3 채점표는 `corpus/README.md` (T3) |
 | `run_opencode.py` | 진짜 opencode 로 일꾼 부품 · 셸 권한 시험 (가짜 로컬 모델 · 선택 · `--opencode <경로>`) |
