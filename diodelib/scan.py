@@ -36,6 +36,8 @@ MAX_INPUT_BYTES = 65536         # 들어온 brief JSON 바이트 상한 [제안]
 MAX_REPRO_LINES = 40            # D5a
 MAX_REPRO_NUMBERS = 20          # D5a — 작은 정수를 늘어놓아 수치를 옮기는 길을 좁힌다 [제안]
 MIN_WORD_KEY = 2                # D2 — N(w) 가 이보다 짧은 사전 단어는 쓰지 않는다
+RISKY_KEY_MAX = 3               # 오탐 경고 — N(w) 가 이 글자 수 이하면 짧은 단어 (한글 등) [제안]
+RISKY_KEY_MAX_ASCII = 4         # 같은 경고 — 열쇠가 ASCII 글자만이면 이 글자 수 이하 [제안]
 
 def e20():
     """막는 쪽 실패의 결과 (SP-05 · AL-03)."""
@@ -94,6 +96,27 @@ class _Words(object):
                 keys.append(k)
         self.keys = keys
         self.short = short
+
+
+def risky_counts(words):
+    """사전에서 평범한 말을 막을 수 있는 항목의 수 -> (짧은 단어 수, 겹침 수). 개수만 낸다 (AL-11).
+
+    짧은 단어: 열쇠 N(w) 가 RISKY_KEY_MAX (ASCII 뿐이면 RISKY_KEY_MAX_ASCII) 글자 이하 (쓰이는 항목만 - 한 글자는 이미 빠진다).
+    겹침: 짧지 않지만 같은 사전의 다른 항목 안에 부분 문자열로 든 항목. 같은 열쇠가 겹쳐 적힌 것은 하나로 센다.
+    """
+    keys = []
+    seen = set()
+    for w in words:
+        if not isinstance(w, str):
+            continue
+        k = dict_key(w)
+        if len(k) >= MIN_WORD_KEY and k not in seen:
+            seen.add(k)
+            keys.append(k)
+    short = [k for k in keys if len(k) <= (RISKY_KEY_MAX_ASCII if k.isascii() else RISKY_KEY_MAX)]
+    short_set = set(short)
+    overlap = sum(1 for k in keys if k not in short_set and any(k != o and k in o for o in keys))
+    return len(short), overlap
 
 
 def dict_hits(text, words_or_keys):

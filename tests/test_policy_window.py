@@ -1043,6 +1043,27 @@ class TestSave(Base):
                      "example.com", self.tmp):
             self.assertNotIn(leak, r.message)
 
+    def test_short_words_warn_with_a_count_and_do_not_block_the_save(self):
+        s = self.fresh(words="가나다\nKIT\n%s\n%s" % (WORD_A, WORD_B))
+        self.assertEqual(s.risky_count(), 2)
+        r = s.save()
+        self.assertTrue(r.ok, r.message)
+        lines = r.message.split("\n")
+        self.assertEqual(lines[-1], pw.TEXT_WARN_MARK + pw.TEXT_RISKY % 2)
+        self.assertIn("짧은 단어 2개", lines[-1])
+        self.assertIn("오탐", lines[-1])
+        for leak in ("가나다", "KIT\n", "KITWORD", "가람"):
+            self.assertNotIn(leak, r.message)
+        self.assertEqual(config.counts(self.home)["dictionary"], 4)         # 막지 않고 그대로 저장
+
+    def test_overlapping_words_count_and_long_words_do_not_warn(self):
+        s = self.fresh(words="가람소재공장\n다가람소재공장입니다")
+        self.assertEqual(s.risky_count(), 1)
+        s2 = self.fresh(words="%s\n%s" % (WORD_A, WORD_B))
+        self.assertEqual((s2.risky_count(), s2.risky_notice()), (0, ""))
+        r = s2.save()
+        self.assertNotIn("오탐", r.message)
+
     def test_a_save_without_changes_is_not_blocked_and_says_so(self):
         config.apply_state(self.home, self.state())
         before = self.read_files()

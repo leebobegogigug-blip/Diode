@@ -118,6 +118,20 @@ class Check(Base):
         lines, code = self.lines()
         self.assertEqual((code, lines[-1]), (0, "결과: OK"))
 
+    def test_short_words_line_has_count_and_no_word(self):
+        self.ready_policy(words=["가나다", "KITLONGWORDALPHA", "짧은말공장입니다", "KIT"])
+        lines, code = self.lines()
+        text = "\n".join(lines)
+        self.assertIn("사전 짧은 단어 2개 (오탐 위험)", lines)
+        self.assertEqual(lines[-1].startswith("결과:"), True)
+        for leak in ("가나다", "KITLONG", "짧은말"):
+            self.assertNotIn(leak, text)
+
+    def test_no_short_words_line_when_none(self):
+        self.ready_policy(words=["KITLONGWORDALPHA"])
+        lines, code = self.lines()
+        self.assertFalse(any("오탐" in l for l in lines))
+
     def test_worker_command_problems_are_shown(self):
         self.ready_policy(worker_command=["diode-no-such-exe-xyz", "{prompt}"])
         lines, code = self.lines()

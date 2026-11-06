@@ -41,7 +41,7 @@ import subprocess
 import threading
 import time
 
-from . import config, confirm
+from . import config, confirm, scan
 
 # ---------------------------------------------------------------- 상수
 
@@ -104,6 +104,7 @@ TEXT_EXAMPLE_DONE = "예시를 넣었습니다 - 자기 환경에 맞게 고치�
 TEXT_LINE_ADDED = "%s 에 한 줄 더했습니다"
 TEXT_LINE_DUP = "이미 있는 줄입니다"
 TEXT_WARN_MARK = "‼ "
+TEXT_RISKY = ("짧은 단어 %d개 - 평범한 말이 막힐 수 있습니다 (오탐). 별칭이나 더 긴 이름으로 바꾸는 것을 권합니다")
 
 # 경고 코드 (config.validate_state) -> 한국어 한 줄. 저장은 막지 않는다.
 WARN_TEXT = {
@@ -447,6 +448,15 @@ class PolicySession(object):
             hits.extend(hidden_hits_in(key, self._texts[key]))
         return hits
 
+    def risky_count(self):
+        """사전 칸의 짧은 단어 + 겹침 항목 수 (오탐 위험 - 개수만). 지금 칸의 글로 센다."""
+        return sum(scan.risky_counts(lines_of(self._texts["words"])))
+
+    def risky_notice(self):
+        """오탐 위험 알림 한 줄 (없으면 빈 글). 단어 · 값은 쓰지 않는다. 저장을 막지 않는다."""
+        n = self.risky_count()
+        return TEXT_WARN_MARK + TEXT_RISKY % n if n else ""
+
     def bad_lines(self, key):
         """key 칸에서 마지막 저장 시도가 틀렸다고 한 줄 번호 (1부터). 그 칸을 고치면 비운다."""
         return list(self._bad.get(key, ()))
@@ -686,6 +696,8 @@ class PolicySession(object):
         self.counts, self.warnings = counts, list(warn)
         lines = [TEXT_SAVED if changed else TEXT_UNCHANGED, summarize(counts)]
         lines += [TEXT_WARN_MARK + WARN_TEXT.get(code, code) for code in warn]
+        if self.risky_notice():
+            lines.append(self.risky_notice())
         self._message, self._level = "\n".join(lines), "ok"
         self._last_save = Saved(True, changed, counts, list(warn), "", "", self._message)
         return self._last_save
