@@ -10,6 +10,7 @@
   out       보낸 펼친 글 그대로 (text) · sha256 · 크기 — decision 이 sent 면 text 가 꼭 있다
   in        Claude 의 답 — text 를 남기지 않는다 (해시 · 크기 · 검사 결과만)
   dispatch  넘기기 (안쪽으로) — text 에 되돌리기 전의 지시 (토큰 꼴)
+  derive    파생 표본을 만든 기록 (derive_record) — 변환 종류별 열 수 · 행 수뿐 (값 · 열 이름 · 토큰 없음)
 
 남기지 않는 것: 가명 표 · 원자료 · 사전 단어. 그것을 받을 인자 자체가 없다 (W-05).
 checks 는 SP-05 꼴의 칸 (검사 번호 · 개수 · 자리 · 판정 · 닫힌 까닭 번호) 만 받는다 (AL-11).
@@ -153,7 +154,7 @@ def build(job, direction, kind, transport, decision, text=None, sha256=None, siz
 
 def _link_new(tmp, data, d, job, direction):
     """임시 파일을 다음 빈 순번의 이름에 링크한다 (있으면 다음 번호). 쓴 자리를 돌려준다."""
-    pat = re.compile(r"^" + re.escape(job) + r"-([0-9]+)-(?:out|in|dispatch)\.json\Z")
+    pat = re.compile(r"^" + re.escape(job) + r"-([0-9]+)-(?:out|in|dispatch|derive)\.json\Z")
     used = [int(m.group(1)) for m in (pat.match(fn) for fn in os.listdir(d)) if m]
     seq = (max(used) + 1) if used else 1
     while seq <= MAX_SEQ:
@@ -211,6 +212,44 @@ def record(home, job, direction, kind, transport, decision, text=None, sha256=No
     rec = build(job, direction, kind, transport, decision, text=text, sha256=sha256, size=size,
                 checks=checks, model=model, effort=effort, now=now)
     return write(home, rec)
+
+
+# 파생 표본 (L2) 의 만든 기록 - 변환 종류별 열 수 · 열 수 · 행 수뿐이다 (값 · 열 이름 · 토큰이 없다 · 모자이크 누계 L-05)
+DERIVE_TRANSFORMS = ("bucket", "rank", "category")
+
+
+def derive_record(home, job, transforms, rows, now=None):
+    """파생 표본을 만들었다는 기록 한 건 -> 쓴 자리. transforms 는 {변환 종류: 열 수}. 꼴이 틀리거나 못 쓰면 예외 (만들지 않는다).
+
+    파일 이름은 `<job>-<순번>-derive.json` - 보낸 것 (out) 이 아니라서 확정 목록 · job 상태에는 끼지 않는다.
+    """
+    if not isinstance(job, str) or not JOB_RE.match(job):
+        raise AuditError("job 꼴")
+    if not isinstance(transforms, dict) or set(transforms) - set(DERIVE_TRANSFORMS):
+        raise AuditError("transforms 꼴")
+    clean = {}
+    for k in DERIVE_TRANSFORMS:
+        v = transforms.get(k, 0)
+        if isinstance(v, bool) or not isinstance(v, int) or not 0 <= v <= 8:
+            raise AuditError("transforms 꼴")
+        clean[k] = v
+    if isinstance(rows, bool) or not isinstance(rows, int) or not 0 < rows <= 50:
+        raise AuditError("rows 꼴")
+    at = now or _now()
+    rec = {"format": FORMAT, "at": at.isoformat(), "job": job, "direction": "derive", "kind": "derive",
+           "transforms": clean, "columns": sum(clean.values()), "rows": rows}
+    return write(home, rec)
+
+
+def derived_rows(home, job):
+    """그 job 의 파생 표본 누계 행 수 (모자이크 상한 L-05). 읽지 못한 기록은 건너뛴다 (읽기만 한다)."""
+    total = 0
+    for _, rec in _records(home, ("-derive.json",)):
+        if rec.get("format") == FORMAT and rec.get("direction") == "derive" and rec.get("job") == job:
+            r = rec.get("rows")
+            if isinstance(r, int) and not isinstance(r, bool) and r > 0:
+                total += r
+    return total
 
 
 def sink(home, transport="room", kind="report"):

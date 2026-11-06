@@ -157,6 +157,7 @@ def _state_from(cfg, words):
         "patterns": list(pol.get("patterns") or []),
         "web_search": pol.get("web_search", True) is not False,
         "real_data": pol.get("real_data") is True,
+        "derived_level": 1 if (type(pol.get("derived_level")) is int and pol.get("derived_level") == 1) else 0,
         "worker_command": list(wk["command"]) if isinstance(wk.get("command"), list) else None,
         "worker_cwd": wk.get("cwd") if isinstance(wk.get("cwd"), str) else None,
         "monthly_budget_usd": cl.get("monthly_budget_usd", 0) if isinstance(cl.get("monthly_budget_usd", 0), (int, float))
@@ -249,6 +250,10 @@ def validate_state(state):
     if isinstance(budget, bool) or not isinstance(budget, (int, float)) or not (0 <= budget <= 100000):
         raise ConfigError("budget")
 
+    dl = state.get("derived_level", 0)         # 파생 표본 (L2) - 0 꺼짐 · 1 켜짐 · 창에서만 (derive.py 는 읽기만 한다)
+    if type(dl) is not int or dl not in (0, 1):
+        raise ConfigError("flags")
+
     cmd = state.get("worker_command")
     cwd = state.get("worker_cwd")
     if cmd is not None:
@@ -277,7 +282,7 @@ def validate_state(state):
             raise ConfigError("llm")
 
     clean = {"words": words, "raw_dirs": raw_dirs, "inner_tools": inner, "lib_allow": lib, "patterns": patterns,
-             "web_search": ws, "real_data": rd, "monthly_budget_usd": budget, "worker_command": cmd, "worker_cwd": cwd,
+             "web_search": ws, "real_data": rd, "derived_level": dl, "monthly_budget_usd": budget, "worker_command": cmd, "worker_cwd": cwd,
              "room_path": room_path.strip() if room_path else None, "llm": llm}
     return clean, sorted(set(warn))
 
@@ -303,7 +308,8 @@ def apply_state(home, state):
     cfg["format"] = FORMAT
     pol = dict(_sub(cfg, "policy"))
     pol.update({"raw_dirs": clean["raw_dirs"], "inner_tools": clean["inner_tools"], "lib_allow": clean["lib_allow"],
-                "patterns": clean["patterns"], "web_search": clean["web_search"], "real_data": clean["real_data"]})
+                "patterns": clean["patterns"], "web_search": clean["web_search"], "real_data": clean["real_data"],
+                "derived_level": clean["derived_level"]})
     cfg["policy"] = pol
     cl = dict(_sub(cfg, "claude"))
     cl["monthly_budget_usd"] = clean["monthly_budget_usd"]
@@ -349,7 +355,7 @@ def counts(home):
         return {"error": "read"}
     return {"dictionary": len(st["words"]), "raw_dirs": len(st["raw_dirs"]), "inner_tools": len(st["inner_tools"]),
             "lib_allow": len(st["lib_allow"]), "patterns": len(st["patterns"]), "web_search": st["web_search"],
-            "real_data": st["real_data"], "worker": st["worker_command"] is not None, "llm": st["llm"] is not None,
+            "real_data": st["real_data"], "derived_level": st["derived_level"] == 1, "worker": st["worker_command"] is not None, "llm": st["llm"] is not None,
             "room_path": st["room_path"] is not None}
 
 

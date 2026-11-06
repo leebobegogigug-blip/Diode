@@ -136,8 +136,8 @@ class FakeView(object):
 
 def _blank_state_keys():
     """창이 config 에 넘기는 상태의 칸 (config.validate_state 가 읽는 칸 전부)."""
-    return ["words", "raw_dirs", "inner_tools", "lib_allow", "patterns", "web_search", "real_data", "monthly_budget_usd",
-            "worker_command", "worker_cwd", "room_path", "llm"]
+    return ["words", "raw_dirs", "inner_tools", "lib_allow", "patterns", "web_search", "real_data", "derived_level",
+            "monthly_budget_usd", "worker_command", "worker_cwd", "room_path", "llm"]
 
 
 # ─────────────────────────────────────────────────────────────── 글 <-> 값
@@ -1295,7 +1295,7 @@ class TestMain(Base):
         for key, value in counts.items():
             self.assertTrue(isinstance(value, bool) or (isinstance(value, int) and value >= 0), key)
         self.assertEqual(set(counts), {"dictionary", "raw_dirs", "inner_tools", "lib_allow", "patterns", "web_search",
-                                       "real_data", "worker", "llm", "room_path"})
+                                       "real_data", "derived_level", "worker", "llm", "room_path"})
 
     def test_a_warning_goes_out_as_its_code(self):
         steps = [("text", k, v) for k, v in self.texts(raw_dirs=os.path.join(self.tmp, "없는폴더")).items()]

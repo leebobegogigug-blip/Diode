@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """diode - Claude Code 플러그인 Diode 의 진입점 (표준 라이브러리만 · Python 3.8+)
 
-  diode.py version | help | check | scan | lib names <이름> | hook <session|prompt|tool>
+  diode.py version | help | check | scan | lib names <이름> | derive <csv> --out <초안> | hook <session|prompt|tool>
 
 개발 중 (v0.0) — 훅 · 허브 · 확정 창 · 정책 창 · 명령까지 있다. 합성 자료로만 시험했다 (사내 확인 전 · docs/PLAN.md › 10 로드맵).
 아직 없는 명령은 PENDING 에 적는다 - 부르면 종료 코드 2 로 끝난다 (지금은 없다).
@@ -57,6 +57,8 @@ HELP = """%s %s — Claude Code 플러그인 (개발 중 · v0.0 · 합성 자�
   lib names <이름>                허용 라이브러리의 공개 이름 목록 만들기 (허용 목록에 있는 이름만 · 0 OK · 1 설치 안 됨 등 · 2 허용 목록 밖)
   speak [--detached]              말 봉인 창 (사내 말을 토큰 글로 바꿔 보이고 사람이 확인해 복사 · 답은 창에서만 되돌림 · 0 닫음 · 1 창 없음 · 3 사전을 못 읽음)
                                   --detached 는 창을 따로 떼어 열고 바로 돌아온다 (/diode:speak)
+  derive <csv> --out <초안 json>  파생 표본 초안 만들기 (사람이 안쪽 터미널에서 직접 · 정책 창에서 켠 뒤에만 · 열과 변환은 터미널에서 직접 고름 ·
+                                  출력은 개수 · 코드뿐 · 0 만듦 · 2 한도 · 꼴 · 검사에 걸림 · 3 꺼짐 또는 터미널 아님)
 
 %s종료 코드  0 OK · 1 점검 실패 · 2 사용법 오류 · 3 사람 확인 필요
 설계는 docs/PLAN.md · 계약은 docs/SPEC.md (SP-16) 에 있습니다.
@@ -104,6 +106,9 @@ def build_parser():
     sk = sub.add_parser("speak", add_help=False)
     sk.add_argument("--detached", action="store_true")      # 슬래시 명령용: 창을 따로 떼어 열고 기다리지 않는다
     sub.add_parser("lib", add_help=False).add_argument("rest", nargs=argparse.REMAINDER)
+    dv = sub.add_parser("derive", add_help=False)
+    dv.add_argument("csv")
+    dv.add_argument("--out", required=True)
     for name, _ in PENDING:
         sub.add_parser(name, add_help=False).add_argument("rest", nargs=argparse.REMAINDER)
     return p
@@ -294,6 +299,9 @@ def run(args, out, err, inp=None):
         return setup_command(args.command, args, out, err)
     if args.command == "speak":
         return speak_command(args, out, err)
+    if args.command == "derive":
+        from diodelib import derive
+        return derive.run_command(args.csv, args.out, data_dir(), inp, out, err)
     if args.command == "mcp":
         from diodelib import hub
         return hub.main(stdin=inp if inp is not None else None, stdout=out if out is not sys.stdout else None)

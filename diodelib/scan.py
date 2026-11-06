@@ -28,7 +28,7 @@ import unicodedata
 from collections import OrderedDict
 
 from . import briefschema
-from .render import render
+from .render import SAMPLE_HEAD, SAMPLE_OTHER, render, sample_lines
 from .textnorm import (allowed_code_char, allowed_text_char, dict_key, prepare, skeleton)
 
 MAX_RENDERED_BYTES = 8192       # 펼친 글 상한 [제안] (SP-02)
@@ -639,6 +639,22 @@ def _token_slots(brief):
             for i, e in enumerate(v):
                 if isinstance(e, dict) and isinstance(e.get("token"), str):
                     out.append(("%s[%d].token" % (key, i), e["token"]))
+    return out + _sample_slots(brief)
+
+
+def _sample_slots(brief):
+    """파생 표본 (sample) 의 토큰 칸 [(자리, 토큰)] - 열 이름 토큰 · 범주 칸의 토큰 (PH_other 는 토큰이 아니라 묶음 표지)."""
+    out = []
+    sample = brief.get("sample")
+    if isinstance(sample, dict):
+        for i, c in enumerate(sample.get("columns") or []):
+            if isinstance(c, dict) and isinstance(c.get("token"), str):
+                out.append(("sample.columns[%d].token" % i, c["token"]))
+        for r, row in enumerate(sample.get("rows") or []):
+            if isinstance(row, list):
+                for j, cell in enumerate(row):
+                    if isinstance(cell, str) and cell != SAMPLE_OTHER:
+                        out.append(("sample.rows[%d][%d]" % (r, j), cell))
     return out
 
 
@@ -679,6 +695,61 @@ def _schema():
     if "s" not in _SCHEMA:
         _SCHEMA["s"] = briefschema.load_schema(briefschema.default_schema_path())
     return _SCHEMA["s"]
+
+
+# 파생 표본 (sample · SP-02 · SP-05) - 펼친 글의 표를 닫힌 틀로 다시 읽는다. 칸은 한 자리 정수 · 토큰 · PH_other 뿐이다.
+_S_TOKEN = r"PH_[2-9A-HJKMNP-TV-Z]{4}"
+_S_CELL = r"(?:[0-9]|%s|%s)" % (_S_TOKEN, SAMPLE_OTHER)
+_S_HEAD_RE = re.compile(r"\A\| %s \((?:수치|범주)\)(?: \| %s \((?:수치|범주)\))* \|\Z" % (_S_TOKEN, _S_TOKEN))
+_S_SEP_RE = re.compile(r"\A\|(?:---\|)+\Z")
+_S_ROW_RE = re.compile(r"\A\| %s(?: \| %s)* \|\Z" % (_S_CELL, _S_CELL))
+_S_KIND_RE = re.compile(r"\((?:수치|범주)\)")
+_S_FRAME_RE = re.compile(r"[|\-]")
+
+
+def _check_sample(brief, policy, hits):
+    """sample 이 있으면: D1 (칸 수 · 칸 종류 · 열 중복 · 펼친 표가 닫힌 틀) → 틀을 벗긴 표에 D2 · D3 · D5 를 다시.
+
+    D4 의 숫자 칸 예외다 - 셀의 값 범위 (정수 0-9) 는 스키마가, 틀은 여기 D1 이 강제한다.
+    """
+    sample = brief.get("sample")
+    if sample is None:
+        return
+    cols, rows = sample["columns"], sample["rows"]
+    seen = set()
+    for i, c in enumerate(cols):
+        if c["token"] in seen:
+            hits.add("D1", "sample.columns[%d]" % i)
+        seen.add(c["token"])
+    for r, row in enumerate(rows):
+        if len(row) != len(cols):
+            hits.add("D1", "sample.rows[%d]" % r)
+            continue
+        for j, cell in enumerate(row):
+            if _is_int_cell(cell) != (cols[j]["kind"] == "수치"):
+                hits.add("D1", "sample.rows[%d][%d]" % (r, j))
+    lines = sample_lines(sample)
+    if ("\n".join(lines) + "\n") not in render(brief):
+        hits.add("D1", "sample")
+        return
+    bad = lines[0] != SAMPLE_HEAD or not _S_HEAD_RE.match(lines[1]) or not _S_SEP_RE.match(lines[2]) \
+        or lines[2].count("---") != len(cols)
+    hits.add("D1", "sample", 1 if bad else 0)
+    for r, line in enumerate(lines[3:]):
+        if not _S_ROW_RE.match(line):
+            hits.add("D1", "sample.rows[%d]" % r)
+    stripped = []
+    for line in lines[1:]:
+        t = _S_KIND_RE.sub(" ", line)
+        t = remove_tokens(t, " ").replace(SAMPLE_OTHER, " ")
+        stripped.append(_S_FRAME_RE.sub(" ", t))
+    res = _check_text("\n".join(stripped), policy, ("D2", "D3", "D5"))
+    for h in res.get("hits", []):
+        hits.add(h["check"], "sample", h.get("count", 1))
+
+
+def _is_int_cell(cell):
+    return isinstance(cell, int) and not isinstance(cell, bool)
 
 
 def check_brief(brief, policy):
@@ -733,6 +804,9 @@ def _check_brief(brief, policy):
     # D1 — 펼친 글 크기
     if len(render(brief).encode("utf-8")) > MAX_RENDERED_BYTES:
         hits.add("D1", "(size)")
+
+    # D1 — 파생 표본 (sample)
+    _check_sample(brief, policy, hits)
 
     # D6 — 토큰
     for where, tok in _token_slots(brief):

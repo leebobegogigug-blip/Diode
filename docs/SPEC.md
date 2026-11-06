@@ -40,14 +40,15 @@
 
 | kind | 칸 (상한) |
 |---|---|
-| `plan` · `ui` | `goal` (300자) · `context[]` (10개 · 200자) · `entities[]` (30개) · `fields[]` (50개) · `constraints[]` (10개 · 120자) · `ask` (200자) |
+| `plan` · `ui` | `goal` (300자) · `context[]` (10개 · 200자) · `entities[]` (30개) · `fields[]` (50개) · `sample` (파생 표본 · 하나 · 아래) · `constraints[]` (10개 · 120자) · `ask` (200자) |
 | `lib` | `library {name, version}` (name 은 `policy.lib_allow` 에 있어야 · D1) · `language` (`python` 만 · v1) · `goal` (300자) · `repro` (4000자 · 40줄 · SP-05 D5a) · `error {type, message}` (있을 때만 · `type` 은 예외 이름 꼴 · `message` 200자) · `ask` (200자) |
 | `report` | `job` · `status` (`done` · `blocked` · `question`) · `counts {changed_files, tests_passed, tests_failed, tests_skipped}` (0–9999) · `summary[]` (1–10개 · 200자) · `entities[]` · `questions[]` (5개 · 200자) |
 
 - `entities[]`: `{token, type, note}` — `type` 은 `화면` · `항목` · `단계` · `표` · `역할` · `파일` 중 하나 · `note` 120자.
 - `fields[]`: `{token, kind, unit, count}` — `kind` 는 `숫자` · `글` · `날짜` · `범주` · `참거짓` · `unit` 은 `있음` · `없음` · `count` 는 0–99 (범주의 값 개수).
+- `sample` (L2 파생 표본 · `plan` · `ui` 만 · 같은 format 1 — 칸을 더하는 것은 뜻을 바꾸지 않는다): `{columns[], rows[][]}`. `columns[]` 는 1–8개 `{token, kind}` (`token` 은 가명 토큰 · `kind` 는 `수치` · `범주`) · `rows[]` 는 10–50행 · 각 행은 열 수와 같은 칸의 목록. **칸 (셀) 은 한 자리 정수 0–9 · 가명 토큰 · `PH_other` (묶음 표지) 뿐이다** — `수치` 열은 정수, `범주` 열은 토큰 또는 `PH_other`. 실값 · 열 이름 · 경계값 · 정확한 수는 어떤 꼴로도 없다. 자문 (brief) 하나에 `sample` 은 하나. 만드는 법은 [SP-18](#sp-18-파생-표본-l2) 이다.
 - **자유 글 칸**: `goal` · `context[]` · `constraints[]` · `ask` · `note` · `summary[]` · `questions[]` · `error.message`. D2–D5 가 이 칸들을 본다.
-- **숫자 칸** (D4 의 예외): `counts.*` · `fields[].count` · `library.version` · `job`. 나머지 칸에는 숫자를 쓰지 않는다.
+- **숫자 칸** (D4 의 예외): `counts.*` · `fields[].count` · `library.version` · `job` · `sample` 의 셀 (한 자리 정수 · **셀 값의 범위는 D1 이 강제한다**). 나머지 칸에는 숫자를 쓰지 않는다.
 - **크기**: 펼친 글 (SP-03) 이 UTF-8 로 8 KiB 이하 [제안].
 
 ### SP-02a 초안 (안쪽이 쓰는 꼴)
@@ -94,6 +95,16 @@ ASK: <ask>
 [/diode brief]
 ```
 
+- `sample` 이 있으면 `FIELDS` 다음 · `CONSTRAINTS` 앞에 닫힌 틀로 들어간다 (마크다운 표 · 열 이름은 토큰 · 칸은 위 값뿐):
+
+```text
+SAMPLE: coarse cells (bucket or rank class, not values; PH_other = pooled rare group)
+| PH_M3X9 (수치) | PH_T4W5 (범주) |
+|---|---|
+| 3 | PH_K7Q2 |
+| 0 | PH_other |
+```
+
 - `kind: "report"` 의 머리는 `[diode report format=1 job=J-0007 status=done]`, 몸통은 `COUNTS: changed_files=3 tests_passed=12 tests_failed=0` · `SUMMARY:` · `QUESTIONS:`.
 - `route` 칸은 펼치지 않는다. 확정 창이 따로 보인다 (모델 · effort).
 
@@ -128,6 +139,8 @@ ASK: <ask>
 | D7 | 사내 LLM 판정 | 펼친 글만 사내 LLM 에 보낸다 (부록 A 의 고정 프롬프트 · SPEC-llm 의 `llm` 설정 · 환경 변수 덮어쓰기 없음 · `{env:}` 참조 없음 · 프록시는 설정에 적은 것만 · 리다이렉트를 따르지 않음 · 시간 상한 60초). 답은 정확히 `{"verdict": "pass" \| "block", "reason": "<code>"}` · `pass` 인데 reason 이 `none` 이 아니면 막음 · 그 밖의 답 · 오류 · 시간 넘김 → 막음 · 펼친 글에 `[글]` `[/글]` 이 있으면 묻지 않고 막음. 결과 꼴 `{"check": "D7", "verdict", "reason"}` (막은 까닭 번호 `unset` `config` `timeout` `error` `answer` 더함). 판정 글은 Claude 로 가지 않는다. 코드: [diodelib/judge.py](../diodelib/judge.py) | 판정 모델이 꺼짐 · 답이 JSON 이 아님 |
 | D8 | 사람 | 확정 창 (SP-09) 에서 보낼 바이트 그대로를 보고 [보내기]. 10분 동안 손대지 않으면 버림 [제안] · 건너뛰는 옵션 · 환경 변수 · 설정 없음 (AL-02) · 창을 못 띄우면 보내지 않음 | 창이 없는 환경 · 시간 초과 |
 
+- **파생 표본 (`sample`) 의 검사** (D1 · D6 · D2 · D3 · D5): ① D1 — 스키마 (셀은 정수 0–9 또는 `PH_` 토큰 또는 `PH_other` · 소수 · 두 자리 이상 수 · 공백이 든 글 · 전각 숫자는 모두 걸린다) · 행의 칸 수 = 열 수 · `수치` 열은 정수 · `범주` 열은 문자열 · 열 토큰이 겹치지 않음. ② 펼친 글의 표를 **다시 읽는다** — 머리 줄 · 표 머리 · 구분줄 · 행이 닫힌 틀 정규식과 한 글자도 다르지 않아야 한다 (`check_brief` 는 원래 자유 글 칸을 조각으로 검사하고 펼친 글은 크기만 보므로, `sample` 은 펼친 표를 따로 본다). ③ 틀 (`|` · `-` · 종류 글 · 토큰 · `PH_other`) 을 벗긴 표에 D2 · D3 · D5 를 다시 돌린다 — 사전에 실값이 있으면 한 행의 칸을 이어 붙인 수도 D2 가 본다. ④ D6 — 열 토큰과 범주 칸의 토큰은 모두 가명 표에 있다 (`PH_other` 는 토큰이 아니라 묶음 표지). D4 는 셀을 숫자 칸 예외로 두고, 대신 D1 이 범위를 강제한다. D7 · D8 은 펼친 글 전체에 그대로 돈다.
+- **파생 표본의 정보 상한과 한계** (솔직히): 한 칸은 수치 `bucket` 이 log2(5) ≈ 2.3 bit · `rank` 가 log2(10) ≈ 3.3 bit · 범주는 많아야 log2(묶음 수 + 1) (k = 5 · 행 50 이면 값이 열 개 안팎 · 약 3.5 bit) 이다. 열 8 × 행 50 이면 **최대 약 1,300 bit** (행 순서는 지워서 더 적다). 이 용량이 곧 새는 정보의 상한이고, 그 정보가 **재식별에 쓰일 수 있는지는 증명할 수 없다** (공개 보조 자료와의 대조 · 이상치 · 준식별자 조합). 시험이 보이는 것은 실값 · 열 이름 · 경계값의 **글자가** 나가지 않는다는 것뿐이다. 합격선은 보안 부서가 정한다 ([제안 문서](PROPOSAL-derived.md) › 4-7 · 재식별 공격 시뮬레이션은 아직 없다).
 - **알려진 한계**: 한글 수사 (`삼백오십`) · 풀어 쓴 수치 · 로마 숫자는 D4 가 못 잡는다 — D7 과 사람의 몫이다. 사전에 없는 새 단어 · 세 칸 넘게 차례 없이 흩어 놓은 단어 · 작은 정수 여러 개로 옮긴 수치 · `PascalCase` 이름도 같다.
 - **시간 제한**: 검사기 안에서는 걸지 않는다 (Python `re` 는 중간에 멈출 수 없다). 부르는 쪽이 건다 — 훅은 `timeout` + `onFailure: "block"`, 허브는 하위 프로세스 시간 제한. 넘기면 막는다.
 - **코드**: [diodelib/scan.py](../diodelib/scan.py) · 형식 판정은 표준 라이브러리 부분집합 판정기 [diodelib/briefschema.py](../diodelib/briefschema.py) (모르는 키워드가 스키마에 있으면 막음).
@@ -208,6 +221,8 @@ ASK: <ask>
 | E-06 | 모르는 job | 그런 일이 없습니다 |
 | E-07 | 창을 띄울 수 없음 | 확정 창을 띄울 수 없어 보내지 않았습니다 |
 | E-08 | 일일 상한 · 월 한도 넘음 | 오늘 · 이번 달 한도를 넘었습니다 |
+| E-30 | 파생 표본이 꺼져 있음 (`policy.derived_level` 0 · 실데이터 승인 없음 · 기본 자리가 아님 · 표준 입력이 터미널이 아님) | 파생 표본이 꺼져 있습니다 |
+| E-31 | 파생 표본의 한도 (열 · 행 · k × 2 미만의 작은 표 · 주제 누계 200행 · k 범위) | 파생 표본의 한도를 넘었습니다 |
 | E-20 | 검사 · 내부 오류 (막는 쪽으로 실패) | 검사 중 오류로 보내지 않았습니다 |
 
 ## SP-09 확정 창 · 보고 내기 (propose)
@@ -303,6 +318,7 @@ ASK: <ask>
 - `direction: "in"` (Claude 의 답) 은 `text` 를 남기지 않는다 — 해시 · 크기 · U1–U4 결과만 [제안].
 - `sent` 인 `out` · `dispatch` 는 `text` 가 있어야 하고, `sha256` · `bytes` 가 그 글과 다르면 쓰지 않는다.
 - 넘기기 (안쪽으로) 는 `direction: "dispatch"` · `kind: "instruction"` · `transport: "worker"` · `text` 에 되돌리기 전의 지시 (토큰 꼴) 를 남기고, `sha256` 도 그 글의 것이다 (진짜 단어가 든 되돌린 글의 해시는 남기지 않는다 · AL-05).
+- 파생 표본을 만들면 `<job>-<순번>-derive.json` 을 남긴다 (`derive_record`): `{"format": 1, "at", "job", "direction": "derive", "kind": "derive", "transforms": {"bucket": n, "rank": n, "category": n}, "columns": n, "rows": n}` — 변환 종류별 열 수 · 열 수 · 행 수뿐이다 (값 · 열 이름 · 토큰 없음). 보낸 것 (`out`) 이 아니라서 확정 목록 · job 상태에 끼지 않는다. 같은 job 의 `rows` 합이 주제별 누계 (L-05) 다.
 - 가명 표 · 원자료 · 사전 단어는 어디에도 남기지 않는다. `decision` 은 `sent` · `discarded` · `blocked` · `timeout`.
 
 ## SP-15 설정 (format 1)
@@ -321,6 +337,7 @@ ASK: <ask>
 | `worker.url` | `http://127.0.0.1:4096` | [예정 · v0.2] 서버로 쓰는 일꾼 (127.0.0.1 만) · 지금은 읽지 않는다 |
 | `room.path` | `D:\claude\room` | |
 | `policy.real_data` | `false` | 창에서만 바꾼다 (AL-10) |
+| `policy.derived_level` | `0` | 파생 표본 (L2 · SP-18) · `1` 로 올리는 곳은 정책 창뿐 — 실데이터 칸이 켜져 있고 확인 글 `보안 승인 받음` 이 있어야 켜진다 · **`policy.real_data` 가 참이 아니면 값이 1 이어도 0 으로 읽는다** · 실데이터를 끄면 창이 같이 끈다 · 환경 변수 · 명령줄 · `--set` · 시험용 우회 없음 (AL-12 · AL-10 과 같다) |
 | `policy.lib_allow` | `[]` | 창에서만 |
 | `policy.raw_dirs` | `[]` | 창에서만 · 비면 seal 을 막는다 (AL-12) |
 | `policy.patterns` | `[]` | D3 에 더할 정규식 · 창에서만 |
@@ -335,6 +352,7 @@ ASK: <ask>
 - **칸 ↔ 글**: 여러 줄 칸은 한 줄에 하나 (`#` 로 시작해도 단어다 — 주석이 아니다) · 일꾼 명령은 한 줄 JSON 목록 · `llm` 은 JSON 객체. 틀리면 칸 이름과 줄 번호만 알리고 아무것도 쓰지 않는다 (틀린 값은 쓰지 않는다).
 - **보이지 않는 글자** (제어 · 서식 · 영폭 공백 · 변이 선택자) 는 모든 글 칸에서 `[U+XXXX]` 로 알리고 막는다 (확정 창과 같은 판정).
 - **실데이터**: 새로 켜려면 확인 글 칸에 정확히 `보안 승인 받음` 을 쳐야 한다 (끄는 데는 필요 없다).
+- **파생 표본 (L2)**: 선택 구역의 켜짐 칸. 새로 켜려면 실데이터 칸이 켜져 있어야 하고 같은 확인 글 칸에 `보안 승인 받음` 이 있어야 한다 (끄는 데는 필요 없다 · 실데이터를 끄면 같이 꺼진다). 켜는 코드는 `PolicySession.toggle_derived_level` 하나이고 쓰는 길은 `config.apply_state` 하나다 (시험이 AST 로 본다).
 - **저장된 `llm` 키 · 헤더 값은 화면에 가려서** `설정됨 (n자 · 값은 표시 안 함)` 으로만 보이고 저장해도 그대로 남는다. 새로 글자 그대로 적은 키는 막고 `{file:경로}` 참조만 받는다 (`{env:}` 는 받지 않는다). 칸을 비우면 지우는 것이 아니라 그대로 둔다.
 - **깨진 파일**: 사전 · 설정을 따로 읽는다 (`config.load_state_tolerant`) — 한쪽만 깨졌으면 멀쩡한 쪽의 값은 살려서 열고, 저장하면 깨진 파일은 `.broken` 으로 옮긴다. 더 새 format 이면 열지 않는다 (`E-20` · `newer`).
 - **결과** (표준 출력 한 줄 · 코드 · 개수 · 참거짓뿐): `{"saved": true, "counts": {…}, "warnings": [<코드>]}` 종료 `0` · `{"saved": false}` `3` (저장 없이 닫음) · `{"saved": false, "error": "E-07"}` `1` (화면 · tkinter 없음) · `{"saved": false, "error": "E-20", "code": "newer"}` · `{"saved": false, "error": "E-20"}` `1`. 경고 코드: `short` `raw_missing` `words_empty` `raw_empty`.
@@ -358,6 +376,7 @@ ASK: <ask>
 | `diode.py confirm <요청 파일>` | 허브 (창 프로세스) |
 | `diode.py scan` | 사람 · 시험 (표준 입력의 글을 D2 · D3 · D5 로 · 표준 출력에 SP-05 꼴의 JSON 한 줄 · 종료 코드 `0` 통과 · `2` 막음 — 훅과 같은 뜻 · 사전이 없거나 비면 `2`) |
 | `diode.py lib names <이름>` | 사람 (안쪽 PC 의 터미널에서 직접 · SP-05 의 공개 이름 목록 · `policy.lib_allow` 에 있는 이름만 · 별도 프로세스에서 불러 `libnames\<이름>.json` 에 씀 · 출력은 개수 · 코드뿐 · 종료 코드 `0` OK · `1` 점검 실패 (설치 안 됨 · 시간 · 출력 · 쓰기) · `2` 허용 목록 밖 · 이름 꼴 오류) |
+| `diode.py derive <csv> --out <초안 json>` | 사람 (**안쪽 PC 의 터미널에서 직접** · Claude 가 부르는 길이 아니다 · SP-18) — 표준 입력이 터미널이 아니거나 데이터 폴더가 기본 자리가 아니거나 `policy.derived_level` 이 꺼져 있으면 `E-30` · 종료 `3`. 출력은 JSON 한 줄 `{"derived": true, "columns": n, "rows": n, "transforms": {…}}` (개수뿐 · 열 이름 · 값 · 경로 없음) · 종료 코드 `0` 만듦 · `2` 한도 (`E-31`) · 꼴 (`E-04`) · 봉인 미리 보기에 걸림 (`{"derived": false, "hits": […]}`) · `1` 그 밖의 예외 (`E-20`) |
 | `diode.py setup [--check] [--report]` | `/diode:setup` · `/diode:status` — 점검하고 (`--check` 는 읽기만) 정책이 비면 정책 창을 열고 방이 없으면 만든다 · 출력은 개수 · 참거짓뿐 · `--report` 는 종료 코드를 늘 0 (슬래시 명령의 `!` 는 0 이 아니면 명령을 실패로 본다) |
 | `diode.py room [--path <폴더>] [--report]` | `/diode:room` — 방 만들기 (SP-10) |
 | `diode.py dict` | `/diode:dict` — 정책 창을 따로 떼어 연다 (기다리지 않는다) · 사전 · 원자료 폴더 · 안쪽 도구 · 일꾼은 창에서 사람이 입력한다 |
@@ -380,6 +399,21 @@ ASK: <ask>
 | U2 | 답에 사전 단어 (변형 포함) | 사전 밖 낱말 |
 | U3 | 바깥 주소 아홉 꼴 | 상대 경로 |
 | 카나리아 | 합성 말뭉치 (T3) 1,000 시나리오에서 바깥 바이트에 카나리아 0 (G1) | |
+
+## SP-18 파생 표본 (L2)
+
+> 구현했다. 기본은 꺼짐이고 켜는 곳은 정책 창뿐이다 (SP-15 `policy.derived_level`). **재식별은 증명할 수 없다** — 정보 상한은 SP-05 의 `sample` 항목, 합격선은 보안 부서가 정한다. 제안의 까닭은 [PROPOSAL-derived.md](PROPOSAL-derived.md).
+
+- **명령**: `python diode.py derive <csv 경로> --out <초안 json 경로>` (SP-16). 코드: [diodelib/derive.py](../diodelib/derive.py). 사람이 안쪽 터미널에서 직접 돌린다 — 표준 입력이 터미널이 아니면 (파이프 · Claude 의 Bash) 돌지 않는다 (벽은 아니다 · L-11). 결과는 초안 파일 하나 (plan · `data_class: real` · `sample` 포함 · 고정 `goal` · `ask`) 와 개수뿐인 한 줄이다.
+- **변환은 셋뿐이고 결정적 코드가 한다** (사내 LLM 은 값을 보지 않는다):
+  - `bucket` — 수치 열 → 사람이 고른 분위수 수준 (기본 0.2 · 0.4 · 0.6 · 0.8 · 각 0.1–0.9 · 간격 0.1 이상) 으로 0–4. 경계 = 정렬한 값의 [floor(q × n)] 번째 (분수로 셈) · 칸 = 그 값 이상인 경계의 개수. 경계값은 나가지 않는다.
+  - `rank` — 수치 열 → 순위 백분위 (x 보다 작은 수 + 같은 수 / 2) / n 을 0–9 로. 동률은 같은 칸 · 무작위 동점 깨기 없음 · 정수 셈.
+  - `category` — 범주 열 → 이 자문의 `PseudonymTable` 토큰 (AL-05 · 메모리에만). 행이 k 미만인 값은 모두 `PH_other` 하나로 묶고 (묶인 값에는 토큰을 만들지 않는다), 묶음이 k 미만이면 가장 작은 값을 하나씩 더 묶는다. k 는 사람이 정한다 (기본 10 · 5–25).
+- **나가는 것**: 열 이름은 토큰 · 종류 (`수치` · `범주`) 뿐 · 고르지 않은 열은 나가지 않는다 (기본 전부 거부). 출력 행은 칸 값으로 정렬한다 — 원래 표의 행 순서가 새지 않게. 토큰은 실행마다 새로 뽑는다 (AL-05) 이므로 같은 입력의 `category` · 열 이름 토큰은 실행마다 다르다 (수치 칸은 같다).
+- **한도** (코드 상수 · 넘으면 거절): 열 8 · 행 50 · 자문 하나에 `sample` 하나 · 행 수가 k × 2 미만인 표는 거절 (작은 표는 한 행이 곧 식별) · 한 주제 (job) 의 파생 누계 행 200 (L-05 · 감사 기록 SP-14 의 `derive` 기록으로 센다) · 읽는 표 파일 1 MiB.
+- **사람이 고른다** (표준 입력 · 파일에 저장하지 않는다): 주제 job 번호 → k → `열=변환` 줄들 (열은 머리 글을 직접 치거나 1부터의 번호 · 묻는 글에 열 이름을 쓰지 않는다) → 만들기 전 `y`. 입력이 끊기거나 틀리면 만들지 않는다.
+- **문**: `policy.derived_level` 이 정수 1 이고 `policy.real_data` 가 참 (bool) 일 때만 돈다 (`derive.effective_level`) · 데이터 폴더가 기본 자리가 아니면 돌지 않는다 (AL-12). `derive.py` 는 설정을 읽기만 하고 환경 변수 · 명령줄을 읽지 않는다.
+- **이어지는 길**: 초안은 `seal` 로 미리 봉인해 D1–D6 을 통과해야 만든다 (열 · 범주 토큰은 그 실행의 가명 표). 그 뒤의 D7 · 확정 창 (D8 · 보낼 바이트 그대로) · 건네기 · 감사 기록은 기존 흐름 그대로다 — 새 우회 길을 만들지 않았다. **지금의 한계**: `propose` 는 `kind: report` 만 받고 허브는 보고만 봉인하므로, `plan` · `ui` 초안이 확정 창까지 가는 길은 아직 없다. 가명 표가 `derive` 프로세스의 메모리에만 있어 (실행이 끝나면 사라진다) 허브의 표에는 이 토큰이 없다 — 그 길을 만들 때 표를 어떻게 넘길지 (허브가 직접 `derive` 를 돌리는 등) 새로 정해야 한다.
 
 ## 부록 A — D7 판정 프롬프트 (고정 글)
 

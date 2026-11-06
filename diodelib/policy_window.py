@@ -12,7 +12,7 @@ Claude 로 나가므로 단어는 이 창에서만 입력하고, 창을 연 명�
   {"saved": false, "error": "E-07"}                                           종료 코드 1  창을 못 띄움
   {"saved": false, "error": "E-20", "code": "newer"}                          종료 코드 1  설정이 더 새 format 이라 열지 않음
   {"saved": false, "error": "E-20"}                                           종료 코드 1  그 밖의 예외 (설정을 읽지 못함 포함)
-  counts 의 칸: dictionary · raw_dirs · inner_tools · lib_allow · patterns (개수) · web_search · real_data · worker ·
+  counts 의 칸: dictionary · raw_dirs · inner_tools · lib_allow · patterns (개수) · web_search · real_data · derived_level · worker ·
   llm · room_path (참거짓). 경고 코드: short · raw_missing · words_empty · raw_empty.
 
 구조 - 논리와 화면을 나눈다 (confirm.py 와 같다).
@@ -76,6 +76,7 @@ FIELD_LABEL = {
     "worker_command": "04 일꾼 명령", "worker_cwd": "04 일꾼 작업 폴더",
     "lib_allow": "05 라이브러리 허용", "patterns": "05 정규식",
     "web_search": "06 웹 검색", "real_data": "06 실데이터", "real_confirm": "06 실데이터 확인 글",
+    "derived_level": "06 파생 표본",
     "monthly_budget_usd": "06 월 예산", "room_path": "06 방 자리", "llm": "06 llm",
 }
 # 오류 영역 코드 (config.ConfigError 의 코드 + 창이 따로 보는 것) -> 틀린 칸
@@ -83,6 +84,7 @@ AREA_FIELD = {
     "words": "words", "raw_dirs": "raw_dirs", "inner_tools": "inner_tools", "lib_allow": "lib_allow",
     "patterns": "patterns", "worker": "worker_command", "budget": "monthly_budget_usd", "room_path": "room_path",
     "llm": "llm", "llm_key": "llm", "flags": "real_data", "state": "words", "real_data": "real_confirm",
+    "derived": "derived_level",
 }
 
 # 화면 문구 (한국어 · 이모지 없음 · DESIGN.md › 03 의 기호만)
@@ -126,6 +128,7 @@ ERROR_TEXT = {
     "llm_key": "llm 의 api_key · extra_headers 값은 {file:경로} 꼴로만 적습니다 (키 값을 글자 그대로 적지 않습니다)",
     "state": "창의 값이 맞지 않습니다",
     "real_data": TEXT_REAL_NEED,
+    "derived": "파생 표본은 실데이터를 허용한 뒤에만 켤 수 있습니다 - 실데이터 칸을 먼저 켜세요",
     "hidden": "보이지 않는 글자가 있습니다 - [U+XXXX] 로 알린 자리를 지우세요",
 }
 COUNT_LABELS = (("dictionary", "사전"), ("raw_dirs", "원자료 폴더"), ("inner_tools", "안쪽 도구"),
@@ -342,12 +345,12 @@ def summarize(counts):
 
 Checked = collections.namedtuple("Checked", "ok state warnings area field message lines")
 Saved = collections.namedtuple("Saved", "ok changed counts warnings area field message")
-Snapshot = collections.namedtuple("Snapshot", "message level locked save_enabled close_label real_data web_search lines")
+Snapshot = collections.namedtuple("Snapshot", "message level locked save_enabled close_label real_data web_search lines derived")
 
 
 def _blank_state():
     return {"words": [], "raw_dirs": [], "inner_tools": [], "lib_allow": [], "patterns": [], "web_search": True,
-            "real_data": False, "monthly_budget_usd": 0, "worker_command": None, "worker_cwd": None, "room_path": None,
+            "real_data": False, "derived_level": 0, "monthly_budget_usd": 0, "worker_command": None, "worker_cwd": None, "room_path": None,
             "llm": None}
 
 
@@ -386,6 +389,8 @@ class PolicySession(object):
         self._web = state["web_search"]
         self._real = state["real_data"]
         self._initial_real = state["real_data"]
+        self._derived = state["derived_level"] == 1            # 파생 표본 (L2) - 실데이터가 켜져 있을 때만 쓰인다
+        self._initial_derived = self._derived
         self._real_confirm = ""
         self._initial = self._fingerprint()
         if self.opened_blank:
@@ -409,6 +414,10 @@ class PolicySession(object):
         return self._real
 
     @property
+    def derived_level(self):
+        return self._derived
+
+    @property
     def real_confirm(self):
         return self._real_confirm
 
@@ -424,6 +433,7 @@ class PolicySession(object):
             except FieldProblem:
                 fp[key] = ("t", self._texts[key].strip())
         fp["web_search"], fp["real_data"] = self._web, self._real
+        fp["derived_level"] = self._derived
         return fp
 
     @property
@@ -535,7 +545,31 @@ class PolicySession(object):
             self._focus = "real_confirm"
             return False
         self._real = want
+        if not want:
+            self._derived = False                           # 실데이터를 끄면 파생 표본도 꺼진다 (실데이터 승인 없이 켜져 있지 않게)
         if self._message_field in ("real_data", "real_confirm"):        # 안내받은 대로 바로잡았다
+            self._say("", "")
+        self._touched()
+        return True
+
+    def toggle_derived_level(self, want):
+        """파생 표본 (L2) 칸을 want 로. 새로 켜려면 실데이터가 켜져 있어야 하고 확인 글 칸에 정확히 REAL_DATA_PHRASE 를 쳐야 한다.
+        끄는 것은 확인이 필요 없다. 환경 변수 · 명령줄로 켜는 길은 없다 - 이 칸이 켜는 유일한 곳이다. 칸이 want 대로 되었으면 True."""
+        if self.saved:
+            return self._derived == bool(want)
+        want = bool(want)
+        if want and not self._initial_derived:
+            if not self._real:
+                self._derived = False
+                self._say("%s - %s" % (FIELD_LABEL["derived_level"], ERROR_TEXT["derived"]), "alert", "derived_level")
+                return False
+            if not self.real_confirm_ok:
+                self._derived = False
+                self._say("%s - %s" % (FIELD_LABEL["derived_level"], TEXT_REAL_NEED), "alert", "derived_level")
+                self._focus = "real_confirm"
+                return False
+        self._derived = want
+        if self._message_field in ("derived_level", "real_confirm"):
             self._say("", "")
         self._touched()
         return True
@@ -567,6 +601,7 @@ class PolicySession(object):
         state["llm"] = self._unmask_llm(state["llm"])
         state["web_search"] = self._web
         state["real_data"] = self._real
+        state["derived_level"] = 1 if self._derived else 0
         return state
 
     def _bad_lines(self, area, field):
@@ -610,6 +645,11 @@ class PolicySession(object):
             return self._failed(e.area, e.field)
         if state["real_data"] and not self._initial_real and not self.real_confirm_ok:
             return self._failed("real_data", AREA_FIELD["real_data"])
+        if state["derived_level"] == 1:
+            if not state["real_data"]:
+                return self._failed("derived", AREA_FIELD["derived"])
+            if not self._initial_derived and not self.real_confirm_ok:
+                return self._failed("real_data", AREA_FIELD["real_data"])
         if state["worker_cwd"] is not None and state["worker_command"] is None:
             return self._failed("worker", "worker_cwd")         # 작업 폴더만 적은 칸 - 명령 칸이 아니라 그 칸을 가리킨다
         try:
@@ -671,7 +711,7 @@ class PolicySession(object):
         return Snapshot(
             message=self._message or TEXT_IDLE, level=self._level, locked=self.saved, save_enabled=not self.saved,
             close_label="저장 안 하고 닫기" if self._close_asked else "닫기", real_data=self._real, web_search=self._web,
-            lines=tuple((key, self._lines[key]) for key in LIST_KEYS))
+            lines=tuple((key, self._lines[key]) for key in LIST_KEYS), derived=self._derived)
 
 
 # ---------------------------------------------------------------- 화면 (tkinter)
@@ -858,6 +898,12 @@ class TkView(object):
         s = self._session
         s.toggle_real_data(self._vars["real_data"].get())
         self._vars["real_data"].set(s.real_data)            # 켜지지 않았으면 칸을 되돌린다
+        self._after_action()
+
+    def _on_derived_toggle(self):
+        s = self._session
+        s.toggle_derived_level(self._vars["derived_level"].get())
+        self._vars["derived_level"].set(s.derived_level)    # 켜지지 않았으면 칸을 되돌린다
         self._after_action()
 
     def _on_web_toggle(self):
@@ -1193,6 +1239,8 @@ class TkView(object):
         self._sub(zone, 9, "llm 설정 (JSON 객체 · 키 · 헤더 값은 {file:경로} 로만 · 경로의 \\ 는 \\\\ 로 · 이미 저장된 값은 가려서 보이고 그대로 둡니다 · "
                    "비우면 지금 설정을 그대로 둡니다)")
         self._text_box(zone, 10, "llm", 5)
+        self._toggle(zone, 11, "derived_level", "파생 표본 (L2) 을 허용합니다 (실데이터를 허용한 뒤 · 위 확인 글이 있어야 켜집니다)",
+                     self._on_derived_toggle, s.derived_level)
 
         for key in ("worker_command", "worker_cwd", "monthly_budget_usd", "room_path"):
             self._set_entry(key, s.text(key))
@@ -1258,7 +1306,7 @@ class TkView(object):
         """저장을 마쳤다 - 칸은 더 고치지 못하게 잠그고 [닫기] 만 남긴다."""
         self._locked = True
         w = self.widgets
-        for key in TEXT_KEYS + ("real_confirm", "web_search", "real_data"):
+        for key in TEXT_KEYS + ("real_confirm", "web_search", "real_data", "derived_level"):
             try:
                 w[key].configure(state="disabled")
             except self._tk.TclError:
@@ -1284,8 +1332,8 @@ class TkView(object):
         w["status"].configure(text=snap.message, fg=c[_STATUS_FG[snap.level]], font=self._fonts["strong" if strong else "small"])
         w["close"].configure(text=snap.close_label)
         self._style(w["save"], snap.save_enabled, accent=True)
-        for key in ("web_search", "real_data"):
-            value = snap.web_search if key == "web_search" else snap.real_data
+        for key in ("web_search", "real_data", "derived_level"):
+            value = {"web_search": snap.web_search, "real_data": snap.real_data, "derived_level": snap.derived}[key]
             if self._vars[key].get() != value:
                 self._vars[key].set(value)
             self._sync_toggle(key)
