@@ -266,6 +266,23 @@ class ToolOther(Base):
         self.assertAllowed(self.tool("Bash", {"command": "ls"}, self.other))
         self.assertAllowed(self.tool("WebFetch", {"url": "x"}, self.other))
 
+    def test_git_bash_drive_forms_count_as_the_same_folder(self):
+        """Git Bash (/d/..) · Cygwin · WSL 꼴로 쓴 Windows 경로도 같은 폴더다 - 벨트가 지나가면 안 된다"""
+        forms = hook._path_forms("D:\\Data\\Raw")
+        for want in ("d:/data/raw", "/d/data/raw", "/cygdrive/d/data/raw", "/mnt/d/data/raw"):
+            self.assertIn(want, forms)
+        raw = ["D:\\Data\\Raw"]
+        for cmd in ("cat /d/data/raw/secret.txt", "cd /D/DATA/RAW && ls", "cat /mnt/d/data/raw/a",
+                    "type d:\\data\\raw\\a", "cat /cygdrive/d/data/raw/a", "cat D:/Data/Raw/a"):
+            self.assertTrue(hook._mentions_raw(cmd, raw, "/tmp"), cmd)
+        for cmd in ("ls /d/data/other", "cat /d/dat", "ls /e/data/raw", "echo hi"):
+            self.assertFalse(hook._mentions_raw(cmd, raw, "/tmp"), cmd)
+
+    def test_git_bash_drive_forms_for_the_data_folder(self):
+        for cmd in ("cat /c/Users/x/AppData/Local/diode/dictionary.json", "ls /mnt/c/users/x/appdata/local/diode/audit"):
+            self.assertTrue(hook._mentions_data(cmd, "C:\\Users\\x\\AppData\\Local\\diode", "/tmp"), cmd)
+        self.assertFalse(hook._mentions_data("ls /c/Users/x/Documents", "C:\\Users\\x\\AppData\\Local\\diode", "/tmp"))
+
     def test_bash_in_raw_cwd(self):
         code, out, _ = self.call("tool", {"tool_name": "Bash", "tool_input": {"command": "cat secret.txt"},
                                           "cwd": self.raw}, self.other)

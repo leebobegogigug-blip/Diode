@@ -308,6 +308,28 @@ def _read_scan(tool, ti, cwd, settings):
     return None
 
 
+_DRIVE = re.compile(r"^([a-z]):(/.+)$")
+_DRIVE_PREFIXES = ("/", "/cygdrive/", "/mnt/")        # Git Bash (/d/..) · Cygwin (/cygdrive/d/..) · WSL (/mnt/d/..)
+
+
+def _path_forms(path):
+    """셸 명령 글에서 이 폴더가 나올 수 있는 꼴 (소문자 · 슬래시). Windows 드라이브 경로는 Git Bash · Cygwin · WSL 꼴도 센다.
+
+    사내 셸이 Git Bash 라서 `D:\\data\\raw` 를 `/d/data/raw` 로도 부른다 - 이 꼴을 못 보면 `cat /d/data/raw/x` 가 벨트를 지난다.
+    """
+    forms = set()
+    for form in (os.path.abspath(path), norm(path), path):
+        f = form.replace("\\", "/").lower().rstrip("/")
+        if not f:
+            continue
+        forms.add(f)
+        m = _DRIVE.match(f)
+        if m:
+            for pre in _DRIVE_PREFIXES:
+                forms.add("%s%s%s" % (pre, m.group(1), m.group(2)))
+    return forms
+
+
 _DATA_NAMES = re.compile(r"diode[/\\]+(?:dictionary|config|audit|queue|work|usage|tmp|libnames|jobs)", re.I)
 
 
@@ -316,11 +338,8 @@ def _mentions_data(cmd, home, cwd):
     if home and inside(cwd, home):
         return True
     c = cmd.replace("\\", "/").lower()
-    if home:
-        for form in set([os.path.abspath(home), norm(home)]):
-            f = form.replace("\\", "/").lower().rstrip("/")
-            if f and f in c:
-                return True
+    if home and any(f in c for f in _path_forms(home)):
+        return True
     return bool(_DATA_NAMES.search(cmd.replace("\\", "/")))
 
 
@@ -420,12 +439,7 @@ def _mentions_raw(cmd, raw_dirs, cwd):
     if any(overlaps(cwd, r) for r in raw_dirs):
         return True
     c = cmd.replace("\\", "/").lower()
-    for r in raw_dirs:
-        for form in set([os.path.abspath(r), norm(r)]):
-            f = form.replace("\\", "/").lower().rstrip("/")
-            if f and f in c:
-                return True
-    return False
+    return any(f in c for r in raw_dirs for f in _path_forms(r))
 
 
 def on_session(data, settings, project_dir):
