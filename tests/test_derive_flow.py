@@ -680,7 +680,8 @@ class OtherPieces(Base):
         path = self.derive()
         p = subprocess.run([sys.executable, os.path.join(ROOT, "diode.py"), "propose", path], stdin=subprocess.DEVNULL,
                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, timeout=60)
-        self.assertEqual(p.returncode, 3)
+        why = (p.stdout + b" | " + p.stderr).decode("utf-8", "replace")[-400:]      # 합성 자료뿐 - 실패 때 까닭을 본다
+        self.assertEqual(p.returncode, 3, why)
         self.assertEqual(json.loads(p.stdout.decode("utf-8")), {"queued": False, "error": "E-30"})
         self.assertFalse(os.path.isdir(os.path.join(default_home, "queue")))
         for c in canaries() + [self.tmp]:
