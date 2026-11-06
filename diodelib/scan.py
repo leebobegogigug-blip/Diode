@@ -364,15 +364,41 @@ FORBIDDEN_CODE_NAMES = frozenset([
     "open", "input", "breakpoint", "translate", "maketrans"])
 
 
-def _const_expr(node):
-    """숫자 상수만으로 된 식인가 (1 + 2 · -3 · 2 * 3 + 1)."""
+_HUGE = 10 ** 9
+
+
+def _const_value(node):
+    """숫자 상수만으로 된 식의 값 (아니면 None). 지수는 큰 값으로 친다 - 셈하다 멈추지 않게."""
     if isinstance(node, ast.Constant):
-        return isinstance(node.value, (int, float)) and not isinstance(node.value, bool)
-    if isinstance(node, ast.UnaryOp):
-        return _const_expr(node.operand)
+        v = node.value
+        return v if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.USub, ast.UAdd)):
+        v = _const_value(node.operand)
+        return None if v is None else (-v if isinstance(node.op, ast.USub) else v)
     if isinstance(node, ast.BinOp):
-        return _const_expr(node.left) and _const_expr(node.right)
-    return False
+        left, right = _const_value(node.left), _const_value(node.right)
+        if left is None or right is None:
+            return None
+        op = node.op
+        try:
+            if isinstance(op, ast.Add):
+                return left + right
+            if isinstance(op, ast.Sub):
+                return left - right
+            if isinstance(op, ast.Mult):
+                return left * right
+            if isinstance(op, ast.Div):
+                return left / right
+            if isinstance(op, ast.FloorDiv):
+                return left // right
+            if isinstance(op, ast.Mod):
+                return left % right
+            if isinstance(op, ast.Pow):
+                return _HUGE if abs(right) > 16 or abs(left) > 1000 else left ** right
+        except (ArithmeticError, ValueError, OverflowError):
+            return None
+        return _HUGE                                # 비트 셈 등 - 값을 따지지 않고 큰 수로 본다
+    return None
 
 
 def check_repro(code, policy):
@@ -408,8 +434,10 @@ def check_repro(code, policy):
                     bad.append(node.lineno)
 
     for node in ast.walk(tree):
-        if isinstance(node, ast.BinOp) and _const_expr(node):
-            bad.append(node.lineno)          # 350*10+7 처럼 숫자끼리 셈해 큰 수를 만드는 길
+        if isinstance(node, ast.BinOp):
+            v = _const_value(node)
+            if v is not None and abs(v) >= 1000:
+                bad.append(node.lineno)      # 350*10+7 처럼 숫자끼리 셈해 세 자리 제한을 넘는 수를 만드는 길 (1 / 2 같은 작은 셈은 쓴다)
     allowed = policy.code_names - FORBIDDEN_CODE_NAMES
     numbers = 0
     try:

@@ -374,6 +374,9 @@ class RedTeamFixes(unittest.TestCase):
                      "import pandas as pd\nx = getattr(a, b)\n"):
             self.assertTrue(scan.check_repro(code, p), code)
         self.assertEqual(scan.check_repro("import pandas as pd\nx = pd.DataFrame()\ny = 3\n", p), [])
+        self.assertEqual(scan.check_repro("import pandas as pd\nx = 1 / 2\ny = -3 + 4\n", p), [])      # 작은 셈은 쓴다
+        self.assertTrue(scan.check_repro("import pandas as pd\nx = 999 + 1\n", p))                      # 세 자리를 넘는 셈은 막는다
+        self.assertTrue(scan.check_repro("import pandas as pd\nx = 10 ** 9\n", p))
 
 
 class ScanCommand(unittest.TestCase):
