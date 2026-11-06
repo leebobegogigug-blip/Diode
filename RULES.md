@@ -1,36 +1,36 @@
 # diode 규칙
 
-diode 저장소의 모든 코드 · 문서가 따르는 규칙의 **정본**이다. 규칙은 여기에만 적는다.
-다른 문서는 이 파일을 링크하고, 내용을 옮겨 적지 않는다 (옮겨 적은 규칙은 반드시 갈라진다).
+diode 저장소의 모든 코드와 문서가 따르는 규칙의 **정본**(기준이 되는 원본)입니다. 규칙은 여기에만 적습니다.
+다른 문서는 이 파일을 링크만 걸고, 내용을 베껴 적지 않습니다. 베껴 적은 규칙은 시간이 지나면 반드시 서로 달라지기 때문입니다.
 
-- 설계의 까닭 · 불변식 AL · 새는 길 L · 리스크 R → [docs/PLAN.md](docs/PLAN.md)
-- 계약 (칸 · 판정 · 출력 꼴 · 오류 번호) → [docs/SPEC.md](docs/SPEC.md)
-- 비유 (PN 접합) → [docs/BLUEPRINT.md](docs/BLUEPRINT.md)
-- 에이전트가 일하는 법 → [AGENTS.md](AGENTS.md)
-- 사내 마무리의 경계 → [docs/INHOUSE.md](docs/INHOUSE.md)
-- 이 저장소의 검사기 → [tools/diode_check.py](tools/diode_check.py)
+- 설계를 왜 그렇게 했는지 · 불변식 AL · 새는 길 L · 리스크 R → [docs/PLAN.md](docs/PLAN.md)
+- 계약 (칸 · 판정 · 출력 모양 · 오류 번호) → [docs/SPEC.md](docs/SPEC.md)
+- 비유 (PN 접합, 다이오드의 한쪽으로만 흐르는 성질) → [docs/BLUEPRINT.md](docs/BLUEPRINT.md)
+- 에이전트가 일하는 방법 → [AGENTS.md](AGENTS.md)
+- 사내에서 마무리할 때의 경계 → [docs/INHOUSE.md](docs/INHOUSE.md)
+- 이 저장소의 검사기(규칙을 자동으로 확인하는 프로그램) → [tools/diode_check.py](tools/diode_check.py)
 
 ## works 와의 관계
 
-diode 는 works 저장소 밖의 별도 저장소다 (`<name>-<n>/` 폴더 규칙인 works W-01 과 이름이 부딪히고, works 검사기가 그 폴더를 앱으로 세지 않기 때문이다 — [docs/PLAN.md › 09](docs/PLAN.md#09-규칙--새-저장소-diode-의-rulesmd-원고)).
-그래서 works 의 헌법 W-nn · 규약 S-nn 을 **조항 번호 그대로** 가져와 이 저장소의 규칙으로 삼는다. 이름 규칙 (W-01 · S-01) 은 바꾸고, S-06 · S-07 은 해당 없고, S-09 는 따르지 않는다 (아래 채택표).
+diode 는 works 저장소 밖에 따로 있는 저장소입니다. works 에는 폴더 이름을 `<name>-<n>/` 꼴로 짓는 규칙(works W-01)이 있는데 diode 는 이 꼴과 맞지 않고, works 검사기도 그런 폴더를 앱으로 세지 않기 때문입니다 ([docs/PLAN.md › 09](docs/PLAN.md#09-규칙--새-저장소-diode-의-rulesmd-원고)).
+그래서 works 의 헌법 W-nn 과 규약 S-nn 을 **조항 번호 그대로** 가져와 이 저장소의 규칙으로 삼습니다. 이름 규칙 (W-01 · S-01) 은 바꿔서 쓰고, S-06 · S-07 은 해당이 없고, S-09 는 따르지 않습니다 (아래 채택표).
 
-works 의 문서는 옮긴 때의 커밋 `13e56a0` 에 고정한 링크로만 가리킨다. works 가 그 뒤에 바뀌어도 이 저장소의 규칙은 바뀌지 않는다. 바꾸려면 이 파일을 고치는 커밋이 먼저 간다.
+works 의 문서는 가져온 때의 커밋 `13e56a0` 에 고정한 링크로만 가리킵니다. works 가 그 뒤에 바뀌어도 이 저장소의 규칙은 바뀌지 않습니다. 규칙을 바꾸고 싶으면 이 파일을 고치는 커밋이 먼저 나가야 합니다.
 
 - [works RULES.md](https://github.com/leebobegogigug-blip/Works/blob/13e56a0a5801da56dc18523363cd219ebf6d2e21/RULES.md) — 헌법 W · 규약 S 의 원문
-- [works docs/DEVELOP.md](https://github.com/leebobegogigug-blip/Works/blob/13e56a0a5801da56dc18523363cd219ebf6d2e21/docs/DEVELOP.md) — 에이전트가 일하는 법 (D-01–D-11)
+- [works docs/DEVELOP.md](https://github.com/leebobegogigug-blip/Works/blob/13e56a0a5801da56dc18523363cd219ebf6d2e21/docs/DEVELOP.md) — 에이전트가 일하는 방법 (D-01–D-11)
 - [works docs/DESIGN.md](https://github.com/leebobegogigug-blip/Works/blob/13e56a0a5801da56dc18523363cd219ebf6d2e21/docs/DESIGN.md) — 화면 · 문서 규격
 - [works docs/SPEC-llm.md](https://github.com/leebobegogigug-blip/Works/blob/13e56a0a5801da56dc18523363cd219ebf6d2e21/docs/SPEC-llm.md) — 사내 LLM 설정 규격
-- [works docs/templates/](https://github.com/leebobegogigug-blip/Works/tree/13e56a0a5801da56dc18523363cd219ebf6d2e21/docs/templates) — 문서 뼈대
+- [works docs/templates/](https://github.com/leebobegogigug-blip/Works/tree/13e56a0a5801da56dc18523363cd219ebf6d2e21/docs/templates) — 문서 뼈대(틀)
 
-works 의 검사기 (`works_check.py`) 는 이 저장소를 보지 않는다. 같은 일을 이 저장소의 자기 검사기가 한다 (W-11).
+works 의 검사기 (`works_check.py`) 는 이 저장소를 보지 않습니다. 같은 일은 이 저장소의 자기 검사기가 합니다 (W-11).
 
 ## 등급
 
 | 등급 | 뜻 | 어기면 |
 |---|---|---|
-| **헌법 W** | 모든 코드 · 문서가 지킨다 | 머지하지 않는다. 바꾸려면 이 파일을 고치는 커밋이 먼저 간다 |
-| **규약 S** | 따른다 | 따르지 않을 때는 까닭을 [docs/MANUAL.md › 알려진 한계](docs/MANUAL.md#알려진-한계)에 적는다 |
+| **헌법 W** | 모든 코드 · 문서가 지킨다 | 머지(본 줄기에 합치기)하지 않는다. 바꾸려면 이 파일을 고치는 커밋이 먼저 나간다 |
+| **규약 S** | 따른다 | 따르지 않을 때는 그 까닭을 [docs/MANUAL.md › 알려진 한계](docs/MANUAL.md#알려진-한계)에 적는다 |
 | **불변식 AL** | 어떤 판 · 어떤 설정에서도 깨지지 않는다 | 정본은 [docs/PLAN.md › 04](docs/PLAN.md#04-불변식). 테스트가 하나씩 지킨다 |
 
 ## 채택표
@@ -62,73 +62,73 @@ works 의 검사기 (`works_check.py`) 는 이 저장소를 보지 않는다. �
 ## 헌법
 
 ### W-01 저장소 하나 = 플러그인 하나 = 마켓플레이스 하나
-- 이 저장소가 Claude Code 플러그인 하나이자 마켓플레이스 하나다. 이름은 번호 없이 `diode` (화면 표기 `Diode`) 이고, 플러그인 · 마켓플레이스 · 폴더 · 명령 · 데이터 폴더가 모두 같은 이름이다.
-- 필수 구성: `README.md` · `INSTALL.md` · `docs/MANUAL.md` · `docs/INHOUSE.md` · `RULES.md` · `AGENTS.md` · `tests/` · `.gitignore` · `.gitattributes` · `.github/workflows/diode.yml` · `.claude-plugin/plugin.json`. 검사기가 본다.
-- `.claude-plugin/plugin.json` · `marketplace.json` (있으면 `.mcp.json` · `hooks/hooks.json` 도) 은 JSON 으로 읽히고 이름이 `diode` 다. `claude plugin validate` 가 경고 없이 통과한다.
-- 플러그인 루트에 `bin/` 을 두지 않는다 (Bash PATH 에 올라가고, claude.ai · Cowork 는 `bin/` 이 있는 플러그인을 설치하지 않는다). 플러그인 루트에 `CLAUDE.md` 를 두지 않는다 (`claude plugin validate` 가 경고한다 — 플러그인 지침은 스킬에 둔다).
-- 다른 도구 (Terminal–1 등) 와는 바깥 인터페이스 — 읽기 전용 상태 명령 (`--status --json`, `format` 으로 형식 버전을 밝힘) — 로만 주고받는다. 서로의 코드를 import 하지 않는다. 상대가 모르는 `format` 이면 막는 쪽으로 간다 (AL-03).
+- 이 저장소 하나가 Claude Code 플러그인 하나이면서 마켓플레이스(플러그인 가게) 하나입니다. 이름은 번호 없이 `diode` (화면에 보이는 이름은 `Diode`) 이고, 플러그인 · 마켓플레이스 · 폴더 · 명령 · 데이터 폴더가 모두 같은 이름입니다.
+- 꼭 있어야 하는 것: `README.md` · `INSTALL.md` · `docs/MANUAL.md` · `docs/INHOUSE.md` · `RULES.md` · `AGENTS.md` · `tests/` · `.gitignore` · `.gitattributes` · `.github/workflows/diode.yml` · `.claude-plugin/plugin.json`. 검사기가 확인합니다.
+- `.claude-plugin/plugin.json` 과 `marketplace.json` (있으면 `.mcp.json` · `hooks/hooks.json` 도) 은 JSON 으로 읽혀야 하고 이름이 `diode` 여야 합니다. `claude plugin validate` 가 경고 없이 통과해야 합니다.
+- 플러그인 맨 위 폴더에 `bin/` 을 두지 않습니다. `bin/` 은 Bash 의 PATH(명령을 찾는 길)에 올라가고, claude.ai 와 Cowork 는 `bin/` 이 있는 플러그인을 설치하지 않기 때문입니다. 플러그인 맨 위 폴더에 `CLAUDE.md` 도 두지 않습니다 (`claude plugin validate` 가 경고합니다. 플러그인 지침은 스킬에 둡니다).
+- 다른 도구 (Terminal–1 등) 와는 바깥으로 열어 둔 창구로만 주고받습니다. 그 창구는 읽기만 되는 상태 명령 (`--status --json`, `format` 으로 형식 버전을 밝힘) 입니다. 서로의 코드를 import 하지 않습니다. 상대가 모르는 `format` 이면 막는 쪽으로 갑니다 (AL-03).
 
-왜: 훅 · 허브 · 명령이 한 묶음으로 같이 설치되어야 스킬 문장만 남는 일이 없다 (AL-09).
+왜 그런가: 훅 · 허브 · 명령이 한 묶음으로 같이 설치되어야, 스킬 문장만 덩그러니 남는 일이 없습니다 (AL-09).
 
 ### W-02 의존성 0
-- 실행 (`diode.py` · `diodelib/`) 은 Python 3.8+ 표준 라이브러리만 쓴다 (`re` · `json` · `secrets` · `hashlib` · `subprocess` · `tkinter` · `ctypes` · `urllib` 등). `pip install` 없이 받아서 바로 돈다.
-- 선택 기능이라도 실행 코드에서 외부 패키지를 import 하지 않는다 (함수 안 · `try` 안도 같다). 검사기가 그 import 까지 본다.
-- 한국어 이름 탐지 같은 ML 모델은 넣지 않는다. 사내 LLM 의 2차 판정 (D7) 으로 대신한다.
-- 개발 도구 (`tests/` · `tools/`) 는 외부 패키지를 써도 되지만 (예: 스키마 시험의 `jsonschema`) 실행 경로에서 import 하지 않는다.
+- 실행 코드 (`diode.py` · `diodelib/`) 는 Python 3.8+ 의 표준 라이브러리만 씁니다 (`re` · `json` · `secrets` · `hashlib` · `subprocess` · `tkinter` · `ctypes` · `urllib` 등). `pip install` 없이 받자마자 바로 돕니다.
+- 있으면 좋은 선택 기능이라도 실행 코드에서 외부 패키지를 import 하지 않습니다 (함수 안이든 `try` 안이든 같습니다). 검사기가 그런 import 까지 찾아봅니다.
+- 한국어 이름을 찾아내는 ML 모델 같은 것은 넣지 않습니다. 대신 사내 LLM 의 2차 판정 (D7) 을 씁니다.
+- 개발 도구 (`tests/` · `tools/`) 는 외부 패키지를 써도 됩니다 (예: 스키마 시험의 `jsonschema`). 다만 실행 경로에서 import 하지 않습니다.
 
-왜: 보안 도구라 의존 0 이 오히려 장점이다 — 공급망 공격 면이 없다.
+왜 그런가: 보안 도구는 남의 부품에 기대지 않는 편이 오히려 장점입니다. 부품에 몰래 나쁜 코드가 섞여 들어오는 공급망 공격이 파고들 틈이 없습니다.
 
 ### W-03 내 PC 에서만
-- 서버를 열면 `127.0.0.1` 에만 바인딩한다. `0.0.0.0` 을 쓰지 않는다. 허브는 표준 입출력 서버라 포트를 열지 않는다.
-- 밖으로 나가는 통신은 사용자가 설정한 사내 LLM · Claude 길뿐이다. 텔레메트리 · 자동 업데이트 확인 · 외부 CDN · 웹 폰트를 쓰지 않는다.
-- 돌아온 UI 코드의 외부 주소는 들어오는 검사 U3 가 막는다 ([docs/SPEC.md › SP-06](docs/SPEC.md)).
+- 서버를 열 때는 `127.0.0.1` (내 컴퓨터 안에서만 닿는 주소) 에만 바인딩합니다. `0.0.0.0` (밖에서도 닿는 주소) 은 쓰지 않습니다. 허브는 표준 입출력으로 말하는 서버라서 포트를 열지 않습니다.
+- 밖으로 나가는 통신은 사용자가 설정한 사내 LLM 길과 Claude 길뿐입니다. 텔레메트리(사용 정보 몰래 보내기) · 자동 업데이트 확인 · 외부 CDN · 웹 폰트는 쓰지 않습니다.
+- 돌아온 UI 코드 안의 외부 주소는 들어오는 검사 U3 가 막습니다 ([docs/SPEC.md › SP-06](docs/SPEC.md)).
 
 ### W-04 비밀은 어디에도 찍지 않는다
-- 키 · 토큰 · 비밀번호를 화면 출력 · 로그 · 명령줄 인자 · 커밋에 남기지 않는다. 키는 다루지 않는다 (Claude Code · 사내 LLM 설정이 쥔다).
-- 사내 단어 사전도 비밀처럼 다룬다. 막은 까닭에는 단어 대신 개수 · 검사 번호만 쓴다 (AL-11).
-- 비밀 값을 명령줄로 받는 옵션을 만들지 않는다. 다른 프로세스에 넘길 때는 환경 변수 · 파일로 넘긴다.
+- 키 · 토큰 · 비밀번호를 화면 출력 · 로그 · 명령줄 인자 · 커밋에 남기지 않습니다. 키는 diode 가 다루지 않습니다 (Claude Code 와 사내 LLM 설정이 쥐고 있습니다).
+- 사내 단어 사전도 비밀처럼 다룹니다. 무언가를 막은 까닭을 적을 때는 단어 대신 개수와 검사 번호만 씁니다 (AL-11).
+- 비밀 값을 명령줄로 받는 옵션을 만들지 않습니다. 다른 프로세스에 넘길 때는 환경 변수나 파일로 넘깁니다.
 
 ### W-05 사용자 원문은 메모리에만
-- 원문 · 가명 표는 메모리에만 둔다 (PLAN Q6). 디스크 · 로그 · 감사 기록 어디에도 쓰지 않는다.
-- 감사 기록은 사람이 확정한 바깥 바이트라 저장 대상이다. 확정 창이 먼저 "이 내용이 기록에 남습니다" 를 보인다.
+- 사용자가 쓴 원문과 가명 표 (이름을 가짜 이름으로 바꾼 대응표) 는 메모리에만 둡니다 (PLAN Q6). 디스크 · 로그 · 감사 기록 어디에도 쓰지 않습니다.
+- 감사 기록은 사람이 확정한, 바깥으로 나가는 바이트(그대로 나가는 내용)라서 저장해도 되는 대상입니다. 확정 창이 먼저 "이 내용이 기록에 남습니다" 라고 보여 줍니다.
 
 ### W-06 저장은 깨지지 않게
-- 저장 파일에는 형식 버전 (`format`) 을 적는다. 쓰기는 `.tmp` 에 쓴 뒤 바꿔치기 (원자적) 한다. 깨져 있으면 `.broken` 으로 백업하고, 더 새 버전이면 덮어쓰지 않고 읽기만 한다.
-- 사용자 데이터는 `%LOCALAPPDATA%\diode\` (Windows 밖에서는 `~/.local/share/diode/`) 에 둔다. 저장소 폴더 안에도, 플러그인 데이터 폴더 (`${CLAUDE_PLUGIN_DATA}`) 에도 두지 않는다 — 플러그인을 지우면 같이 지워져 감사 기록이 사라진다.
-- 테스트는 환경 변수 `DIODE_HOME` 으로 데이터 폴더를 옮긴다. 이것이 환경 변수로 바꿀 수 있는 유일한 자리이고, 기본 위치가 아니면 보내기 · 넘기기를 막는다 (AL-12).
+- 저장 파일에는 형식 버전 (`format`) 을 적습니다. 쓸 때는 먼저 `.tmp` 파일에 쓴 뒤 한 번에 바꿔치기합니다 (원자적 쓰기. 쓰다 끊겨도 반쯤 쓴 파일이 남지 않습니다). 파일이 깨져 있으면 `.broken` 으로 백업해 두고, 더 새 버전으로 쓴 파일이면 덮어쓰지 않고 읽기만 합니다.
+- 사용자 데이터는 `%LOCALAPPDATA%\diode\` (Windows 가 아니면 `~/.local/share/diode/`) 에 둡니다. 저장소 폴더 안에도, 플러그인 데이터 폴더 (`${CLAUDE_PLUGIN_DATA}`) 에도 두지 않습니다. 플러그인을 지우면 그 폴더도 같이 지워져서 감사 기록이 사라지기 때문입니다.
+- 테스트는 환경 변수 `DIODE_HOME` 으로 데이터 폴더를 다른 곳으로 옮깁니다. 환경 변수로 위치를 바꿀 수 있는 곳은 이것 하나뿐이고, 위치가 기본 자리가 아니면 보내기 · 넘기기를 막습니다 (AL-12).
 
 ### W-07 바꾸기 전에 보여 준다
-- 바깥으로 보내는 것은 되돌릴 수 없으므로 확정 창이 전부다. 확정을 건너뛰는 옵션 · 환경 변수 · 설정 키를 만들지 않는다 (AL-02).
-- 사전 · 정책 · 허용 목록의 등록도 제안 → 확정 2단계다. 확정 전에는 아무것도 바꾸지 않는다.
+- 바깥으로 한번 보낸 것은 되돌릴 수 없으므로, 사람이 눈으로 확인하는 확정 창이 마지막이자 전부입니다. 확정을 건너뛰게 하는 옵션 · 환경 변수 · 설정 키를 만들지 않습니다 (AL-02).
+- 사전 · 정책 · 허용 목록에 새로 올릴 때도 제안 → 확정, 두 단계로 합니다. 확정하기 전에는 아무것도 바꾸지 않습니다.
 
 ### W-08 설치는 에이전트가, 되돌릴 수 있게
-- `INSTALL.md` 는 에이전트가 그대로 따라 하는 절차다. 필수: 규칙 절 · 단계마다 확인과 실패했을 때 할 일 · `[질문]` 표시 · 보고 형식 · 문제 해결 · 업데이트 · 제거.
-- 관리자 권한 금지. 플러그인 설치는 Claude Code 의 사용자 범위 변경이므로 `[질문]` 으로 동의를 받고, **제거 절에 되돌리는 방법이 있을 때만** 한다. 방 프로필은 방 폴더 안의 설정이라 사용자 설정을 건드리지 않는다.
-- opencode 쪽 권한 예시는 선택이다. 고르면 `[질문]` · 백업 · 제거 절을 둔다.
-- 설치 자리는 소스 (로컬 마켓플레이스) `D:\claude\diode` · 방 `D:\claude\room` · 데이터 `%LOCALAPPDATA%\diode` 다. `D:\claude` 를 git 저장소로 만들지 않고 `CLAUDE.md` 를 두지 않는다 (방 세션에 실리지 않게).
+- `INSTALL.md` 는 에이전트가 시키는 대로 그대로 따라 하는 절차서입니다. 꼭 있어야 하는 것: 규칙 절 · 단계마다 확인 방법과 실패했을 때 할 일 · `[질문]` 표시 · 보고 형식 · 문제 해결 · 업데이트 · 제거.
+- 관리자 권한은 쓰지 않습니다. 플러그인을 설치하는 일은 Claude Code 의 사용자 범위 설정을 바꾸는 일이라서, `[질문]` 으로 동의를 받고 **제거 절에 되돌리는 방법이 있을 때만** 합니다. 방 프로필은 방 폴더 안에만 있는 설정이라 사용자 설정을 건드리지 않습니다.
+- opencode 쪽 권한 예시는 해도 되고 안 해도 됩니다. 하기로 하면 `[질문]` · 백업 · 제거 절을 둡니다.
+- 설치 자리는 소스 (로컬 마켓플레이스) `D:\claude\diode` · 방 `D:\claude\room` · 데이터 `%LOCALAPPDATA%\diode` 입니다. `D:\claude` 를 git 저장소로 만들지 않고 `CLAUDE.md` 도 두지 않습니다 (방 세션에 지침이 따라 실리지 않게 하려는 것입니다).
 
 ### W-09 이름을 바꾸면 데려간다
-- 이름은 공개한 뒤에는 바꾸지 않는다 (`diode`).
-- 바꿔야 하면 예전 이름의 데이터 · 설정 · 마켓플레이스 등록을 첫 실행 때 자동으로 옮긴다. 덮어쓰지 않고, 둘 다 있으면 사람에게 맡긴다.
+- 이름은 공개한 뒤에는 바꾸지 않습니다 (`diode`).
+- 정말 바꿔야 하면, 예전 이름의 데이터 · 설정 · 마켓플레이스 등록을 첫 실행 때 자동으로 새 이름 쪽으로 옮겨 줍니다. 이미 있는 것을 덮어쓰지 않고, 예전 것과 새것이 둘 다 있으면 사람이 고르게 맡깁니다.
 
 ### W-10 디자인은 하나
-- 확정 창 · 문서 이미지는 works 의 [DESIGN.md](https://github.com/leebobegogigug-blip/Works/blob/13e56a0a5801da56dc18523363cd219ebf6d2e21/docs/DESIGN.md) 를 따른다. 유채색은 네이비 · 라임 두 계열만, 나머지는 무채색이고 **빨강 없음** — 걸린 곳 강조는 라임 · 네이비 · 굵기로 한다.
-- **예외 — README 대표 그림 한 장** (`docs/img/diode-banner.png`): 설명용 일러스트라서 위 색 규칙을 따르지 않는다 (사용자 결정 · 2026-11-06). 이 한 장에만 걸린다 — 확정 창 · 도표 · 새 그림은 그대로 규칙을 따른다. 그림을 바꿀 때도 같은 자리를 쓰되 README 의 "각 제품의 공식 그림이 아닙니다" 고지는 지킨다.
-- 이 저장소의 문서는 팔레트 값 · 원칙을 옮겨 적지 않고 위 링크를 건다 (옮긴 커밋의 SHA 로 고정). 검사기는 색을 보지 않는다 — 리뷰에서 본다.
-- 사람이 읽는 문서 (README · MANUAL · INSTALL) 는 존댓말 · 짧은 문장 ([DESIGN.md › 06](https://github.com/leebobegogigug-blip/Works/blob/13e56a0a5801da56dc18523363cd219ebf6d2e21/docs/DESIGN.md#06-문서와-말투)), 규칙 문서 (RULES · AGENTS · SPEC · PLAN · INHOUSE) 는 평서문 `…한다` 다.
+- 확정 창과 문서 이미지는 works 의 [DESIGN.md](https://github.com/leebobegogigug-blip/Works/blob/13e56a0a5801da56dc18523363cd219ebf6d2e21/docs/DESIGN.md) 를 따릅니다. 색은 네이비와 라임 두 계열만 쓰고, 나머지는 무채색(회색 계열)입니다. **빨강은 쓰지 않습니다.** 걸린 곳을 강조할 때는 라임 · 네이비 · 글씨 굵기로 합니다.
+- **예외 — README 대표 그림 한 장** (`docs/img/diode-banner.png`): 설명용 일러스트라서 위 색 규칙을 따르지 않습니다 (사용자 결정 · 2026-11-06). 이 한 장에만 걸린다는 점을 꼭 기억하세요. 확정 창 · 도표 · 새 그림은 그대로 규칙을 따릅니다. 그림을 바꿀 때도 같은 자리를 쓰되, README 의 "각 제품의 공식 그림이 아닙니다" 고지는 지킵니다.
+- 이 저장소의 문서는 팔레트 값이나 원칙을 베껴 적지 않고 위 링크만 겁니다 (가져온 커밋의 SHA 로 고정). 검사기는 색을 보지 못하므로 리뷰에서 눈으로 봅니다.
+- 모든 문서는 중학생이 들어도 알아듣게 쓴다: 존댓말 · 짧은 문장 · 일상 문체의 설명문 ([DESIGN.md › 06](https://github.com/leebobegogigug-blip/Works/blob/13e56a0a5801da56dc18523363cd219ebf6d2e21/docs/DESIGN.md#06-문서와-말투)). 어려운 낱말은 처음 나올 때 풀어 쓴다. 규칙 문서 (RULES · AGENTS · SPEC · PLAN · INHOUSE) 도 같다 - 단, 뜻 · 번호 · 숫자 · 명령은 쉽게 쓰려고 바꾸지 않는다 (사용자 결정).
 
 ### W-11 약속은 CI 가 지킨다
-- `.github/workflows/diode.yml` 이 모든 push · PR 에서 Windows + Ubuntu × 최소 (3.8) · 최신 (3.13) Python 으로 `python -m unittest discover -s tests` 와 `python tools/diode_check.py --strict` 를 돌린다.
-- 테스트는 표준 라이브러리 `unittest` 다. 외부 서비스 (Claude · 사내 LLM · opencode) 는 가짜 서버로 흉내 낸다. 카나리아 시험 (G1) 이 바깥 바이트에 원자료가 없음을 지킨다.
-- works 검사기가 이 저장소를 보지 않으므로 자기 검사기 `tools/diode_check.py` 가 본다: 의존 0 · `0.0.0.0` 바인딩 · 비밀 흔적 · 필수 파일 · README 의 테스트 수 · 사설 주소 · 외부 CDN · 플러그인 파일 (· 선택으로 사내 낱말).
-- README 에 적는 숫자와 사양 (최소 Python · 테스트 수) 은 CI 나 검사기가 확인할 수 있는 것만 적는다. 문서의 숫자는 돌려서 얻은 값만 적는다.
+- `.github/workflows/diode.yml` 이 모든 push 와 PR 에서 Windows + Ubuntu × 최소 (3.8) · 최신 (3.13) Python 조합으로 `python -m unittest discover -s tests` 와 `python tools/diode_check.py --strict` 를 돌립니다.
+- 테스트는 표준 라이브러리 `unittest` 로 짭니다. 외부 서비스 (Claude · 사내 LLM · opencode) 는 가짜 서버로 흉내 냅니다. 카나리아 시험 (G1) 이 바깥으로 나가는 바이트에 원자료가 섞여 있지 않은지 지킵니다.
+- works 검사기가 이 저장소를 보지 않으므로, 자기 검사기 `tools/diode_check.py` 가 이런 것들을 봅니다: 의존 0 · `0.0.0.0` 바인딩 · 비밀 흔적 · 필수 파일 · README 의 테스트 수 · 사설 주소 · 외부 CDN · 플러그인 파일 (· 선택으로 사내 낱말).
+- README 에 적는 숫자와 사양 (최소 Python · 테스트 수) 은 CI 나 검사기가 확인할 수 있는 것만 적습니다. 문서의 숫자는 직접 돌려서 얻은 값만 적습니다.
 
 ### W-12 공개 저장소다
-- 이 저장소는 공개다. 사내 이름 (회사 · 제품 · 공정 · 고객 · 사람 · 시스템) · 사내 경로 · 사내 주소 · 사내 모델 이름 · 사내 TUI 이름 · 실데이터를 커밋하지 않는다. 사내 단어 · 정규식 · 모델 이름은 사용자 설정과 `adapters.local/` 에만 둔다.
-- 테스트 자료 · 예시는 지어낸 회사 · 공정 · 수치만 쓴다. 주소는 `example.com` · `*.local` 처럼 실재하지 않는 것이고, 사설 IP 꼴의 지어낸 값은 `docs/SPEC.md` · `tests/vectors/` 에만 둔다.
-- README 끝에 영감 고지문을 둔다: "화면 문법은 소형 하드웨어 계측기(Teenage Engineering 류)에서 영감을 받았고, 해당 회사와는 관련이 없습니다." 이름이 비유일 뿐 하드웨어 데이터 다이오드가 아니라는 고지도 README · MANUAL 첫머리에 둔다.
-- 내장한 폰트 · 자산은 라이선스 파일을 함께 둔다.
-- 사내 마무리에서 공개 저장소로 되가져오는 코드는 사람이 diff 를 한 줄씩 본다 ([docs/INHOUSE.md](docs/INHOUSE.md)).
+- 이 저장소는 누구나 볼 수 있는 공개 저장소입니다. 사내 이름 (회사 · 제품 · 공정 · 고객 · 사람 · 시스템) · 사내 경로 · 사내 주소 · 사내 모델 이름 · 사내 TUI 이름 · 실데이터를 커밋하지 않습니다. 사내 단어 · 정규식 · 모델 이름은 사용자 설정과 `adapters.local/` 에만 둡니다.
+- 테스트 자료와 예시는 지어낸 회사 · 공정 · 수치만 씁니다. 주소는 `example.com` · `*.local` 처럼 실제로 없는 것을 쓰고, 사설 IP 꼴의 지어낸 값은 `docs/SPEC.md` 와 `tests/vectors/` 에만 둡니다.
+- README 끝에 영감 고지문을 둡니다: "화면 문법은 소형 하드웨어 계측기(Teenage Engineering 류)에서 영감을 받았고, 해당 회사와는 관련이 없습니다." 이름 diode 는 비유일 뿐 하드웨어 데이터 다이오드가 아니라는 고지도 README 와 MANUAL 첫머리에 둡니다.
+- 안에 넣어 둔 폰트와 자산에는 라이선스 파일을 함께 둡니다.
+- 사내에서 마무리한 코드를 공개 저장소로 되가져올 때는 사람이 diff (바뀐 부분 비교) 를 한 줄씩 봅니다 ([docs/INHOUSE.md](docs/INHOUSE.md)).
 
 ---
 
@@ -136,17 +136,17 @@ works 의 검사기 (`works_check.py`) 는 이 저장소를 보지 않는다. �
 
 | # | 규약 |
 |---|---|
-| S-01 | **이름.** 화면 표기는 `Diode`, 플러그인 · 마켓플레이스 · 폴더 · 명령 · 데이터 폴더는 `diode` — 번호가 없다. 앱 안의 부품은 `XX–N` (en dash) 그대로. 코드 상수는 `diodelib/__init__.py` 의 `APP` · `NAME` · `VERSION` |
-| S-02 | **버전.** `VERSION = "x.y.z"` 상수 하나 (`diodelib/__init__.py`) 를 두고 `diode.py version` 으로 보여 준다. `.claude-plugin/plugin.json` 의 `version` 과 같게 둔다 (시험이 본다). 고침은 셋째 자리 · 새 기능은 둘째 자리 · 첫째 자리는 사람이 정한다 |
-| S-03 | **명령과 종료 코드.** 공통 동작의 이름은 `check` · `version` · `help`. 종료 코드는 `0` OK · `1` 점검 실패 · `2` 사용법 오류 · `3` 사람 확인 필요. 점검 출력의 마지막 줄은 `결과: OK` · `결과: 확인 필요` · `결과: 점검 실패` 중 하나다 (에이전트가 이 줄로 판단한다) |
-| S-04 | **앱 유형 — 명령형.** 서버가 없다 (사내 LLM 이 `127.0.0.1` 주소로 확정을 흉내 낼 길이 없다). `diode.py` 하나가 진입이고 소스 실행이 정본이다. 확정 창은 `tkinter` (표준 라이브러리) 이고, 창이 없는 환경에서는 보내지 않는다 (AL-02) |
-| S-05 | **Windows 가 본 무대.** 경로는 항상 큰따옴표로 감싸고, 명령은 cmd · PowerShell · Git Bash 에서 그대로 돌게 쓴다. PowerShell 5.1 호환. `.ps1` · `.cmd` · `.bat` 은 CRLF (`.gitattributes`). 콘솔 출력은 UTF-8 |
-| S-08 | **커밋.** 한국어로 `diode: 무엇 · 무엇`. 한 커밋에 일 하나. `무엇` 은 고친 결과를 사용자가 알아듣는 말로 쓴다. `kit/out/` 을 커밋하지 않는다 |
-| S-09 | **LLM.** D7 (사내 LLM 판정) 은 works SPEC-llm 의 `llm` 설정 키 · 명령을 따른다. 다만 **환경 변수 덮어쓰기 (`<접두어>_BASE_URL` 등) 는 받지 않는다** — AL-12 와 부딪힌다: 사내 LLM 이 환경 변수로 판정 모델을 바꿔 D7 을 무력화할 수 있다. 따르지 않는 까닭은 [docs/MANUAL.md › 알려진 한계](docs/MANUAL.md#알려진-한계)에 적는다 |
+| S-01 | **이름.** 화면 표기는 `Diode`, 플러그인 · 마켓플레이스 · 폴더 · 명령 · 데이터 폴더는 `diode` 이고 번호가 없습니다. 앱 안의 부품 이름은 `XX–N` (en dash) 꼴 그대로 둡니다. 코드 상수는 `diodelib/__init__.py` 의 `APP` · `NAME` · `VERSION` |
+| S-02 | **버전.** `VERSION = "x.y.z"` 상수 하나 (`diodelib/__init__.py`) 를 두고 `diode.py version` 으로 보여 줍니다. `.claude-plugin/plugin.json` 의 `version` 과 같게 둡니다 (시험이 봅니다). 고치기만 하면 셋째 자리, 새 기능이 생기면 둘째 자리를 올리고, 첫째 자리는 사람이 정합니다 |
+| S-03 | **명령과 종료 코드.** 모든 명령이 함께 갖는 동작의 이름은 `check` · `version` · `help` 입니다. 종료 코드는 `0` OK · `1` 점검 실패 · `2` 사용법 오류 · `3` 사람 확인 필요. 점검 출력의 마지막 줄은 `결과: OK` · `결과: 확인 필요` · `결과: 점검 실패` 중 하나입니다 (에이전트가 이 줄을 보고 판단합니다) |
+| S-04 | **앱 유형 — 명령형.** 서버가 없습니다 (서버가 있으면 사내 LLM 이 `127.0.0.1` 주소로 확정을 흉내 낼 길이 생기기 때문입니다). `diode.py` 하나가 들어가는 문이고, 소스 그대로 실행하는 것이 기본입니다. 확정 창은 `tkinter` (표준 라이브러리) 로 만들며, 창을 띄울 수 없는 환경에서는 보내지 않습니다 (AL-02) |
+| S-05 | **Windows 가 본 무대.** 경로는 항상 큰따옴표로 감싸고, 명령은 cmd · PowerShell · Git Bash 어디서나 그대로 돌게 씁니다. PowerShell 5.1 에서도 돌아야 합니다. `.ps1` · `.cmd` · `.bat` 은 CRLF 줄바꿈 (`.gitattributes`). 콘솔 출력은 UTF-8 |
+| S-08 | **커밋.** 한국어로 `diode: 무엇 · 무엇` 꼴로 씁니다. 한 커밋에 일 하나만 담습니다. `무엇` 은 고친 결과를 사용자가 알아듣는 말로 씁니다. `kit/out/` 은 커밋하지 않습니다 |
+| S-09 | **LLM.** D7 (사내 LLM 판정) 은 works SPEC-llm 의 `llm` 설정 키 · 명령을 따릅니다. 다만 **환경 변수 덮어쓰기 (`<접두어>_BASE_URL` 등) 는 받지 않습니다.** AL-12 와 부딪히기 때문입니다. 환경 변수로 판정에 쓰는 모델을 바꿀 수 있으면 사내 LLM 이 D7 을 무력화할 수 있습니다. 이 규약을 따르지 않는 까닭은 [docs/MANUAL.md › 알려진 한계](docs/MANUAL.md#알려진-한계)에 적어 둡니다 |
 
 ## 불변식
 
-AL-01–AL-15 의 정본은 [docs/PLAN.md › 04](docs/PLAN.md#04-불변식) 이고 이 파일은 옮겨 적지 않는다. 하나만 여기서도 못 박는다 — **AL-09: 스킬 문장은 벽이 아니다.** `SKILL.md` · 명령 글 · 안내 문에만 있는 금지는 금지로 세지 않는다. 막는 일은 결정적 코드 · 권한 · 사람의 확정 창이 한다. 훅이 막는 것과 못 막는 것 (설정 전의 세션 · 플러그인을 끈 세션 · 셸 · 이미지 · PDF) 을 문서에 그대로 적는다 ([docs/MANUAL.md › 알려진 한계](docs/MANUAL.md#알려진-한계)).
+AL-01–AL-15 의 정본은 [docs/PLAN.md › 04](docs/PLAN.md#04-불변식) 이고, 이 파일에는 베껴 적지 않습니다. 다만 하나는 여기서도 못 박아 둡니다. **AL-09: 스킬 문장은 벽이 아니다.** `SKILL.md` · 명령 글 · 안내 문에만 적힌 금지는 금지로 세지 않습니다. 안내 글에 "하지 마라" 라고 적는 것만으로는 아무것도 막히지 않기 때문입니다. 실제로 막는 일은 결정적 코드(항상 같은 결과를 내는 코드) · 권한 · 사람의 확정 창이 합니다. 훅이 막는 것과 못 막는 것 (설정 전의 세션 · 플러그인을 끈 세션 · 셸 · 이미지 · PDF) 은 문서에 있는 그대로 적습니다 ([docs/MANUAL.md › 알려진 한계](docs/MANUAL.md#알려진-한계)).
 
 ## 검사기
 
@@ -157,11 +157,11 @@ python tools/diode_check.py --no-tests                 README 의 테스트 수 
 python tools/diode_check.py --internal-words <파일>    사내 낱말 검사 (낱말 목록은 사내 자리에 둔다 · 낱말은 찍지 않는다)
 ```
 
-- 모든 push · PR 에서 CI 가 `--strict` 로 돌린다. **위반이 하나라도 있으면 CI 가 실패한다.** 예외 대장은 없다 — 걸린 것은 고친다.
-- 검사기가 못 보는 조항 (W-05 · W-07 · W-09 · W-10 일부) 은 리뷰에서 본다.
+- 모든 push 와 PR 에서 CI 가 `--strict` 로 돌립니다. **위반이 하나라도 있으면 CI 가 실패합니다.** 봐주는 목록(예외 대장)은 없습니다. 걸린 것은 고칩니다.
+- 검사기가 못 보는 조항 (W-05 · W-07 · W-09 · W-10 일부) 은 사람이 리뷰에서 봅니다.
 
 ## 규칙 바꾸기
 
-- 헌법은 12조를 넘기지 않는다 (works 와 같은 번호를 쓴다). 새 조항은 실제로 일어난 문제나 되풀이된 패턴이 근거일 때만 넣는다.
-- 조항을 바꾸는 커밋은 그 조항만 바꾼다. 검사기 · AGENTS.md 의 요약도 같은 커밋에서 맞춘다.
-- 고친 기록: 처음 씀 — [docs/PLAN.md › 09](docs/PLAN.md#09-규칙--새-저장소-diode-의-rulesmd-원고) 의 채택표를 이 저장소의 규칙으로.
+- 헌법은 12조를 넘기지 않습니다 (works 와 같은 번호를 씁니다). 새 조항은 실제로 일어난 문제나 되풀이된 패턴이 근거일 때만 넣습니다.
+- 조항을 바꾸는 커밋은 그 조항만 바꿉니다. 검사기와 AGENTS.md 의 요약도 같은 커밋에서 맞춥니다.
+- 고친 기록: 처음 씀 — [docs/PLAN.md › 09](docs/PLAN.md#09-규칙--새-저장소-diode-의-rulesmd-원고) 의 채택표를 이 저장소의 규칙으로 삼았습니다.
