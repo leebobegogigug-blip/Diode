@@ -25,7 +25,7 @@ Diode 는 회사 안 (사내 LLM · 원자료) 과 회사 밖 (Claude) 사이에
 <p align="center"><sub>
 CLAUDE CODE 플러그인 · 저장소 하나 = 플러그인 하나 = 마켓플레이스 하나<br>
 파이썬 3.8+ · 표준 라이브러리만<br>
-테스트 749 · WINDOWS + UBUNTU CI
+테스트 824 · WINDOWS + UBUNTU CI
 </sub></p>
 
 <br>
@@ -42,7 +42,7 @@ CLAUDE CODE 플러그인 · 저장소 하나 = 플러그인 하나 = 마켓플�
 | 훅 — 세션 폴더로 방 · 원자료 폴더 · 그 밖을 가르고, 사전 단어 · 경로 꼴이 든 말과 방 밖 · 원자료 폴더의 도구를 막습니다. 사내 단어가 든 파일은 위치와 상관없이 `Read` 가 막힙니다 (고장 나면 막는 쪽) | 사내 Windows · 사내 CLI 판 · 관리형 설정에서의 동작 ([질문지](kit/inhouse-questions.md)) |
 | 허브 (MCP) — 일 넘기기 · 보고 받기 · 사내 LLM 판정 (D7) · 감사 기록 · 확정 창 (보낼 바이트를 사람이 보고 누름) · `propose` | 일꾼 연결 방식 확인 — 사내 opencode 가 어떻게 물려 있는지 |
 | 정책 창 — 사전 · 원자료 폴더 · 안쪽 도구 · 일꾼을 사람이 직접 입력합니다 (Claude 는 읽지도 고치지도 못합니다) | 보안 부서의 답 — 그 전까지 실데이터는 0 입니다 |
-| `/diode:setup` · `/diode:room` · `/diode:dict` · `/diode:status` — 점검 · 방 만들기 | 말 봉인 칸 (사내 말을 토큰 글로 바꿔 주는 칸) · 어림 비용 · 팀 사전 들여오기 |
+| `/diode:setup` · `/diode:room` · `/diode:dict` · `/diode:status` — 점검 · 방 만들기 · `/diode:speak` — 사내 말을 토큰 글로 바꿔 보이고 사람이 확인해 복사 (말 봉인 창) | 말 봉인 칸 (사내 말을 토큰 글로 바꿔 주는 칸) · 어림 비용 · 팀 사전 들여오기 |
 | 검사기 D1–D6 · seal · unseal · 자기 검사기 · CI — Windows · Ubuntu × 파이썬 3.8 · 3.13 | |
 
 순서는 [기획서](docs/PLAN.md) 의 로드맵에 있습니다. 실데이터는 보안 부서의 답이 있기 전에는 쓰지 않습니다.

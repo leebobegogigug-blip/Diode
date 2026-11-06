@@ -122,6 +122,9 @@ def scenarios(lay):
          "prompt": "/diode:dict", "expect": "window", "needs_display": True, "python_tk": True},
         {"id": "R23", "what": "슬래시 명령 /diode:dict — tkinter 가 없는 파이썬이면 창을 열었다고 하지 않고 E-07 로 실패 (모델 요청 0)", "cwd": "other",
          "prompt": "/diode:dict", "expect": "window_unavailable", "needs_display": True},
+        {"id": "R26", "what": "슬래시 명령 /diode:speak — 말 봉인 창이 따로 떼어져 뜨고 (기다리지 않음) 단어 없는 한 줄이 Claude 에게 간다", "cwd": "other",
+         "prompt": "/diode:speak", "expect": "window", "needs_display": True, "python_tk": True, "window_cmd": b"speak",
+         "window_word": "말 봉인 창"},
         {"id": "R22", "what": "슬래시 명령 /diode:setup 첫 실행 (정책 없음) — 정책 창이 뜨고 방은 만들지 않으며 점검 결과가 Claude 에게 간다", "cwd": "other",
          "prompt": "/diode:setup", "no_data": True, "expect": "window", "needs_display": True, "python_tk": True},
         {"id": "R24", "what": "보통 폴더의 CLAUDE.md 에 사내 단어 — 프롬프트가 막힘 (안내 파일은 모든 요청에 실려 가므로 · 모델 요청 0)", "cwd": "other",
@@ -146,8 +149,8 @@ def python_tk_dir(work):
     return d
 
 
-def policy_windows():
-    """떠 있는 정책 창 프로세스의 pid 들 (Linux · /proc 의 인자 목록이 정확히 [.., diode.py, policy] 인 것만)."""
+def policy_windows(command=b"policy"):
+    """떠 있는 창 프로세스의 pid 들 (Linux · /proc 의 인자 목록이 정확히 [.., diode.py, policy | speak] 인 것만)."""
     pids = []
     if not os.path.isdir("/proc"):
         return pids
@@ -160,18 +163,18 @@ def policy_windows():
         except OSError:
             continue
         argv = [x for x in argv if x]
-        if len(argv) >= 3 and argv[-1] == b"policy" and argv[-2].endswith(b"diode.py"):
+        if len(argv) >= 3 and argv[-1] == command and argv[-2].endswith(b"diode.py"):
             pids.append(int(d))
     return pids
 
 
-def policy_windows_since(before):
-    return [p for p in policy_windows() if p not in before]
+def policy_windows_since(before, command=b"policy"):
+    return [p for p in policy_windows(command) if p not in before]
 
 
-def kill_policy_windows(before):
+def kill_policy_windows(before, command=b"policy"):
     import signal
-    now = [p for p in policy_windows() if p not in before]
+    now = [p for p in policy_windows(command) if p not in before]
     for pid in now:
         try:
             os.kill(pid, signal.SIGTERM)
@@ -186,7 +189,8 @@ def run_one(sc, a, work, lay):
     if sc.get("needs_display") and not os.environ.get("DISPLAY"):
         return {"id": sc["id"], "what": sc["what"], "expect": sc["expect"], "pass": True, "skipped": True, "exit": None,
                 "messages_requests": 0, "leaked": [], "seconds": 0, "stderr_tail": "DISPLAY 없음 - 건너뜀"}
-    windows_before = policy_windows()
+    wcmd = sc.get("window_cmd", b"policy")
+    windows_before = policy_windows(wcmd)
     home = os.path.join(work, "home-" + sc["id"])
     os.makedirs(home, exist_ok=True)
     if not sc.get("no_data"):
@@ -229,7 +233,7 @@ def run_one(sc, a, work, lay):
     res = rk.analyze(out, lay, sc)
     res["stdout"] = stdout or ""
     time.sleep(0.5)
-    spawned = kill_policy_windows(windows_before) if sc.get("expect") == "window" else 0
+    spawned = kill_policy_windows(windows_before, wcmd) if sc.get("expect") == "window" else 0
     created = bool(sc.get("must_not_exist")) and os.path.exists(sc["must_not_exist"])
     if created:
         os.remove(sc["must_not_exist"])
@@ -246,7 +250,7 @@ def run_one(sc, a, work, lay):
         ok = n == 0 and "E-07" in res["stdout"] and spawned == 0 and not policy_windows_since(windows_before)
     elif sc["expect"] == "window":
         body = json.dumps([d.get("body") for d in rk.load_dumps(out)], ensure_ascii=False)
-        ok = n > 0 and spawned >= 1 and ("정책 창" in body) and "dict_word" not in res["found"] and not leaked
+        ok = n > 0 and spawned >= 1 and (sc.get("window_word", "정책 창") in body) and "dict_word" not in res["found"] and not leaked
     elif sc["expect"] == "cmd_status":
         body = json.dumps([d.get("body") for d in rk.load_dumps(out)], ensure_ascii=False)
         ok = n > 0 and "결과:" in body and "CLAUDE_PLUGIN_ROOT" not in body.replace("${CLAUDE_PLUGIN_ROOT}/diode.py", "") \

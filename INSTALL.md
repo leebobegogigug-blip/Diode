@@ -123,7 +123,7 @@ claude plugin details diode
 - **확인**:
   - `Successfully added marketplace: diode` 와 `Successfully installed plugin: diode@diode (scope: user)` 가 나오고 종료 코드가 0 이다. 이미 되어 있으면 `already on disk` · `already installed` 가 나오는데 종료 코드 0 이면 정상이다.
   - `claude plugin list` 에 `diode@diode` 가 보이고, `Version:` 이 2단계의 `diode.py version` 과 같고, `Read from:` 이 `D:\claude\diode`, `Scope: user`, `Status:` 줄이 enabled 다.
-  - `claude plugin details diode` (모델을 부르지 않는다) 의 `Skills` 줄에 `dict` · `diode` · `room` · `setup` · `status`, `Hooks` 줄에 `SessionStart` · `UserPromptSubmit` · `PreToolUse`, `MCP servers` 줄에 `hub` 가 있다.
+  - `claude plugin details diode` (모델을 부르지 않는다) 의 `Skills` 줄에 `dict` · `diode` · `room` · `setup` · `speak` · `status`, `Hooks` 줄에 `SessionStart` · `UserPromptSubmit` · `PreToolUse`, `MCP servers` 줄에 `hub` 가 있다.
   - 문구는 Claude Code 판마다 조금 다를 수 있다. 종료 코드 0 과 위 이름들로 판단한다.
 - **명령이 풀리는지 확인**: 슬래시 명령은 `python "${CLAUDE_PLUGIN_ROOT}/diode.py" …` 를 Git Bash 로 돌린다. `${CLAUDE_PLUGIN_ROOT}` 는 Claude Code 가 플러그인 폴더 (`D:\claude\diode`) 로 바꿔 넣는 자리표시라서, 풀려야 명령이 된다 (훅은 셸 없이 `python` 을 직접 부른다). 이 세션에는 플러그인이 아직 없을 수 있으므로 에이전트가 슬래시 명령을 칠 수 없다. 두 길 중 하나로 확인한다.
   - 사람이: 새 Claude Code 세션 (또는 `/reload-plugins`) 에서 `/diode:status` 를 쳐서 점검 결과가 나오는지 본다.
@@ -399,6 +399,7 @@ python "D:\claude\diode\diode.py" setup --check
 | `python "D:\claude\diode\diode.py" setup` | 처음 설정 (`/diode:setup`) — 정책이 비면 정책 창을 열고, 채워졌으면 방을 만들고 점검 |
 | `python "D:\claude\diode\diode.py" room` | 방 만들기 (`/diode:room`) — 이미 있는 방은 덮어쓰지 않음 |
 | `python "D:\claude\diode\diode.py" dict` | 정책 창을 따로 떼어 열기 (`/diode:dict`) |
+| `python "D:\claude\diode\diode.py" speak` | 말 봉인 창 (`/diode:speak`) — 사내 말을 토큰 글로 바꿔 보이고 사람이 확인해 복사한다. 사람이 쓰는 창이라 에이전트는 열기만 한다 |
 | `python "D:\claude\diode\diode.py" version` · `help` | 버전 · 도움말 |
 | `python "D:\claude\diode\diode.py" scan` | 표준 입력의 글 검사 (`0` 통과 · `2` 막음 · 사전이 없으면 `2`) |
 | `python "D:\claude\diode\diode.py" --status --json` | 상태 (JSON 한 줄 · 읽기 전용 · `/diode:status` 가 점검과 함께 보여 줌) |

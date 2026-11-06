@@ -80,18 +80,21 @@ def u3(text):
     return sorted(out)
 
 
-def unseal(answer, table, policy, kind):
+def unseal(answer, table, policy, kind, md_limit=None):
     """답 (str) → {"ok", "stop", "text", "binding", "issues"}.
 
     ok    False 면 안쪽에 쓰지 않는다 (U2 · U4 · ui 의 U3 · 오류).
     stop  True 면 그 job 을 멈추고 사람에게 알린다 (U2 — Claude 가 진짜 단어를 맞혔다 · 재식별).
     issues {"U1": [줄], "U2": 개수, "U3": [줄], "U4": bool} — 단어 없음.
+    md_limit  글 답 (ui 밖) 의 U4 상한을 바이트로 바꾼다 (없으면 MAX_MD_BYTES). 말 봉인 창이 자기 상한을 줄 때 쓴다.
     """
     try:
         if not isinstance(table, PseudonymTable) or not isinstance(policy, scan.Policy) \
                 or not isinstance(answer, str) or kind not in ("plan", "ui", "lib", "report"):
             return _err()
-        return _unseal(answer, table, policy, kind)
+        if md_limit is not None and (type(md_limit) is not int or md_limit < 1):
+            return _err()
+        return _unseal(answer, table, policy, kind, MAX_MD_BYTES if md_limit is None else md_limit)
     except Exception:
         return _err()
 
@@ -100,7 +103,7 @@ def _err():
     return {"ok": False, "stop": True, "text": None, "binding": None, "issues": {"E": "E-20"}}
 
 
-def _unseal(answer, table, policy, kind):
+def _unseal(answer, table, policy, kind, md_limit=MAX_MD_BYTES):
     text = answer.replace("\r\n", "\n").replace("\r", "\n")
     if text.startswith("﻿"):
         text = text[1:]
@@ -108,7 +111,7 @@ def _unseal(answer, table, policy, kind):
     if kind == "ui":
         u4_bad = size > MAX_UI_BYTES or not _HTML_HEAD.search(text) or not _HTML_END.search(text)
     else:
-        u4_bad = size > MAX_MD_BYTES
+        u4_bad = size > md_limit
     issues = {"U1": u1(text, table), "U2": u2(text, table, policy), "U3": u3(text), "U4": bool(u4_bad)}
 
     if issues["U2"]:
