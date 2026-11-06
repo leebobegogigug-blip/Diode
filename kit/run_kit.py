@@ -102,6 +102,11 @@ def clean_env(home, port, out, extra):
         "NO_PROXY": "127.0.0.1,localhost", "no_proxy": "127.0.0.1,localhost",
         "DIODE_PROBE_OUT": out,
     })
+    if os.name == "nt":
+        # Windows 의 데이터 폴더는 %LOCALAPPDATA%\diode — HOME 만 바꾸면 이 PC 의 진짜 폴더를 보게 된다 (CI 의 Windows 가 찾았다)
+        for key, sub in (("LOCALAPPDATA", ("AppData", "Local")), ("APPDATA", ("AppData", "Roaming"))):
+            env[key] = os.path.join(home, *sub)
+            os.makedirs(env[key], exist_ok=True)
     env.update(extra or {})
     return env
 

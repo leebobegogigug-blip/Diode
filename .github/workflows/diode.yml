@@ -52,7 +52,8 @@ jobs:
         with:
           node-version: "22"
       - name: Claude Code CLI 설치 (고정판)
-        run: npm install -g @anthropic-ai/claude-code@${{ env.CLAUDE_CLI_VERSION }}
+        shell: bash
+        run: npm install -g "@anthropic-ai/claude-code@$CLAUDE_CLI_VERSION"
       - name: claude 실행 파일 찾기 (Windows 의 .cmd 껍데기를 거치지 않는다)
         shell: python
         run: |
@@ -68,8 +69,15 @@ jobs:
           out = subprocess.run([exe, "--version"], capture_output=True, text=True)
           print(out.stdout.strip(), out.stderr.strip())
       - name: 처음부터 끝까지 (설치 → 설정 → 방 → 훅 · 허브) I1–I6
-        run: python kit/run_install.py --claude "$env:CLAUDE_BIN"
-        if: runner.os == 'Windows'
-      - name: 처음부터 끝까지 (설치 → 설정 → 방 → 훅 · 허브) I1–I6
+        shell: bash
         run: python kit/run_install.py --claude "$CLAUDE_BIN"
-        if: runner.os != 'Windows'
+      - name: 훅 시나리오 R01–R25 (진짜 CLI · 가짜 서버)
+        if: always()
+        shell: bash
+        timeout-minutes: 30
+        run: python kit/run_hooks.py --claude "$CLAUDE_BIN"
+      - name: 바이트 시험 S01… (진짜 CLI · 가짜 서버)
+        if: always()
+        shell: bash
+        timeout-minutes: 20
+        run: python kit/run_kit.py --claude "$CLAUDE_BIN" --python python

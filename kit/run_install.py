@@ -75,6 +75,16 @@ class Env(object):
         return p.returncode, (p.stdout + p.stderr)
 
 
+def last_user_text(body):
+    """가짜 서버가 받은 요청 본문 글(JSON 목록)에서 마지막 요청의 마지막 messages 글 - 진단용"""
+    try:
+        reqs = json.loads(body)
+        msgs = (reqs[-1] or {}).get("messages") or []
+        return json.dumps(msgs[-1].get("content") if msgs else "", ensure_ascii=False)
+    except (ValueError, AttributeError, IndexError, TypeError):
+        return ""
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--claude", default="claude")
@@ -98,8 +108,16 @@ def main(argv=None):
 
         code, n, stdout, body = e.ask("/diode:setup", e.other)
         made = room.room_state(e.room)
-        check("I2", n >= 1 and made == "ok" and "방을 만들었습니다" in body and word not in body and rk.CANARY["raw_text"] not in body,
-              "모델 요청 %d · 방 %s · 점검 결과가 Claude 에게 감 %s · 사전 단어 없음 %s" % (n, made, "방을 만들었습니다" in body, word not in body))
+        ok2 = n >= 1 and made == "ok" and "방을 만들었습니다" in body and word not in body and rk.CANARY["raw_text"] not in body
+        check("I2", ok2, "모델 요청 %d · 방 %s · 점검 결과가 Claude 에게 감 %s · 사전 단어 없음 %s" % (n, made, "방을 만들었습니다" in body, word not in body))
+        if not ok2:
+            print("  진단 (합성 자료만 — 종료 코드 %s):" % code)
+            print("  claude 표준 출력 끝:", (stdout or "")[-500:].replace("\n", " "))
+            print("  모델이 받은 마지막 사용자 글 끝:", last_user_text(body)[-1200:].replace("\n", " "))
+            if not os.path.isdir(e.room):
+                print("  방 폴더가 없어 이어서 시험할 수 없다 — 여기서 멈춘다")
+                print("결과: 점검 실패 (I2)")
+                return 1
 
         code, n, stdout, body = e.ask("안녕", e.room)
         check("I3", n >= 1, "방에서 깨끗한 말 → 모델 요청 %d" % n)
