@@ -226,6 +226,9 @@ class ToolRoom(Base):
         self.assertAllowed(self.tool("ToolSearch", {"query": "select:x"}, self.room))
         self.assertAllowed(self.tool("mcp__plugin_diode_hub__dispatch", {"instruction": "x"}, self.room))
         self.assertAllowed(self.tool("Skill", {"skill": "diode"}, self.room))
+        self.assertAllowed(self.tool("Skill", {"skill": "diode:status"}, self.room))
+        self.assertDenied(self.tool("Skill", {"skill": "diode:../x"}, self.room))
+        self.assertDenied(self.tool("Skill", {"skill": "diode:a b"}, self.room))
         self.assertDenied(self.tool("Skill", {"skill": "someone-else"}, self.room))
 
     def test_web_search_off(self):

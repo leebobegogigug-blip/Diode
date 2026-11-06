@@ -375,6 +375,7 @@ def _tool_paths(tool, ti, cwd):
         if not isinstance(v, str):
             return None
         if v:
+            v = os.path.expandvars(os.path.expanduser(_from_posix_drive(v)))      # ~ · $HOME · %VAR% · Git Bash 꼴 (이중 방어 - Claude Code 가 먼저 풀어 주기도 한다)
             out.append(v if os.path.isabs(v) else os.path.join(cwd, v))
     # Glob · Grep 의 무늬로 방을 벗어나는 것 (../ · 절대 경로 · ~)
     for k in ("pattern", "glob"):
@@ -569,7 +570,7 @@ def on_tool(data, settings, project_dir):
             return _deny(MSG["room_tool"])
         if tool == "Skill":
             name = ti.get("skill") if isinstance(ti.get("skill"), str) else ti.get("name")
-            if not isinstance(name, str) or not (name == "diode" or name.startswith("diode:")):
+            if not isinstance(name, str) or not re.match(r"^diode(?::[A-Za-z0-9_-]+)?\Z", name):
                 return _deny(MSG["room_tool"])
             return ALLOW
         if tool in FILE_TOOLS:
