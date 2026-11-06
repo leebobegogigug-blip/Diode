@@ -113,6 +113,7 @@ works 의 검사기 (`works_check.py`) 는 이 저장소를 보지 않는다. �
 
 ### W-10 디자인은 하나
 - 확정 창 · 문서 이미지는 works 의 [DESIGN.md](https://github.com/leebobegogigug-blip/Works/blob/13e56a0a5801da56dc18523363cd219ebf6d2e21/docs/DESIGN.md) 를 따른다. 유채색은 네이비 · 라임 두 계열만, 나머지는 무채색이고 **빨강 없음** — 걸린 곳 강조는 라임 · 네이비 · 굵기로 한다.
+- **예외 — README 대표 그림 한 장** (`docs/img/diode-banner.png`): 설명용 일러스트라서 위 색 규칙을 따르지 않는다 (사용자 결정 · 2026-11-06). 이 한 장에만 걸린다 — 확정 창 · 도표 · 새 그림은 그대로 규칙을 따른다. 그림을 바꿀 때도 같은 자리를 쓰되 README 의 "각 제품의 공식 그림이 아닙니다" 고지는 지킨다.
 - 이 저장소의 문서는 팔레트 값 · 원칙을 옮겨 적지 않고 위 링크를 건다 (옮긴 커밋의 SHA 로 고정). 검사기는 색을 보지 않는다 — 리뷰에서 본다.
 - 사람이 읽는 문서 (README · MANUAL · INSTALL) 는 존댓말 · 짧은 문장 ([DESIGN.md › 06](https://github.com/leebobegogigug-blip/Works/blob/13e56a0a5801da56dc18523363cd219ebf6d2e21/docs/DESIGN.md#06-문서와-말투)), 규칙 문서 (RULES · AGENTS · SPEC · PLAN · INHOUSE) 는 평서문 `…한다` 다.
 

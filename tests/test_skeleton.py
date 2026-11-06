@@ -406,6 +406,13 @@ class TestDocs(unittest.TestCase):
         self.assertNotIn("http", src)                                       # 바깥 주소로 가져오지 않는다 (W-03)
         self.assertIn("공식 그림이 아닙니다", text)                           # 제품 그림 고지
 
+    def test_w10_exception_names_the_one_banner(self):
+        rules = read("RULES.md")
+        self.assertEqual(rules.count("docs/img/diode-banner.png"), 1)        # 예외는 이 한 장뿐
+        self.assertIn("한 장에만 걸린다", rules)
+        self.assertTrue(os.path.isfile(os.path.join(ROOT, "docs", "img", "diode-banner.png")))
+        self.assertEqual(sorted(os.listdir(os.path.join(ROOT, "docs", "img"))), ["diode-banner.png"])   # 예외가 슬그머니 늘지 않게
+
     def test_readme_uses_the_blueprint_metaphor(self):
         text = read("README.md")
         for word in ("접합", "순방향", "역방향", "봉인 보고"):
