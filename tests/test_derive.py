@@ -728,7 +728,7 @@ class WhereTheSettingLives(unittest.TestCase):
                 mods.update(a.name.split(".")[0] for a in n.names)
             elif isinstance(n, ast.ImportFrom) and n.level == 0:
                 mods.add((n.module or "").split(".")[0])
-        self.assertEqual(mods - {"csv", "io", "json", "math", "os", "re", "collections", "fractions", "sys"}, set())
+        self.assertEqual(mods - {"csv", "io", "json", "math", "os", "re", "collections", "fractions", "sys", "ctypes", "msvcrt"}, set())
 
 
 # ---------------------------------------------------------------- 끝에서 끝 - 출력에 값이 없다

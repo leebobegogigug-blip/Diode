@@ -502,13 +502,36 @@ def main_derive(home, home_is_default, csv_path, out_path, inp, err):
         return EXIT_FAIL, _line({"derived": False, "error": E_INTERNAL})
 
 
+def _is_real_console(stream):
+    """Windows 에서 isatty() 는 입력 없는 장치 NUL 에도 참이다 (< NUL 로 \"터미널\" 문을 지나는 길) - 진짜 콘솔인지 콘솔 모드로 본다.
+    다른 OS 에서는 isatty() 로 충분하다."""
+    if os.name != "nt":
+        return True
+    try:
+        import ctypes
+        import msvcrt
+        handle = msvcrt.get_osfhandle(stream.fileno())
+        mode = ctypes.c_uint32()
+        return bool(ctypes.windll.kernel32.GetConsoleMode(ctypes.c_void_p(handle), ctypes.byref(mode)))
+    except Exception:
+        return False
+
+
+def stdin_is_terminal(stream):
+    """표준 입력이 사람이 앉은 터미널인가 (파이프 · 파일 · NUL 은 아니다). 벽은 아니다 (L-11) - 일꾼이 실수로 부르는 길을 막는다."""
+    try:
+        return bool(stream.isatty()) and _is_real_console(stream)
+    except Exception:
+        return False
+
+
 def run_command(csv_path, out_path, home_info, inp, out, err):
     """diode.py 의 분배. home_info 는 (데이터 폴더, 기본 자리인가). 표준 입력이 터미널이 아니면 (inp 가 없는데 파이프) 돌지 않는다."""
     import sys
     home, default = home_info
     if inp is None:
         stdin = sys.stdin
-        if not getattr(stdin, "isatty", lambda: False)():
+        if not stdin_is_terminal(stdin):
             out.write(_line({"derived": False, "error": E_OFF}) + "\n")
             return EXIT_CONFIRM
         inp = stdin

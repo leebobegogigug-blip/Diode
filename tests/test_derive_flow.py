@@ -297,12 +297,18 @@ class GatesOfPropose(Base):
 
             def isatty(self):
                 return self.v
-        with mock.patch.object(sys, "stdin", Tty(True)):
+        with mock.patch.object(sys, "stdin", Tty(True)), mock.patch.object(derive, "_is_real_console", return_value=True):
             self.assertTrue(REAL_TTY_CHECK())
         with mock.patch.object(sys, "stdin", Tty(False)):
             self.assertFalse(REAL_TTY_CHECK())
         with mock.patch.object(sys, "stdin", object()):
             self.assertFalse(REAL_TTY_CHECK())
+
+    @unittest.skipUnless(os.name == "nt", "Windows 에서만 NUL 이 isatty() 참이다")
+    def test_windows_nul_is_not_a_terminal(self):
+        """Windows 의 NUL 장치는 isatty() 가 참이다 - 진짜 콘솔 모드로 한 번 더 본다 (CI 의 Windows 가 잡은 허점)."""
+        with open(os.devnull, "r") as nul:
+            self.assertFalse(derive.stdin_is_terminal(nul))
 
     def test_no_derive_record_means_refused(self):
         path = self.derive()

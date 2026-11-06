@@ -46,7 +46,7 @@ def _err(code):
 
 def _stdin_is_tty():
     """표준 입력이 터미널인가 (파생 표본 초안은 사람이 터미널에서만 낸다). 시험은 이 이름을 바꿔 끼운다 (AL-02 방식)."""
-    return bool(getattr(sys.stdin, "isatty", lambda: False)())
+    return derive.stdin_is_terminal(sys.stdin)
 
 
 def main_propose(path, home=None):
