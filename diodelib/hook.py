@@ -46,6 +46,7 @@ MSG = {
     "room_protected": "DIODE V<Vth: 방 설정 · 표지 · outbox 는 고치지 않습니다 (SP-10)",
     "outbox": "DIODE V<Vth: 확정되지 않은 outbox (AL-13)",
     "belt_tool": "DIODE V<Vth: 원자료 폴더 (안전벨트)",
+    "inner": "DIODE V<Vth: 안쪽 도구는 허브 (dispatch) 로만 쓴다 (AL-01)",
     "e20": "DIODE V<Vth 막힘 · E-20 - 사전 · 설정을 읽지 못해 막았습니다 · /diode:setup",
     "unset": "DIODE: 아직 설정하지 않았습니다 - 이 세션은 지켜지지 않습니다 · /diode:setup",
     "hint": " - 사내 말은 말 봉인 칸을 쓰세요",
@@ -54,15 +55,20 @@ MSG = {
 
 # ---------------------------------------------------------------- 설정 읽기
 
+# 안쪽 도구 (사내 LLM · opencode) — Claude 가 직접 부르면 그 결과가 Claude 로 되돌아간다. 허브로만 닿게 모든 모드에서 막는다.
+INNER_TOOLS_DEFAULT = ("opencode",)
+
+
 class Settings(object):
     """훅이 쓰는 설정. state: "unset" (데이터 폴더에 사전 · 설정이 없음) · "ok" · "broken"."""
 
-    def __init__(self, state, policy=None, raw_dirs=(), web_search=True, home=None):
+    def __init__(self, state, policy=None, raw_dirs=(), web_search=True, home=None, inner_tools=INNER_TOOLS_DEFAULT):
         self.state = state
         self.policy = policy
         self.raw_dirs = tuple(raw_dirs)
         self.web_search = web_search
         self.home = home
+        self.inner_tools = tuple(inner_tools)
 
 
 def load_settings(home):
@@ -83,8 +89,14 @@ def load_settings(home):
             if not isinstance(raw_dirs, list) or not all(isinstance(x, str) and x for x in raw_dirs):
                 raise ValueError("raw_dirs")
             web_search = pol.get("web_search", True) is not False
+            extra = pol.get("inner_tools", [])
+            if not isinstance(extra, list) or not all(isinstance(x, str) and x.strip() for x in extra):
+                raise ValueError("inner_tools")
+            inner = tuple(sorted(set(INNER_TOOLS_DEFAULT) | set(x.strip().lower() for x in extra)))
+        else:
+            inner = INNER_TOOLS_DEFAULT
         policy = scan.policy_from_home(home)
-        return Settings("ok", policy=policy, raw_dirs=raw_dirs, web_search=web_search, home=home)
+        return Settings("ok", policy=policy, raw_dirs=raw_dirs, web_search=web_search, home=home, inner_tools=inner)
     except Exception:
         return Settings("broken", home=home)
 
@@ -177,6 +189,25 @@ def _confirmed_hashes(home):
     return audit.confirmed_hashes(home)
 
 
+def inner_denied(tool, ti, entries):
+    """안쪽 도구를 Claude 가 직접 부르는가 — 도구 이름 (MCP) · 하위 에이전트 · 스킬 · 셸 명령의 낱말. 대소문자 무시."""
+    name = tool.lower()
+    for e in entries:
+        if name.startswith("mcp__") and e in name:
+            return True
+        for key in ("subagent_type", "skill", "name"):
+            v = ti.get(key)
+            if isinstance(v, str) and e in v.lower() and tool in ("Agent", "Task", "Skill", "SlashCommand"):
+                return True
+        if tool in ("Bash", "PowerShell"):
+            cmd = ti.get("command")
+            if not isinstance(cmd, str):
+                return True
+            if re.search(r"(?<![\w-])%s(?![\w-])" % re.escape(e), cmd.lower()):
+                return True
+    return False
+
+
 def on_tool(data, settings, project_dir):
     mode, st = mode_of(project_dir, settings)
     if mode == "raw":
@@ -186,6 +217,10 @@ def on_tool(data, settings, project_dir):
     if not isinstance(tool, str) or not isinstance(ti, dict):
         return _deny(MSG["e20"])
     cwd = data.get("cwd") if isinstance(data.get("cwd"), str) and data.get("cwd") else project_dir
+
+    # 어느 폴더에서 열었든 안쪽 도구는 허브로만 (settings 가 없어도 기본 목록은 적용)
+    if not tool.startswith(DIODE_MCP_PREFIX) and inner_denied(tool, ti, settings.inner_tools):
+        return _deny(MSG["inner"])
 
     if mode == "room":
         if settings.state != "ok":

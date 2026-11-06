@@ -189,6 +189,19 @@ class Hub(object):
                 self.jobs.append(j)
                 return j
 
+    @staticmethod
+    def attachment_ok(path):
+        """첨부가 글이고 (UTF-8) 512 KiB 이하이며 바깥으로 부르는 코드 · 주소 (U3) 가 없는가 — 확정 창 전에 본다 (W-03)."""
+        from .unseal import MAX_UI_BYTES, u3
+        try:
+            if os.path.getsize(path) > MAX_UI_BYTES:
+                return False
+            with open(path, "rb") as f:
+                text = f.read().decode("utf-8")
+            return not u3(text.replace("\r\n", "\n"))
+        except Exception:
+            return False
+
     def restore(self, text):
         """안쪽으로 가는 지시: 이 세션의 표에 있는 정확한 꼴 토큰을 진짜 단어로 (모르는 토큰은 그대로)."""
         def back(m):
@@ -233,7 +246,7 @@ class Hub(object):
         work = os.path.join(self.project_dir, "work")
         for a in att:
             if not isinstance(a, str) or not _ATTACH_RE.match(a) or a in (".", "..") \
-                    or not os.path.isfile(os.path.join(work, a)):
+                    or not os.path.isfile(os.path.join(work, a)) or not self.attachment_ok(os.path.join(work, a)):
                 return {"sent": False, "error": "E-04"}
         p = self.parts
         if p.worker is None or not p.worker.check():
@@ -401,12 +414,25 @@ def poll_queue(hub, home, now=None):
     return done
 
 
+def _worker_from_config(home, room, worker):
+    """설정 worker.command 로 일꾼 부품을 만든다. 없거나 꼴이 틀리면 None — dispatch 는 E-01 (막는 쪽)."""
+    try:
+        with open(os.path.join(home, "config.json"), "r", encoding="utf-8") as f:
+            cfg = json.load(f)
+        if not isinstance(cfg, dict) or cfg.get("format") != 1:
+            return None
+        cmd, cwd = worker.load_command(cfg)
+        return worker.CommandWorker(cmd, home, room, cwd=cwd)
+    except Exception:
+        return None
+
+
 def default_parts(home, room, plugin_root=None):
     """실제 부품 — 확정 창 프로세스 · D7 · room 건네기 · 감사 기록 · 사전 · job 예약. 일꾼은 아직 없다 (E-01)."""
-    from . import audit, judge, transport
+    from . import audit, judge, transport, worker
     root = plugin_root or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     return Parts(confirm=ProcessConfirm(home, diode_py=os.path.join(root, "diode.py")),
-                 worker=None,
+                 worker=_worker_from_config(home, room, worker),
                  judge=lambda t: judge.judge_home(home, t),
                  transport=transport.RoomTransport(room),
                  audit=audit.sink(home),

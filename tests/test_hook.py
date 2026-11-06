@@ -279,6 +279,39 @@ class ToolOther(Base):
         self.assertDenied((code, out, ""))
 
 
+class InnerTools(Base):
+    """안쪽 도구 (opencode) 는 어느 폴더에서 열었든 허브로만 — Claude 가 직접 부르면 결과가 Claude 로 돌아간다."""
+
+    def test_denied_in_every_mode(self):
+        for project in (self.other, self.room):
+            for name in ("mcp__opencode__run", "mcp__plugin_x_OpenCode__ask"):
+                self.assertDenied(self.tool(name, {"prompt": "x"}, project))
+        self.assertDenied(self.tool("Agent", {"subagent_type": "opencode-worker", "prompt": "x"}, self.other))
+        self.assertDenied(self.tool("Skill", {"skill": "opencode"}, self.other))
+        self.assertDenied(self.tool("Bash", {"command": "opencode run '요약해'"}, self.other))
+        self.assertDenied(self.tool("Bash", {"command": 5}, self.other))
+
+    def test_hub_and_ordinary_tools_pass(self):
+        self.assertAllowed(self.tool("mcp__plugin_diode_hub__dispatch", {"instruction": "x"}, self.room))
+        self.assertAllowed(self.tool("Bash", {"command": "ls"}, self.other))
+        self.assertAllowed(self.tool("Read", {"file_path": os.path.join(self.other, "opencode-notes.txt")}, self.other))
+
+    def test_works_before_setup(self):
+        empty = os.path.join(self.tmp, "empty")
+        self.assertDenied(self.tool("mcp__opencode__run", {}, self.other, home=empty))
+
+    def test_extra_names_from_config(self):
+        self.assertAllowed(self.tool("mcp__innerx__ask", {}, self.other))
+        write_json(os.path.join(self.home, "config.json"),
+                   {"format": 1, "policy": {"raw_dirs": [self.raw], "inner_tools": ["InnerX"]}})
+        self.assertDenied(self.tool("mcp__innerx__ask", {}, self.other))
+        self.assertDenied(self.tool("mcp__opencode__run", {}, self.other))        # 기본 목록은 그대로
+        write_json(os.path.join(self.home, "config.json"),
+                   {"format": 1, "policy": {"raw_dirs": [self.raw], "inner_tools": "innerx"}})
+        code, _, err = self.prompt("평범한 질문", self.other)                       # 꼴이 틀리면 설정이 깨진 것
+        self.assertEqual(code, 2)
+
+
 class Session(Base):
     def test_messages(self):
         self.assertEqual(self.call("session", {}, self.room), (0, "", ""))

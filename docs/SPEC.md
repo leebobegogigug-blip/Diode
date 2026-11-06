@@ -179,7 +179,7 @@ ASK: <ask>
 2. 지시의 정확한 꼴 토큰을 진짜 단어로 되돌린다 (가명 표 · 안쪽으로 가는 길이라 된다).
 3. 확정 창 (SP-09) 에 되돌린 지시 · 첨부 목록을 보인다 → 사람이 [넘기기] (AL-15). 버리면 `E-02` · 10분 [제안] 넘으면 `E-03` · 창을 못 띄우면 `E-07`. 창이 돌려준 `sha256` 이 넘길 글의 sha256 과 다르면 `E-02` (사람이 본 바이트만 간다).
 4. 첨부를 U3 에 거쳐 안쪽 작업 폴더로 복사한다.
-5. 일꾼 (SP-09 의 opencode 주소 · `127.0.0.1` 만 · 아니면 `E-01`) 의 세션에 **일꾼 안내문 (부록 B) + 지시** 를 넣는다. 첫 줄은 `[diode J-0007]`. 일꾼의 응답은 읽지 않는다.
+5. 일꾼에게 **일꾼 안내문 (부록 B) + 지시** 를 넣는다. 첫 줄은 `[diode J-0007]`. 일꾼의 응답은 읽지 않는다 (표준 출력 · 표준 오류는 버린다). 일꾼은 설정 `worker.command` (인자 목록 · 셸 없음 · `{prompt}` 자리 또는 표준 입력) 로 띄운다 — opencode 를 명령줄로 쓰든 사내 설치대로 쓰든 같은 자리다. 명령이 없거나 실행 파일이 없으면 `E-01`. 환경에는 `DIODE_JOB` 만 더한다. 첨부는 이 단계 전 (확정 창 전) 에 내용을 본다: 글 (UTF-8) 이 아니거나 512 KiB 를 넘거나 바깥으로 부르는 코드 · 주소 (U3) 가 있으면 `E-04` — 통과한 것만 안쪽 작업 폴더 (`<데이터 폴더>\work\<job>\`) 로 복사한다 (덮어쓰지 않음). 코드: [diodelib/worker.py](../diodelib/worker.py).
 6. job 을 `working` 으로 · 감사 기록 (SP-14) · `{"sent": true, "job": "J-0007"}`.
 
 ### job 의 상태
@@ -252,6 +252,7 @@ ASK: <ask>
 | `PreToolUse` | 모든 도구 deny | **허용 목록**: 파일 도구 (`Read` `Write` `Edit` `MultiEdit` `NotebookEdit` `Glob` `Grep`) 는 방 안만 (Glob · Grep 의 무늬에 `..` · 절대 경로 · `~` 가 있으면 deny) · 쓰기 도구는 표지 · `.claude\` · `.mcp.json` · `outbox\` · `CLAUDE.md` · `AGENTS.md` 에 deny · `outbox` 의 Read 는 감사 기록의 확정 해시가 있어야 (AL-13) · 방 전체 Grep 은 outbox 를 읽으므로 deny · `WebSearch` (`policy.web_search`) · `ToolSearch` · 할 일 · 하위 에이전트 · 질문 · 계획 도구 · `Skill` 은 `diode` 만 · `mcp__plugin_diode_` 만. **그 밖은 모두 deny** (`Bash` · `WebFetch` · 다른 MCP · 새 도구) | 파일 도구가 원자료 폴더와 겹치는 곳을 가리키면 deny · `Bash` · `PowerShell` 명령에 원자료 폴더 경로가 있거나 cwd 가 원자료 폴더면 deny |
 | `SessionStart` | 알림 ("원자료 폴더") | `changed` 면 알림 | 설정 전 (`unset`) · `broken` 이면 알림 |
 
+- **안쪽 도구** (`policy.inner_tools` · 기본 `opencode`): 어느 모드에서든 (설정 전에도) `PreToolUse` 가 deny 한다 — 도구 이름에 그 조각이 든 MCP 도구 · 그 이름의 하위 에이전트 · 스킬 · 셸 명령의 낱말. 안쪽 도구의 결과가 Claude 로 곧바로 돌아가는 길을 닫는다 (AL-01) — 안쪽 일은 허브 (`dispatch`) 로만 넘긴다. `mcp__plugin_diode_` 도구는 예외.
 - **까닭 글** (Claude 가 보는 deny 까닭 · 사람이 보는 막은 까닭) 은 고정 문구와 검사 번호 · 개수만 쓴다 (AL-11). 사전 단어 · 경로 · 원자료 폴더 이름을 쓰지 않는다.
 - **출력**: `UserPromptSubmit` 은 막을 때만 종료 코드 2 + 표준 오류 (사람에게만) — 통과면 아무것도 쓰지 않는다 (표준 출력은 Claude 의 맥락에 붙는다). `PreToolUse` 는 deny 일 때만 `hookSpecificOutput.permissionDecision: "deny"` JSON. `SessionStart` 는 `systemMessage` JSON 만. 훅 안의 예외는 막는 쪽 (프롬프트 2 · 도구 deny) 이고, 훅 밖의 고장 (Python 없음 · 시간 초과) 은 `onFailure: "block"` 이 막는다 [실험 R09].
 - **진짜 Claude CLI 재시험** (가짜 서버 · 합성 자리): [kit/run_hooks.py](../kit/run_hooks.py) · 결과는 [kit/results-linux.md](../kit/results-linux.md) › T12. 코드: [diodelib/hook.py](../diodelib/hook.py).
@@ -299,7 +300,9 @@ ASK: <ask>
 | `claude.model_plan` · `claude.model_ui` | `""` | Opus 급 · Sonnet 급 이름 (사내 이름 · 이 PC 에만) |
 | `claude.monthly_budget_usd` | `0` (없음) | 확정 창의 한도 % |
 | `transport.default` | `clipboard` | `clipboard` · `room` · `adapter` |
-| `worker.url` | `http://127.0.0.1:4096` | 127.0.0.1 만 · `DIODE_WORKER_URL` 이 있으면 그것이 앞선다 (Terminal–1) |
+| `worker.command` | 없음 | 일꾼을 띄우는 인자 목록 (예 `["opencode", "run", "{prompt}"]`) · 셸 없음 · `{prompt}` 는 한 곳만 · 없으면 표준 입력 · 없거나 꼴이 틀리면 `dispatch` 는 `E-01` · `창에서만` 바꾼다 (AL-12) |
+| `worker.cwd` | 없음 (`<데이터 폴더>\work\<job>`) | 일꾼의 작업 폴더 |
+| `worker.url` | `http://127.0.0.1:4096` | [예정 · v0.2] 서버로 쓰는 일꾼 (127.0.0.1 만) · 지금은 읽지 않는다 |
 | `room.path` | `D:\claude\room` | |
 | `policy.real_data` | `false` | 창에서만 바꾼다 (AL-10) |
 | `policy.lib_allow` | `[]` | 창에서만 |
@@ -307,6 +310,7 @@ ASK: <ask>
 | `policy.patterns` | `[]` | D3 에 더할 정규식 · 창에서만 |
 | `policy.daily_cap` | `20` [제안] | 하루 보내기 상한 |
 | `policy.web_search` | `true` | 방 세션의 웹 검색 (Q9) |
+| `policy.inner_tools` | `[]` (코드의 기본 `opencode` 는 늘 포함) | 안쪽 도구의 이름 조각 — 어느 폴더에서 열었든 Claude 가 직접 부르면 막는다 (SP-11) · 창에서만 |
 
 - 사전은 따로 된 파일 `%LOCALAPPDATA%\diode\dictionary.json` (`{"format": 1, "words": [..]}`) · 창 · `/diode:dict` 로만 바꾼다 · 비면 seal 을 막는다.
 - `--set` 으로 바꿀 수 없는 키: `policy.*` · `llm.*` · 사전 (AL-12). 테스트는 `DIODE_HOME` 으로 데이터 폴더를 옮기되, 기본 자리가 아니면 보내기 · 넘기기를 막는다 (`E-20`).

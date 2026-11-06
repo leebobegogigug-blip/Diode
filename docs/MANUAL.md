@@ -90,6 +90,8 @@ Terminal–1 같은 다른 도구가 부르는 읽기 전용 상태 명령 (`--s
 - **D7 판정 (사내 LLM) 은 환경 변수 덮어쓰기를 받지 않습니다.** `llm` 설정의 `{env:이름}` 참조도 받지 않습니다. 다만 `ca_file` 을 적지 않으면 TLS 인증서 자리를 OpenSSL 이 `SSL_CERT_FILE` 환경 변수에서 찾을 수 있습니다 — `ca_file` 을 적으세요. 설정에 프록시 주소를 적은 경우에만 `no_proxy` 를 봅니다.
 - **확정 창의 글은 마우스로 골라 복사할 수 있습니다.** 손으로 옮긴 글은 감사 기록에 남지 않습니다.
 - **확정 창은 화면이 있어야 뜹니다.** 화면이 없는 환경 (원격 셸 · Windows 밖에서 `DISPLAY` 없음) 에서는 보내지 않습니다 (`E-07`). 글꼴은 Unifont 가 있으면 그것, 없으면 Consolas · D2Coding 순입니다.
+- **안쪽 도구 (opencode) 는 Claude 가 직접 부를 수 없습니다.** CLI 안에 opencode 가 물려 있어도 훅이 막습니다 (이름에 `opencode` 가 든 MCP 도구 · 하위 에이전트 · 스킬 · 셸 명령). 다른 이름으로 물렸다면 설정 `policy.inner_tools` 에 이름 조각을 더하세요. 안쪽 일은 허브로만 넘깁니다.
+- **일꾼은 설정 `worker.command` 가 있어야 돕니다.** 없으면 `dispatch` 는 `E-01` 입니다. 일꾼의 출력은 읽지 않습니다 — 결과는 일꾼이 `propose` 로만 냅니다.
 - **훅은 `DIODE_HOME` 을 받지 않습니다.** 늘 기본 데이터 폴더를 봅니다 — 환경 변수로 다른 사전 · 설정을 물리지 못하게.
 - **S-09 를 따르지 않습니다.** 나가는 검사 D7 (사내 LLM 판정) 은 works 의 [SPEC-llm](https://github.com/leebobegogigug-blip/Works/blob/13e56a0a5801da56dc18523363cd219ebf6d2e21/docs/SPEC-llm.md) 의 `llm` 설정 키를 따르지만, 환경 변수 덮어쓰기 (`<접두어>_BASE_URL` 등) 는 받지 않습니다. 사내 LLM 이 환경 변수로 판정 모델을 바꿔 D7 을 무력화할 수 있어서 AL-12 와 부딪히기 때문입니다 ([규칙 › S-09](../RULES.md#규약)).
 - 이 저장소에서는 사내 TUI · 사내 Windows 를 볼 수 없습니다. 사내에서만 되는 확인은 [사내 마무리](INHOUSE.md) 로 남깁니다.
