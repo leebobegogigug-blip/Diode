@@ -347,7 +347,7 @@ Diode 설치 완료
 |---|---|
 | `DIODE: 아직 설정하지 않았습니다 - 이 세션은 지켜지지 않습니다 · /diode:setup` | 4단계 전의 정상 상태다. 4단계를 마친다 |
 | `DIODE V<Vth 막힘 · E-20 - 사전 · 설정을 읽지 못해 막았습니다 · /diode:setup` | 설정 · 사전이 깨졌거나 새 판이다 — 위 `broken` · `newer` 행 |
-| `DIODE V<Vth: 방 설정이 바뀌었습니다 (changed) · 방 밖에서 /diode:room 을 다시 하세요` | 5단계 표의 `changed` 행. 이 알림은 `/diode:room` 을 다시 하라고 하지만, 이미 있는 방은 덮어쓰지 않으므로 사람이 먼저 방을 지워야 한다 |
+| `DIODE V<Vth: 방 설정이 바뀌었습니다 (changed) · 방의 .claude 설정을 되돌리거나 방을 지운 뒤 방 밖에서 /diode:room 을 다시 하세요` | 5단계 표의 `changed` 행. 이미 있는 방은 `/diode:room` 이 덮어쓰지 않으므로 사람이 먼저 방의 설정을 되돌리거나 방을 지운다 |
 | `DIODE V<Vth: 원자료 폴더에서 Claude 를 열었습니다 · 방에서 여세요` | 원자료 폴더 안이거나 원자료 폴더를 품은 폴더에서 Claude Code 를 열었다. `D:\claude\room` 에서 연다 |
 | `DIODE V<Vth: 방은 수동 권한 모드로 쓰세요 (auto 막음)` | 방에서는 auto 권한 모드를 쓰지 못한다. 기본 권한 모드로 다시 연다 |
 | `DIODE V<Vth 막힘 · D2 x<개수> @안내파일 - CLAUDE.md · AGENTS.md 에 사내 단어가 있어 Claude 가 읽어 갑니다 - 지우거나 옮기세요 (/diode:status)` | 위 `안내 파일` 행 |

@@ -41,7 +41,7 @@ ROOM_PERMISSION_MODES = frozenset(["default", "plan", "acceptEdits", "dontAsk"])
 MSG = {
     "raw_prompt": "DIODE V<Vth: 원자료 폴더에서 Claude 를 열었습니다 · 방에서 여세요",
     "raw_tool": "DIODE V<Vth: 원자료 폴더 - 모든 도구를 막습니다",
-    "changed": "DIODE V<Vth: 방 설정이 바뀌었습니다 (changed) · 방 밖에서 /diode:room 을 다시 하세요",
+    "changed": "DIODE V<Vth: 방 설정이 바뀌었습니다 (changed) · 방의 .claude 설정을 되돌리거나 방을 지운 뒤 방 밖에서 /diode:room 을 다시 하세요",
     "auto": "DIODE V<Vth: 방은 수동 권한 모드로 쓰세요 (auto 막음)",
     "room_outside": "DIODE V<Vth: 방 밖 (AL-06)",
     "room_tool": "DIODE V<Vth: 방에서 쓰지 않는 도구 (AL-06)",

@@ -180,7 +180,10 @@ def run_setup(home, plugin_root=None, path=None, launch=None):
     ready, missing = config.ready(home)
     if not ready and missing and missing[0] not in ("words_empty", "raw_empty"):
         lines, code = check(home, plugin_root)
-        return lines + ["설정을 읽지 못해 창을 열지 않았습니다 (%s)" % missing[0]], max(code, 1)
+        note = "설정을 읽지 못해 창을 열지 않았습니다 (%s)" % missing[0]
+        if lines and lines[-1].startswith("결과:"):          # 마지막 줄은 늘 결과 (S-03)
+            return lines[:-1] + [note] + lines[-1:], max(code, 1)
+        return lines + [note], max(code, 1)
     if not ready:
         out.append("정책 (사전 · 원자료 폴더) 이 비어 있어 정책 창을 엽니다 — 창에서 직접 입력하고 [저장] 하세요")
         out.append("단어는 이 대화로 보내지 않습니다 (입력하면 곧바로 Claude 로 나갑니다)")
