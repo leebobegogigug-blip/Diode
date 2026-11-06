@@ -99,7 +99,7 @@ def check(home, plugin_root=None, python_probe=None):
         lines.append("사전 %d개 · 원자료 폴더 %d개 · 안쪽 도구 이름 %d개 (+ 기본 opencode)" % (c["dictionary"], c["raw_dirs"], c["inner_tools"]))
         lines.append("일꾼 명령 %s · 사내 LLM 판정 (D7) %s" % ("설정함" if c["worker"] else "없음 (일 넘기기는 E-01)",
                                                               "설정함" if c["llm"] else "없음 (보내기는 막힘)"))
-        lines.append("실데이터 %s" % ("허용됨 (보안 승인 뒤에만)" if c["real_data"] else "꺼짐 (기본)"))
+        lines.append("실데이터 %s" % ("허용됨 (사내 자체 검증 뒤에만)" if c["real_data"] else "꺼짐 (기본)"))
         if c["worker"]:
             from . import worker as wk
             try:

@@ -792,7 +792,7 @@ class TestSecrets(Base):
 
 class TestRealData(Base):
     def test_the_phrase_is_fixed(self):
-        self.assertEqual(pw.REAL_DATA_PHRASE, "보안 승인 받음")
+        self.assertEqual(pw.REAL_DATA_PHRASE, "사내 자체 검증 완료")
 
     def test_without_the_phrase_it_does_not_turn_on_and_says_why(self):
         s = pw.PolicySession(self.home)
@@ -809,9 +809,9 @@ class TestRealData(Base):
 
     def test_only_the_exact_phrase_turns_it_on(self):
         s = pw.PolicySession(self.home)
-        for near in ("", "보안승인받음", "보안 승인 받음 ", " 보안 승인 받음", "보안 승인 받음.", "승인 받음", "보안  승인 받음",
-                     "보안 승인 받음\n", "보안\u00a0승인 받음", "보안\u3000승인 받음", "보안 승인 받음\u200b", "BOAN 승인 받음",
-                     "보안 승인 받았음"):
+        for near in ("", "사내자체검증완료", "사내 자체 검증 완료 ", " 사내 자체 검증 완료", "사내 자체 검증 완료.", "자체 검증 완료", "사내  자체 검증 완료",
+                     "사내 자체 검증 완료\n", "사내\u00a0자체 검증 완료", "사내\u3000자체 검증 완료", "사내 자체 검증 완료\u200b", "SANAE 자체 검증 완료",
+                     "사내 자체 검증 완료됨", "보안 승인 받음"):
             s.set_real_confirm(near)
             self.assertFalse(s.toggle_real_data(True), repr(near))
             self.assertFalse(s.real_data, repr(near))
@@ -1756,7 +1756,7 @@ class TestNoWayAround(unittest.TestCase):
 
     def test_the_fixed_phrases_are_in_the_window_code(self):
         src = _source()
-        for want in ("정책 편집", "이 창에서만 바뀝니다 · 단어는 화면 밖으로 나가지 않습니다", "저장하지 않고 닫을까요", "보안 승인 받음",
+        for want in ("정책 편집", "이 창에서만 바뀝니다 · 단어는 화면 밖으로 나가지 않습니다", "저장하지 않고 닫을까요", "사내 자체 검증 완료",
                      "바뀐 것 없음", "01 DICT", "02 RAW", "03 TOOLS", "04 WORKER", "05 LIB", "06 OPTION", "폴더 고르기", "예시 넣기"):
             self.assertIn(want, src)
 

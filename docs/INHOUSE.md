@@ -57,6 +57,6 @@
 | 4 | 훅 시나리오 | `python kit/run_hooks.py` (H2) | R01–R26 모두 OK | R17 이면 Git Bash 에서 `${CLAUDE_PLUGIN_ROOT}` 가 안 풀린 것 |
 | 5 | 일꾼 연결 | `python kit/run_opencode.py --opencode <사내 opencode>` (H5) | R1–R4 모두 OK, **`.cmd` 껍데기면 R5 도 OK** | R5 실패는 명령 주입 방어가 뚫린 것 - 일꾼을 달지 않는다 |
 | 6 | 눈으로 확인 | 정책 창 · 확정 창 · 말 봉인 창을 직접 연다 | 창이 맨 위에 보인다 · 한글 입력이 된다 (IME) · 글자 크기가 읽힌다 (DPI) | CI 는 "프로세스가 떴다" 까지만 안다 |
-| 7 | 보안 부서 | [kit/security-brief.md](../kit/security-brief.md) 의 질문 1–12 | 답이 도구 설정 (허용 범위 · 보존 기간) 에 반영된다 | 답이 없으면 `policy.real_data` 는 꺼 둔다 - 실데이터 0 |
+| 7 | 보안 부서 (참고용 - 승인은 필수가 아니다) | [kit/security-brief.md](../kit/security-brief.md) 의 질문 1–12 | 답이 도구 설정 (허용 범위 · 보존 기간) 에 반영된다 | 답이 없으면 `policy.real_data` 는 꺼 둔다 - 실데이터 0 |
 
 공개 저장소로 되가져오는 것은 **판정과 숫자** (OK/실패 줄 · 개수) 뿐이에요. `kit/out/` 안의 파일 (시스템 프롬프트 원문이 있어요) 과 사내 이름 · 경로 · 주소는 옮기지 않아요.

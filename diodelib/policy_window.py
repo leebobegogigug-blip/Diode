@@ -47,7 +47,7 @@ from . import config, confirm
 
 EXIT_SAVED, EXIT_FAILED, EXIT_NOT_SAVED = 0, 1, 3
 POLICY_COMMAND = "policy"           # launch_detached 가 diode.py 에 주는 명령 이름
-REAL_DATA_PHRASE = "보안 승인 받음"   # 실데이터를 켜려면 확인 글 칸에 정확히 이 글을 쳐야 한다 (AL-10)
+REAL_DATA_PHRASE = "사내 자체 검증 완료"   # 실데이터를 켜려면 확인 글 칸에 정확히 이 글을 쳐야 한다 (AL-10)
 WORKER_EXAMPLE = '["opencode","run","--dir","{cwd}","{prompt}"]'      # [예시 넣기] - SP-15 의 예
 REF_RE = re.compile(r"\A\{(?:file|env):.+\}\Z")          # 키 · 헤더 값의 참조 꼴 - 비밀이 아니라 가리키는 글이라 그대로 보인다
 MASK_TEXT = "설정됨 (%d자 · 값은 표시 안 함)"                   # works SPEC-llm › 04 - 저장된 키 값은 화면에도 이렇게만 보인다 (W-04)
@@ -95,7 +95,7 @@ TEXT_SAVED = "저장했습니다"
 TEXT_UNCHANGED = "바뀐 것 없음 - 설정은 그대로입니다"
 TEXT_CLOSE_ASK = "‼ 저장하지 않고 닫을까요 - 닫으려면 [닫기] 를 한 번 더 누르세요"
 TEXT_HIDDEN = "보이지 않는 글자 %d개 - %s - 지우고 다시 저장하세요"
-TEXT_REAL_NEED = ("실데이터는 보안 부서 승인 뒤에만 켭니다 - 켜려면 확인 글 칸에 정확히 '%s' 을 치세요" % REAL_DATA_PHRASE)
+TEXT_REAL_NEED = ("실데이터는 사내에서 자체 검증을 마친 뒤에만 켭니다 - 켜려면 확인 글 칸에 정확히 '%s' 을 치세요" % REAL_DATA_PHRASE)
 TEXT_WRITE_FAILED = "파일에 쓰지 못했습니다 - 디스크 · 권한을 확인한 뒤 다시 저장하세요"
 TEXT_NEWER = "설정이 더 새 형식이라 덮어쓰지 않습니다 - Diode 를 올린 뒤 다시 여세요"
 TEXT_READBACK = "저장한 설정을 다시 읽지 못했습니다 - 다시 저장해 보세요"

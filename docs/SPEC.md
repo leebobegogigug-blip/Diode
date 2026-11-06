@@ -1,14 +1,17 @@
 # Diode 명세 (format 1)
 
-- **무엇**: [PLAN.md](PLAN.md) 8판의 설계를 코드가 그대로 따를 수 있는 **계약** 으로 굳힌 것이다 (작업 T6). 칸 · 판정 · 출력 꼴 · 오류 번호를 정한다.
-- **정본 관계**: 설계의 까닭은 PLAN.md, 계약은 이 문서, 형식 검사의 기계 판정은 [schema/brief.schema.json](../schema/brief.schema.json). 코드와 이 문서가 다르면 테스트가 지키는 쪽이 맞고, 테스트가 없으면 이 문서가 맞다 (works DEVELOP D-07 의 뜻).
-- **바꾸는 규칙**: 칸의 뜻이 바뀌면 그 형식의 `format` 을 올린다. 읽는 쪽은 모르는 `format` 을 막는다 (AL-03). 칸을 더하는 것은 뜻이 바뀌지 않을 때만 같은 `format` 에서 한다.
-- **표기**: [제안] 근거 없이 정한 문턱 — 사내 시험 (M0-사내) 결과로 고친다 · [실험] M0 리눅스판에서 본 것.
-- **번호**: 이 문서의 절은 `SP-nn` 으로 부른다 (PLAN 의 D1–D8 · U1–U5 · AL-nn · L-nn 은 그대로).
+- **쉽게 말하면**: 이 문서는 Diode 의 **계약서** 입니다. 코드와 시험이 이 문서에 적힌 칸 이름 · 숫자 · 오류 번호를 글자 그대로 따르므로, 설명 문장은 쉽게 풀어 썼어도 표와 예시는 일부러 딱딱한 원문 그대로 둡니다.
+- **무엇**: [PLAN.md](PLAN.md) 8판의 설계를 코드가 그대로 따를 수 있는 **계약** 으로 굳힌 것입니다 (작업 T6). 칸 · 판정 · 출력 꼴 · 오류 번호를 정합니다.
+- **정본 관계** (정본 = 다툴 때 기준이 되는 원본): 설계의 까닭은 PLAN.md, 계약은 이 문서, 형식 검사의 기계 판정은 [schema/brief.schema.json](../schema/brief.schema.json) 입니다. 코드와 이 문서가 다르면 테스트가 지키는 쪽이 맞고, 테스트가 없으면 이 문서가 맞습니다 (works DEVELOP D-07 의 뜻).
+- **바꾸는 규칙**: 칸의 뜻이 바뀌면 그 형식의 `format` (형식 번호) 을 올립니다. 읽는 쪽은 모르는 `format` 을 막습니다 (AL-03). 칸을 더하는 것은 뜻이 바뀌지 않을 때만 같은 `format` 에서 합니다.
+- **표기**: [제안] 근거 없이 일단 정한 문턱 — 사내 시험 (M0-사내) 결과로 고칩니다 · [실험] M0 리눅스판에서 직접 확인한 것.
+- **번호**: 이 문서의 절은 `SP-nn` 으로 부릅니다 (PLAN 의 D1–D8 · U1–U5 · AL-nn · L-nn 은 그대로 씁니다).
 
 ---
 
 ## SP-01 용어
+
+쉽게 말하면: 이 문서에 자주 나오는 낱말의 사전입니다. 헷갈리면 여기로 돌아오세요.
 
 | 말 | 뜻 |
 |---|---|
@@ -25,7 +28,9 @@
 
 ## SP-02 brief (format 1)
 
-형식의 기계 판정은 [schema/brief.schema.json](../schema/brief.schema.json) 이다. 모르는 키는 막는다.
+쉽게 말하면: brief 는 안쪽(사내)에서 바깥(Claude)으로 보낼 내용을 적는 **정해진 양식** 입니다. 양식 밖의 칸이나 글은 받지 않습니다.
+
+형식을 기계가 판정하는 기준은 [schema/brief.schema.json](../schema/brief.schema.json) 입니다. 목록에 없는 칸(키)은 받지 않고 막습니다.
 
 ### 공통 칸
 
@@ -53,15 +58,19 @@
 
 ### SP-02a 초안 (안쪽이 쓰는 꼴)
 
-- 사내 LLM 은 토큰을 뽑지 않는다 — 토큰은 다이오드가 `secrets` 로 뽑는다 (SP-04 · AL-05). 그래서 안쪽은 **초안** 을 쓴다: brief 와 같되 `entities[]` · `fields[]` 의 항목이 `token` 대신 `{"ref": "e1", "name": "<진짜 이름>"}` (`fields` 는 `"label": "<표시 글>"` 도) 을 가질 수 있고, 자유 글은 `[[e1]]` 로 그 항목을 가리킨다.
+쉽게 말하면: 사내 LLM 은 가명 이름표(토큰)를 직접 만들지 못하니, 대신 "이 자리는 e1" 이라고 표시한 **초안** 을 쓰고, 이름표는 다이오드가 붙입니다.
+
+- 사내 LLM 은 토큰을 직접 만들지 않습니다 — 토큰은 다이오드가 `secrets` (파이썬의 무작위 뽑기 부품) 로 뽑습니다 (SP-04 · AL-05). 그래서 안쪽은 **초안** 을 씁니다: brief 와 같되 `entities[]` · `fields[]` 의 항목이 `token` 대신 `{"ref": "e1", "name": "<진짜 이름>"}` (`fields` 는 `"label": "<표시 글>"` 도) 을 가질 수 있고, 자유 글은 `[[e1]]` 로 그 항목을 가리킨다.
 - `ref` 는 `^[a-z][a-z0-9]{0,7}$` · 초안 안에서 하나뿐. `name` · `label` · `ref` 는 seal 이 지우고 `token` 을 넣는다 — 바깥 글에 남지 않는다. 이미 `token` 이 있는 항목 (지시에서 받은 토큰) 은 그대로 둔다 (D6 이 표에 있는지 본다).
-- seal 은 그 job 의 진짜 이름 (가명 표 전체) 을 사전에 더해 D2 를 돌린다 — 진짜 이름을 자유 글에 바로 쓴 것을 잡는다. 남은 `[[…]]` · 꼴이 틀린 `ref` 는 D1.
+- seal (봉인: 초안을 가명 글로 바꾸고 검사하는 일) 은 그 job 의 진짜 이름 (가명 표 전체) 을 사전에 더해 D2 를 돌립니다 — 진짜 이름을 자유 글에 바로 쓴 것을 잡기 위해서입니다. 남은 `[[…]]` · 꼴이 틀린 `ref` 는 D1.
 - 코드: [diodelib/seal.py](../diodelib/seal.py) (`seal` · `PseudonymTable` · `seal_speech`).
 
 ## SP-03 펼친 글 — 정해진 틀
 
-- 다이오드만 펼친다. 사내 LLM 은 펼친 글을 쓰지 않는다 (틀 밖의 글이 섞이지 않게).
-- 문장 부호는 ASCII 와 한글만 쓴다 — 새 Windows Terminal 의 `Ctrl+V` 가 `…` `—` `“ ”` `•` 를 빠뜨릴 수 있다 [Terminal–1 MANUAL › 알려진 한계]. 자유 글은 펼치기 전에 NFKC 로 바꾸고 아래 표로 바꾼다.
+쉽게 말하면: 바깥으로 나가는 글은 사람이 쓴 문장이 아니라, 다이오드가 **정해진 틀에 칸을 채워 만든 글** 하나뿐입니다. 틀 밖의 글이 끼어들 틈을 없애려는 것입니다.
+
+- 펼치는 것은 다이오드만 합니다. 사내 LLM 은 펼친 글을 쓰지 않습니다 (틀 밖의 글이 섞이지 않게).
+- 문장 부호는 ASCII (영문 키보드로 치는 기본 글자) 와 한글만 씁니다 — 새 Windows Terminal 의 `Ctrl+V` 가 `…` `—` `“ ”` `•` 를 빠뜨릴 수 있다 [Terminal–1 MANUAL › 알려진 한계]. 자유 글은 펼치기 전에 NFKC 로 바꾸고 아래 표로 바꾼다.
 
 | 바꿀 글자 | 바꾼 뒤 |
 |---|---|
@@ -74,7 +83,7 @@
 | `×` · `※` · `〜` | `x` · `*` · `~` |
 | 그 밖의 ASCII 밖 글자 (완성형 한글 음절 · 빈칸 밖 — 낱자모 `ㄱ` 도 막는다) | 막음 (D1 · 사람이 고친다) |
 
-- 자유 글 칸은 한 줄이다 — 줄바꿈 · 탭은 D1 이 막는다. 틀 표지 꼴 (`[diode` · `[/diode` · 대소문자 · 빈칸 무시) 도 막는다.
+- 자유 글 칸은 한 줄입니다 — 줄바꿈 · 탭은 D1 이 막습니다. 틀 표지 꼴 (`[diode` · `[/diode` · 대소문자 · 빈칸 무시) 도 막는다.
 - 코드: [diodelib/textnorm.py](../diodelib/textnorm.py) (`prepare`) · 펼치기는 [diodelib/render.py](../diodelib/render.py). 검사기는 손질한 글을 본다 — 나가는 바이트와 같은 글이다.
 
 - 틀 (`kind: "plan"` · 다른 kind 도 같은 모양으로 칸만 바뀐다):
@@ -110,14 +119,18 @@ SAMPLE: coarse cells (bucket or rank class, not values; PH_other = pooled rare g
 
 ## SP-04 가명 토큰 · 가명 표
 
+쉽게 말하면: 진짜 이름 대신 `PH_K7Q2` 같은 **가짜 이름표** 를 붙여 내보내고, 이름표와 진짜 이름을 짝지은 표는 컴퓨터 메모리에만 잠깐 둡니다.
+
 - **꼴**: `PH_` + 4글자 · 글자는 `23456789ABCDEFGHJKMNPQRSTVWXYZ` (헷갈리는 `0 1 I L O U` 를 뺀 30자) · 정확한 꼴의 정규식 `(?<![A-Za-z0-9_])PH_[2-9A-HJKMNP-TV-Z]{4}(?![A-Za-z0-9])` — 경계를 ASCII 로만 본다. Python 의 `\b` 는 한글을 낱말 글자로 보아 `PH_K7Q2를` 의 토큰을 놓친다.
 - **만들기**: `secrets.choice` 로 뽑는다 · 한 자문 안에서 겹치면 다시 뽑는다 · 한 자문 안에서 같은 단어는 같은 토큰 · 자문 (job) 마다 새로 (AL-05). 30<sup>4</sup> = 810,000 가지.
-- **가명 표**: `{토큰: {real, kind, label}}` — 허브 프로세스의 메모리에만 (Q6 · W-05). 디스크 · 로그 · 감사 기록 · 출력 어디에도 쓰지 않는다. 허브가 끝나면 사라진다. `kind` 는 `entity` · `field` · `word` (말 봉인). 코드는 직렬화 (pickle · copy · json) 를 막고 repr 은 개수만 보인다. 한 job 에 2,000개까지 [제안].
+- **가명 표** (이름표와 진짜 이름을 짝지은 표): `{토큰: {real, kind, label}}` — 허브 프로세스의 메모리에만 있습니다 (Q6 · W-05). 디스크 · 로그 · 감사 기록 · 출력 어디에도 쓰지 않습니다. 허브가 끝나면 사라집니다. `kind` 는 `entity` · `field` · `word` (말 봉인). 코드는 직렬화 (pickle · copy · json) 를 막고 repr 은 개수만 보인다. 한 job 에 2,000개까지 [제안].
 - **깨진 꼴** (D6 · U1): 정확한 꼴을 지운 글에서 대소문자 무시 `(?<![A-Za-z0-9_])ph[ _\-]?[0-9a-z]{2,8}(?![A-Za-z0-9])` 에 걸리고, 구분자가 있거나 · 숫자가 있거나 · 머리가 대문자 `PH` 인 것 (`ph_k7q2` · `PH_K7Q` · `PH K7Q2` · `PH_K7Q2X` · `PHK7Q2` · `PH_K7Q1`). `phone` · `photo` 같은 낱말은 세지 않는다 (`PHONE` 은 센다 — 막는 쪽).
 
 ## SP-05 나가는 검사 D1–D8
 
-- **순서**: D1 → D6 → D2 → D3 → D4 → D5 → D7 → D8. D1–D6 에서 하나라도 걸리면 D7 · D8 로 가지 않는다 (고쳐서 다시 seal).
+쉽게 말하면: 글이 바깥으로 나가기 전에 **여덟 개의 문(D1–D8)** 을 차례로 지납니다. 한 문이라도 걸리면 나가지 못하고, 검사 자체가 고장 나도 "막는 쪽" 으로 처리합니다.
+
+- **순서**: D1 → D6 → D2 → D3 → D4 → D5 → D7 → D8. 사람의 눈이나 사내 LLM 까지 가기 전에 코드가 하는 검사(D1–D6)에서 하나라도 걸리면 D7 · D8 로 가지 않습니다 (고쳐서 다시 seal).
 - **결과 꼴** (AL-11 — 단어 · 값을 쓰지 않는다):
 
 ```json
@@ -125,7 +138,7 @@ SAMPLE: coarse cells (bucket or rank class, not values; PH_other = pooled rare g
 ```
 
 - 사람에게 보이는 한 줄은 다이오드의 문턱 전압으로 읽는다 ([BLUEPRINT › 1](BLUEPRINT.md#1-순방향--지시가-안으로-밖--안)): 검사를 모두 통과하면 `DIODE V>Vth 통과` (문턱을 넘어 흐른다) · 하나라도 걸리면 `DIODE V<Vth 막힘 · D2 x2 @context[1], ask` · 막는 쪽 실패면 `DIODE V<Vth 막힘 · E-20`. 훅이 막은 까닭 글도 `DIODE V<Vth:` 로 시작한다 (설정 전 알림 `DIODE:` 은 막음이 아니라 그대로). 확정 창은 걸렸을 때 `V<Vth` 칩을 붙이고 [보내기] 를 끈다. 확정 창은 사람의 PC 안이라 걸린 자리를 펼친 글 위에 강조해 보여도 되지만, 기록 · 로그 · 다른 프로세스로 가는 출력에는 위 꼴만 쓴다.
-- **막는 쪽 실패** (AL-03): 검사 도중의 예외 · 시간 초과 · 사전을 못 읽음 · 사전이 빔 → `{"ok": false, "hits": [{"check": "E", "code": "E-20"}]}` (SP-08 의 오류 번호).
+- **막는 쪽 실패** (AL-03 · 검사가 고장 나면 통과시키지 않고 막습니다): 검사 도중의 예외 · 시간 초과 · 사전을 못 읽음 · 사전이 빔 → `{"ok": false, "hits": [{"check": "E", "code": "E-20"}]}` (SP-08 의 오류 번호).
 
 | # | 검사 | 판정 | 반례 (걸려야 한다) |
 |---|---|---|---|
@@ -155,7 +168,9 @@ SAMPLE: coarse cells (bucket or rank class, not values; PH_other = pooled rare g
 
 ## SP-06 들어오는 검사 U1–U5
 
-들어오는 것: Claude 의 답 (기획 · 라이브러리 답 · 화면 코드) 과 방 `work\` 의 파일.
+쉽게 말하면: 반대로 Claude 가 돌려준 답이 안으로 들어올 때 거치는 **다섯 개의 확인** 입니다. 답에 몰래 섞인 진짜 이름이나 바깥 주소를 찾아냅니다.
+
+들어오는 것은 Claude 의 답 (기획 · 라이브러리 답 · 화면 코드) 과 방 `work\` 의 파일입니다.
 
 | # | 검사 | 판정 · 할 일 |
 |---|---|---|
@@ -167,8 +182,10 @@ SAMPLE: coarse cells (bucket or rank class, not values; PH_other = pooled rare g
 
 ## SP-07 되돌리기 · 묶기
 
-- **글** (`plan` · `lib` 의 답): 정확한 꼴의 토큰을 가명 표의 진짜 단어로 바꾼다.
-- **화면 코드** (`ui`): 글자를 바꾸지 않는다. 묶기 파일을 안쪽 작업 폴더에 쓴다 — `binding.local.json`:
+쉽게 말하면: Claude 의 답 속 가짜 이름표를 **진짜 이름으로 되돌려** 안쪽에서 쓸 수 있게 하는 방법입니다. 되돌린 글에는 진짜 이름이 있으니 안쪽에서만 다룹니다.
+
+- **글** (`plan` · `lib` 의 답): 정확한 꼴의 토큰을 가명 표의 진짜 단어로 바꿉니다.
+- **화면 코드** (`ui`): 코드의 글자는 바꾸지 않습니다. 대신 "이 토큰은 이 진짜 항목" 이라는 짝을 적은 묶기 파일을 안쪽 작업 폴더에 씁니다 — `binding.local.json`:
 
 ```json
 {"format": 1, "fields": {"PH_M3X9": {"name": "<진짜 항목 이름>", "label": "<표시 글>"}},
@@ -181,9 +198,11 @@ SAMPLE: coarse cells (bucket or rank class, not values; PH_other = pooled rare g
 
 ## SP-08 허브 도구 넷 (MCP)
 
-- 허브는 표준 입출력 JSON-RPC (MCP) 서버다 · 포트를 열지 않는다 · Claude 쪽 도구 이름은 `mcp__plugin_diode_hub__<도구>` [실험 S04 의 꼴] · 지연 로딩이라 Claude 는 `ToolSearch` 로 먼저 부른다.
-- 방 모드가 아니면 (SP-11) 모든 도구가 `E-05` 를 돌려준다.
-- 결과는 언제나 한 줄 JSON 텍스트 하나다. 안쪽 글 (사내 LLM 의 응답 · 로그 · 오류 원문 · 파일 이름 · 경로) 은 어떤 도구의 결과에도 넣지 않는다 (AL-14 · [실험 S05]).
+쉽게 말하면: 허브는 Claude 와 안쪽 일꾼 사이의 **접수 창구** 입니다. Claude 는 도구 네 개로만 일을 맡기고 결과를 받습니다. (MCP = Claude 가 외부 도구를 부르는 표준 방식)
+
+- 허브는 표준 입출력 JSON-RPC (MCP) 서버입니다 · 포트(네트워크 문)를 열지 않습니다 · Claude 쪽 도구 이름은 `mcp__plugin_diode_hub__<도구>` [실험 S04 의 꼴] · 지연 로딩이라 Claude 는 `ToolSearch` 로 먼저 부른다.
+- 방 모드가 아니면 (SP-11) 모든 도구가 `E-05` 를 돌려줍니다.
+- 결과는 언제나 한 줄 JSON 텍스트 하나입니다. 안쪽 글 (사내 LLM 의 응답 · 로그 · 오류 원문 · 파일 이름 · 경로) 은 어떤 도구의 결과에도 넣지 않는다 (AL-14 · [실험 S05]).
 
 | 도구 | 입력 (inputSchema) | 결과 |
 |---|---|---|
@@ -193,6 +212,8 @@ SAMPLE: coarse cells (bucket or rank class, not values; PH_other = pooled rare g
 | `status` | `{}` | 상태 명령 (SP-12) 과 같은 칸 |
 
 ### dispatch 의 순서
+
+쉽게 말하면: 일을 맡기는 `dispatch` 는 여섯 걸음을 차례로 거치고, 중간에 사람이 꼭 한 번 확인합니다.
 
 0. 일꾼이 없거나 (`check()` 실패) 확정 창 · 감사 기록 부품이 없으면 사람을 부르기 전에 `E-01` · `E-20` [허브 v0.1].
 1. 입력 검사 (모르는 키 · 길이 · 첨부 이름 · 첨부가 방 `work\` 에 있는지) → 실패면 `E-04`.
@@ -204,12 +225,16 @@ SAMPLE: coarse cells (bucket or rank class, not values; PH_other = pooled rare g
 
 ### job 의 상태
 
+쉽게 말하면: 맡긴 일(job)마다 "어디까지 왔나" 를 나타내는 상태 이름표가 붙습니다.
+
 `sent` → `working` → `reported` (확정된 보고가 outbox 에) · `rejected` (사람이 넘기기 · 보고를 버림) · `expired` (24시간 안에 보고가 없음 [제안]).
 
 - 번호는 이 세션에서 차례대로 · 방 `outbox\` 에 같은 이름이 있으면 건너뛴다. 보고는 `working` 인 일에만 한 번 받는다 (`reported` · `rejected` 인 일의 보고는 버린다). [고치기] 는 `working` 그대로.
 - 보고 처리 (허브): 그 job 의 표로 seal (SP-02a · D1–D6 · D5a) → D7 → 확정 창 (D8 · sha256 맞춤) → 건네기 (outbox) → 감사 기록. 코드: [diodelib/hub.py](../diodelib/hub.py) — 부품 (확정 창 · 일꾼 · 판정 · 건네기 · 감사 기록) 은 바꿔 끼우고, 없으면 막는다.
 
 ### 오류 번호
+
+쉽게 말하면: 문제가 생기면 `E-nn` 번호 하나와 짧은 안내 한 줄만 나갑니다. 자세한 사정이나 단어는 절대 적지 않습니다.
 
 | 번호 | 뜻 | 사람에게 보이는 한 줄 |
 |---|---|---|
@@ -227,6 +252,8 @@ SAMPLE: coarse cells (bucket or rank class, not values; PH_other = pooled rare g
 
 ## SP-09 확정 창 · 보고 내기 (propose)
 
+쉽게 말하면: 글이 나가기 직전에 **사람이 마지막으로 보는 창** 이 있습니다. 사람이 [보내기] 를 눌러야만 나갑니다. (propose = 일꾼이 보고서를 허브에 올리는 명령)
+
 - **확정 창**은 허브가 띄우는 **따로 된 프로세스** 다 (`diode.py confirm <요청 파일>` · tkinter) [실험 S18]. 결과 (`send` · `discard` · `timeout`) 를 표준 출력으로 허브에 돌려준다. 요청 파일은 데이터 폴더의 임시 파일에 쓰고 끝나면 지운다 (가명 표는 넣지 않는다 — 창은 되돌린 지시 · 펼친 글만 받는다).
 - **요청 파일 (format 1)**: UTF-8 JSON 객체 하나 · 256 KiB 이하 [제안] · 같은 키 두 번 · `NaN` · 모르는 칸 · 꼴이 틀린 칸 → 창을 띄우지 않고 `E-04`. 칸: `format` (정수 1) · `direction` (`out` 보내기 · `dispatch` 넘기기) · `job` · `kind` (`report` `plan` `ui` `lib`) · `transport` (`room` · `clipboard`) · `text` (보낼 글 · 비지 않음 · 64 KiB 이하 [제안]) · `attachments` (5개 · 120자 · 한 줄) · `checks` (SP-05 꼴) · `model` (한 줄 80자 · 빈 글 = `-`) · `effort` · `month` (`{pct: 0–1000 | null, estimated}`) · 선택 `effort_env_override` · `timeout_s` (1–600 으로 자름 · 기본 600).
 - **결과** (표준 출력 한 줄 · ASCII · 글 · 단어 없음): `{"decision": "send"|"discard"|"edit"|"timeout", "sha256": "<text 의 UTF-8 sha256>"}` · `{"decision": "error", "code": "E-04"|"E-07"|"E-20"}`. 종료 코드 `0` send · `3` discard · edit · timeout · `2` 요청 꼴 오류 · `1` 창을 못 띄움 · 그 밖의 예외. 어떤 예외도 send 가 아니다.
@@ -242,7 +269,9 @@ SAMPLE: coarse cells (bucket or rank class, not values; PH_other = pooled rare g
 
 ## SP-10 방
 
-- **구조**: `D:\claude\room\` 아래에 `.diode-room` (표지) · `.claude\settings.json` (방 설정) · `outbox\` (확정한 봉인 글) · `inbox\` (room 건네기의 답) · `work\` (Claude 가 쓰는 초안).
+쉽게 말하면: 방은 Claude 를 열어 쓰는 **깨끗한 전용 폴더** 입니다. 사내 자료는 두지 않고, 확정된 봉인 글과 Claude 의 답만 둡니다.
+
+- **구조** (방 폴더 안에 이런 것들이 있습니다): `D:\claude\room\` 아래에 `.diode-room` (표지) · `.claude\settings.json` (방 설정) · `outbox\` (확정한 봉인 글) · `inbox\` (room 건네기의 답) · `work\` (Claude 가 쓰는 초안).
 - **표지** `.diode-room`: `{"format": 1, "created": "<ISO>", "settings_sha256": "<방 설정의 해시>"}`.
 - **방 설정** (`/diode:room` 이 쓴다 · [실험] 번호는 PLAN 07 › 깨끗한 방):
 
@@ -267,6 +296,8 @@ SAMPLE: coarse cells (bucket or rank class, not values; PH_other = pooled rare g
 
 ## SP-11 훅
 
+쉽게 말하면: 훅은 Claude Code 가 일할 때마다 끼어들어 "이건 해도 되나" 를 검사하는 **문지기** 입니다. 폴더가 어디냐(원자료 · 방 · 그 밖)에 따라 문지기의 엄격함이 다릅니다.
+
 - 모든 훅은 exec 꼴 (`command` = `python` · `args` = `["${CLAUDE_PLUGIN_ROOT}/diode.py", "hook", "<이벤트>"]`) · `onFailure: "block"` [실험 S09] · `timeout` 10초 [제안].
 - **모드**: 프로젝트 폴더 (`CLAUDE_PROJECT_DIR` · 없으면 훅 입력의 `cwd`) 가 `policy.raw_dirs` 의 어느 폴더와 **겹치면** (그 아래이거나 · 그것을 품거나) `raw` · 방 (`ok` 상태) 이면 `room` · 그 밖은 `other`. 방이 `changed` 면 `raw` 와 같이 막는다. 경로는 진짜 경로 (심볼릭 링크를 푼 것) · OS 의 대소문자 규칙으로 견준다.
 - **데이터 폴더**: 훅은 늘 기본 자리 (`%LOCALAPPDATA%\diode` · 그 밖 `~/.local/share/diode`) 를 본다. `DIODE_HOME` 은 받지 않는다 — 환경 변수로 다른 사전 · 설정을 물리지 못하게.
@@ -290,6 +321,8 @@ SAMPLE: coarse cells (bucket or rank class, not values; PH_other = pooled rare g
 
 ## SP-12 상태 명령
 
+쉽게 말하면: 지금 상태를 읽기만 하는 명령입니다. 단어나 글은 내주지 않고 개수와 상태 이름만 알려 줍니다.
+
 - `diode.py --status --json [--room "<폴더>"]` — 읽기 전용 · 표준 출력에 UTF-8 JSON 하나 · `format` 1.
 - 칸 · 값 범위는 [Terminal–1 사내 작업 지침 › 04-5](https://github.com/leebobegogigug-blip/Works/blob/8df8bca44a80a8034e343f646967e2eea744a28b/docs/plans/terminal-1-claude-guide.md) 의 계약이 정본이다. 허브 도구 `status` 도 같은 칸을 돌려준다.
 - 내주지 않는 것: 사전 단어 · 봉인 글 · 답 · 가명 표 · 감사 기록 내용 · 정규식 · 모델 이름.
@@ -298,11 +331,15 @@ SAMPLE: coarse cells (bucket or rank class, not values; PH_other = pooled rare g
 
 ## SP-13 statusline 기록
 
+쉽게 말하면: Claude 화면 아래 한 줄에 "방 상태 · 노력 수준 · 이번 달 사용량" 을 보여 주고, 사용량을 파일로 남깁니다. 보안 장치는 아니라서 실패해도 아무것도 막지 않습니다.
+
 - `diode.py --statusline` 은 표준 입력의 JSON 에서 `session_id` · `model.id` · `effort.level` · `cost.total_cost_usd` · `context_window.total_input_tokens` · `context_window.total_output_tokens` 만 읽는다 [실험 T01 의 칸]. `transcript_path` 는 열지 않는다.
 - 세션마다 한 파일 `%LOCALAPPDATA%\diode\usage\<YYYY-MM>\<session_id 의 sha256 앞 16자>.json` 을 원자적으로 덮어쓴다 (마지막 누계). 이번 달 사용 = 그 달 파일들의 합.
-- 표준 출력은 한 줄: `DIODE  room ok  effort high  month 12%` (어림이면 `month ~12%` · 실패하면 `DIODE  -`). 200 ms 안에 끝낸다 [제안]. 실패해도 막지 않는다 (statusLine 은 보안 경계가 아니다). 방 상태는 statusLine 의 작업 폴더에서 · 입력 상한 1 MiB · usage 파일 꼴 `{format, at, month, model, effort, cost_usd, input_tokens, output_tokens}` · 더 새 format 의 파일은 덮어쓰지 않는다.
+- 화면에 찍는 것은 한 줄입니다: `DIODE  room ok  effort high  month 12%` (어림이면 `month ~12%` · 실패하면 `DIODE  -`). 200 ms 안에 끝낸다 [제안]. 실패해도 막지 않는다 (statusLine 은 보안 경계가 아니다). 방 상태는 statusLine 의 작업 폴더에서 · 입력 상한 1 MiB · usage 파일 꼴 `{format, at, month, model, effort, cost_usd, input_tokens, output_tokens}` · 더 새 format 의 파일은 덮어쓰지 않는다.
 
 ## SP-14 감사 기록
+
+쉽게 말하면: 무엇을 보냈고 사람이 어떻게 결정했는지 **영수증처럼 남기는 기록** 입니다. 단, 가명 표와 사전 단어는 영수증에도 적지 않습니다.
 
 - `%LOCALAPPDATA%\diode\audit\<YYYY-MM>\<job>-<순번>-<out|in>.json` · 원자적 쓰기 · 플러그인을 지워도 남는다.
 
@@ -324,6 +361,8 @@ SAMPLE: coarse cells (bucket or rank class, not values; PH_other = pooled rare g
 
 ## SP-15 설정 (format 1)
 
+쉽게 말하면: 설정 파일의 칸 이름과 기본값 목록입니다. 보안에 걸린 칸은 사람이 정책 창에서만 바꿀 수 있습니다.
+
 - `%LOCALAPPDATA%\diode\config.json` · 원자적 쓰기 · 깨지면 `.broken` · 더 새 format 이면 읽기만 (W-06).
 
 | 키 | 기본 | 뜻 |
@@ -338,7 +377,7 @@ SAMPLE: coarse cells (bucket or rank class, not values; PH_other = pooled rare g
 | `worker.url` | `http://127.0.0.1:4096` | [예정 · v0.2] 서버로 쓰는 일꾼 (127.0.0.1 만) · 지금은 읽지 않는다 |
 | `room.path` | `D:\claude\room` | |
 | `policy.real_data` | `false` | 창에서만 바꾼다 (AL-10) |
-| `policy.derived_level` | `0` | 파생 표본 (L2 · SP-18) · `1` 로 올리는 곳은 정책 창뿐 — 실데이터 칸이 켜져 있고 확인 글 `보안 승인 받음` 이 있어야 켜진다 · **`policy.real_data` 가 참이 아니면 값이 1 이어도 0 으로 읽는다** · 실데이터를 끄면 창이 같이 끈다 · 환경 변수 · 명령줄 · `--set` · 시험용 우회 없음 (AL-12 · AL-10 과 같다) |
+| `policy.derived_level` | `0` | 파생 표본 (L2 · SP-18) · `1` 로 올리는 곳은 정책 창뿐 — 실데이터 칸이 켜져 있고 확인 글 `사내 자체 검증 완료` 이 있어야 켜진다 · **`policy.real_data` 가 참이 아니면 값이 1 이어도 0 으로 읽는다** · 실데이터를 끄면 창이 같이 끈다 · 환경 변수 · 명령줄 · `--set` · 시험용 우회 없음 (AL-12 · AL-10 과 같다) |
 | `policy.lib_allow` | `[]` | 창에서만 |
 | `policy.raw_dirs` | `[]` | 창에서만 · 비면 seal 을 막는다 (AL-12) |
 | `policy.patterns` | `[]` | D3 에 더할 정규식 · 창에서만 |
@@ -348,12 +387,14 @@ SAMPLE: coarse cells (bucket or rank class, not values; PH_other = pooled rare g
 
 ### 정책 창 (`diode.py policy` · `/diode:dict`)
 
+쉽게 말하면: 사전 · 폴더 · 허용 목록 같은 보안 설정은 **사람이 이 창에 직접 입력** 해야만 바뀝니다. Claude 나 환경 변수로는 바꿀 수 없습니다.
+
 - 사전 · 원자료 폴더 · 안쪽 도구 · 라이브러리 허용 · 정규식 · 일꾼 · 선택 (웹 검색 · 실데이터 · 월 예산 · 방 자리 · `llm`) 은 **사람이 이 창에서만** 바꾼다 (AL-10 · AL-12). 사내 단어를 대화에 치면 곧바로 Claude 로 나가므로 슬래시 명령은 단어를 묻지도 받지도 않는다 — 창을 열어 줄 뿐이다. 코드: [diodelib/policy_window.py](../diodelib/policy_window.py) (논리 `PolicySession` + 화면 `TkView`) · 저장은 [diodelib/config.py](../diodelib/config.py).
 - **쓰는 길은 하나**: 사람이 [저장] 을 누르면 검증을 거쳐 `config.apply_state` 가 원자적으로 쓴다. 환경 변수 · 명령줄 인자 · 파일로 값을 밀어 넣는 길 · 조용한 저장 · 시험 전용 우회가 없다 (읽는 환경 변수는 `DISPLAY` · `WAYLAND_DISPLAY` 뿐). 시험은 `create_view` 를 바꿔 끼워서만 한다.
 - **칸 ↔ 글**: 여러 줄 칸은 한 줄에 하나 (`#` 로 시작해도 단어다 — 주석이 아니다) · 일꾼 명령은 한 줄 JSON 목록 · `llm` 은 JSON 객체. 틀리면 칸 이름과 줄 번호만 알리고 아무것도 쓰지 않는다 (틀린 값은 쓰지 않는다).
 - **보이지 않는 글자** (제어 · 서식 · 영폭 공백 · 변이 선택자) 는 모든 글 칸에서 `[U+XXXX]` 로 알리고 막는다 (확정 창과 같은 판정).
-- **실데이터**: 새로 켜려면 확인 글 칸에 정확히 `보안 승인 받음` 을 쳐야 한다 (끄는 데는 필요 없다).
-- **파생 표본 (L2)**: 선택 구역의 켜짐 칸. 새로 켜려면 실데이터 칸이 켜져 있어야 하고 같은 확인 글 칸에 `보안 승인 받음` 이 있어야 한다 (끄는 데는 필요 없다 · 실데이터를 끄면 같이 꺼진다). 켜는 코드는 `PolicySession.toggle_derived_level` 하나이고 쓰는 길은 `config.apply_state` 하나다 (시험이 AST 로 본다).
+- **실데이터**: 새로 켜려면 확인 글 칸에 정확히 `사내 자체 검증 완료` 을 쳐야 한다 (끄는 데는 필요 없다).
+- **파생 표본 (L2)**: 선택 구역의 켜짐 칸. 새로 켜려면 실데이터 칸이 켜져 있어야 하고 같은 확인 글 칸에 `사내 자체 검증 완료` 이 있어야 한다 (끄는 데는 필요 없다 · 실데이터를 끄면 같이 꺼진다). 켜는 코드는 `PolicySession.toggle_derived_level` 하나이고 쓰는 길은 `config.apply_state` 하나다 (시험이 AST 로 본다).
 - **저장된 `llm` 키 · 헤더 값은 화면에 가려서** `설정됨 (n자 · 값은 표시 안 함)` 으로만 보이고 저장해도 그대로 남는다. 새로 글자 그대로 적은 키는 막고 `{file:경로}` 참조만 받는다 (`{env:}` 는 받지 않는다). 칸을 비우면 지우는 것이 아니라 그대로 둔다.
 - **깨진 파일**: 사전 · 설정을 따로 읽는다 (`config.load_state_tolerant`) — 한쪽만 깨졌으면 멀쩡한 쪽의 값은 살려서 열고, 저장하면 깨진 파일은 `.broken` 으로 옮긴다. 더 새 format 이면 열지 않는다 (`E-20` · `newer`).
 - **결과** (표준 출력 한 줄 · 코드 · 개수 · 참거짓뿐): `{"saved": true, "counts": {…}, "warnings": [<코드>]}` 종료 `0` · `{"saved": false}` `3` (저장 없이 닫음) · `{"saved": false, "error": "E-07"}` `1` (화면 · tkinter 없음) · `{"saved": false, "error": "E-20", "code": "newer"}` · `{"saved": false, "error": "E-20"}` `1`. 경고 코드: `short` `raw_missing` `words_empty` `raw_empty`.
@@ -364,6 +405,8 @@ SAMPLE: coarse cells (bucket or rank class, not values; PH_other = pooled rare g
 - `--set` 으로 바꿀 수 없는 키: `policy.*` · `llm.*` · 사전 (AL-12). 테스트는 `DIODE_HOME` 으로 데이터 폴더를 옮기되, 기본 자리가 아니면 보내기 · 넘기기를 막는다 (`E-20`).
 
 ## SP-16 명령 · 종료 코드
+
+쉽게 말하면: 다이오드가 가진 명령의 목록이고, 누가 부르는지와 끝났을 때 돌려주는 숫자(종료 코드)의 뜻을 적었습니다.
 
 - 종료 코드는 works S-03 을 따른다 — `0` OK · `1` 점검 실패 · `2` 사용법 오류 · `3` 사람 확인 필요. 점검 출력의 마지막 줄은 `결과: OK` · `결과: 확인 필요` · `결과: 점검 실패`.
 
@@ -387,7 +430,9 @@ SAMPLE: coarse cells (bucket or rank class, not values; PH_other = pooled rare g
 
 ## SP-17 반례 묶음
 
-`tests/vectors/` 에 검사마다 걸려야 하는 것 (`block/`) 과 통과해야 하는 것 (`pass/`) 을 합성 자료로 둔다. 최소:
+쉽게 말하면: 각 검사가 제대로 일하는지 보려고 "반드시 걸려야 하는 나쁜 예" 와 "반드시 통과해야 하는 좋은 예" 를 시험 자료로 모아 둔 것입니다. (반례 = 규칙을 어기는 예)
+
+`tests/vectors/` 폴더에, 검사마다 걸려야 하는 것 (`block/`) 과 통과해야 하는 것 (`pass/`) 을 지어낸 자료로 둡니다. 적어도 아래만큼은 있어야 합니다:
 
 | 검사 | 걸려야 하는 반례 | 통과해야 하는 예 |
 |---|---|---|
@@ -402,6 +447,8 @@ SAMPLE: coarse cells (bucket or rank class, not values; PH_other = pooled rare g
 | 카나리아 | 합성 말뭉치 (T3) 1,000 시나리오에서 바깥 바이트에 카나리아 0 (G1) | |
 
 ## SP-18 파생 표본 (L2)
+
+쉽게 말하면: 숫자 표를 "실제 값은 가리고 대략 몇 번째 구간인지만" 남긴 작은 표로 바꿔 보내는 기능입니다. 기본은 꺼져 있고, 그래도 **누구의 자료인지 알아내는 위험(재식별)이 없다고는 증명할 수 없습니다.**
 
 > 구현했다. 기본은 꺼짐이고 켜는 곳은 정책 창뿐이다 (SP-15 `policy.derived_level`). **재식별은 증명할 수 없다** — 정보 상한은 SP-05 의 `sample` 항목, 합격선은 보안 부서가 정한다. 제안의 까닭은 [PROPOSAL-derived.md](PROPOSAL-derived.md).
 
@@ -431,6 +478,8 @@ SAMPLE: coarse cells (bucket or rank class, not values; PH_other = pooled rare g
 
 ## 부록 A — D7 판정 프롬프트 (고정 글)
 
+쉽게 말하면: D7 에서 사내 LLM 에게 "이 글 내보내도 될까" 라고 묻는 질문 원문입니다. 시험이 이 글과 글자 하나까지 같은지 확인하므로 바꾸지 않습니다.
+
 ```text
 당신은 사내 보안 판정기다. 아래 [글] 이 회사 밖으로 나가도 되는지 판정한다.
 다음 중 하나라도 있으면 block 이다: 특정 회사 · 제품 · 공정 · 장비 · 고객 · 사람 · 사내 시스템을 알아볼 수 있는 말,
@@ -443,6 +492,8 @@ PH_ 로 시작하는 토큰은 가린 이름이므로 그 자체로는 문제가
 ```
 
 ## 부록 B — 일꾼 안내문 (고정 글 · 허브가 지시 앞에 붙인다)
+
+쉽게 말하면: 일꾼(사내 LLM)에게 "보고는 이 길로만 하라" 고 알려 주는 안내문 원문입니다.
 
 ```text
 [diode {job}]
@@ -462,6 +513,8 @@ PH_ 로 시작하는 토큰은 가린 이름이므로 그 자체로는 문제가
 - Claude 는 이 글을 바꿀 수 없다 — 허브가 붙인다. 이 글은 안내이고 벽이 아니다 (AL-09). 벽은 보고 길의 D1–D8 이다.
 
 ## 부록 C — 펼친 글 예 (합성)
+
+쉽게 말하면: 보고 하나가 틀에 채워져 실제로 어떻게 보이는지 보여 주는 지어낸 예입니다. 시험이 이 예와 코드의 출력이 같은지 확인합니다.
 
 ```text
 [diode report format=1 job=J-0007 status=done]
