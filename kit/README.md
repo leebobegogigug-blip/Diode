@@ -11,6 +11,7 @@
 | `corpus/` · `canary_variants.py` · `leak_rate.py` · `test_corpus.py` | KIT-3 합성 말뭉치 (지어낸 시험 자료 묶음) 40과제 (plan 15 · ui 15 · lib 10 · 카나리아 361) · 카나리아 변형 · 검사기 전후 새는 비율 · 시험. 사내에서 돌리는 절차와 G3 채점표는 `corpus/README.md` (T3) 에 있다 |
 | `run_opencode.py` | 진짜 opencode 로 일꾼 부품 · 셸 권한을 시험한다 (가짜 로컬 모델 · 꼭 돌릴 필요는 없다 · `--opencode <경로>`) |
 | `inhouse-questions.md` | **사내 확인 질문지** — 1부는 사내 Claude 에게 붙여 넣는다 (예 · 아니오 · 숫자 · 보기로만 답하게 해서 이름 · 주소 · 경로가 바깥으로 안 나오게 한다). 2부는 사람이 직접 돌린다 (옮겨 적을 줄이 정해져 있다) |
+| `reid_sim.py` · `results-reid.md` | **L2 파생 표본 재식별 위험 시뮬레이션** (T3b · 방어 평가) — 지어낸 표로 "보조 열을 아는 공격자가 파생 행을 몇 % 가려내나" 를 잰다 (`--quick` 은 CI 용). 숫자 · 쉬운 말 해석 · 제안 합격선 · 권고 표는 `results-reid.md` |
 | `statusline_keys.py` | statusLine (화면 아래 상태줄) 입력 JSON 의 **칸 이름만** 찍는 도구 (값은 찍지 않는다 · 질문지 H4) |
 | `run_install.py` | **처음부터 끝까지** — 마켓플레이스로 설치 → 정책 입력 → `/diode:setup` 이 방을 만듦 → 방 안 세션이 훅 · 허브 아래에서 도는지 확인 (I1–I6 · 임시 HOME · 가짜 서버) |
 | `run_hooks.py` | 진짜 훅 (저장소의 `hooks/hooks.json` · `diode.py hook`) 으로 KIT-2 를 다시 시험한다 R01–R23 (T12 · T19 — 훅 · 허브 · 슬래시 명령 · 데이터 폴더 보호) |
