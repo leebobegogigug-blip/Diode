@@ -43,6 +43,7 @@ jobs:
       PYTHONUTF8: "1"
       PYTHONIOENCODING: utf-8
       CLAUDE_CLI_VERSION: "2.1.318"
+      OPENCODE_VERSION: "1.19.5"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -81,3 +82,12 @@ jobs:
         shell: bash
         timeout-minutes: 20
         run: python kit/run_kit.py --claude "$CLAUDE_BIN" --python python
+      - name: opencode 설치 (고정판 · 일꾼 연결 시험용)
+        if: always()
+        shell: bash
+        run: npm install -g "opencode-ai@$OPENCODE_VERSION"
+      - name: 일꾼 연결 R1–R5 (진짜 opencode · 가짜 로컬 모델 · Windows 는 .cmd 껍데기)
+        if: always()
+        shell: bash
+        timeout-minutes: 25
+        run: python kit/run_opencode.py --opencode opencode
