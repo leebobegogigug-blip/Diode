@@ -136,8 +136,8 @@ class FakeView(object):
 
 def _blank_state_keys():
     """창이 config 에 넘기는 상태의 칸 (config.validate_state 가 읽는 칸 전부)."""
-    return ["words", "raw_dirs", "inner_tools", "lib_allow", "patterns", "web_search", "real_data", "monthly_budget_usd",
-            "worker_command", "worker_cwd", "room_path", "llm"]
+    return ["words", "raw_dirs", "inner_tools", "lib_allow", "patterns", "web_search", "real_data", "derived_level",
+            "monthly_budget_usd", "worker_command", "worker_cwd", "room_path", "llm"]
 
 
 # ─────────────────────────────────────────────────────────────── 글 <-> 값
@@ -792,7 +792,7 @@ class TestSecrets(Base):
 
 class TestRealData(Base):
     def test_the_phrase_is_fixed(self):
-        self.assertEqual(pw.REAL_DATA_PHRASE, "보안 승인 받음")
+        self.assertEqual(pw.REAL_DATA_PHRASE, "사내 자체 검증 완료")
 
     def test_without_the_phrase_it_does_not_turn_on_and_says_why(self):
         s = pw.PolicySession(self.home)
@@ -809,9 +809,9 @@ class TestRealData(Base):
 
     def test_only_the_exact_phrase_turns_it_on(self):
         s = pw.PolicySession(self.home)
-        for near in ("", "보안승인받음", "보안 승인 받음 ", " 보안 승인 받음", "보안 승인 받음.", "승인 받음", "보안  승인 받음",
-                     "보안 승인 받음\n", "보안\u00a0승인 받음", "보안\u3000승인 받음", "보안 승인 받음\u200b", "BOAN 승인 받음",
-                     "보안 승인 받았음"):
+        for near in ("", "사내자체검증완료", "사내 자체 검증 완료 ", " 사내 자체 검증 완료", "사내 자체 검증 완료.", "자체 검증 완료", "사내  자체 검증 완료",
+                     "사내 자체 검증 완료\n", "사내\u00a0자체 검증 완료", "사내\u3000자체 검증 완료", "사내 자체 검증 완료\u200b", "SANAE 자체 검증 완료",
+                     "사내 자체 검증 완료됨", "보안 승인 받음"):
             s.set_real_confirm(near)
             self.assertFalse(s.toggle_real_data(True), repr(near))
             self.assertFalse(s.real_data, repr(near))
@@ -1042,6 +1042,27 @@ class TestSave(Base):
         for leak in ("KITWORD", "가람", "kitraw", "kitkey", "innerx", "InnerX", "opencode", "kitlot", "pandas", "kit-model",
                      "example.com", self.tmp):
             self.assertNotIn(leak, r.message)
+
+    def test_short_words_warn_with_a_count_and_do_not_block_the_save(self):
+        s = self.fresh(words="가나다\nKIT\n%s\n%s" % (WORD_A, WORD_B))
+        self.assertEqual(s.risky_count(), 2)
+        r = s.save()
+        self.assertTrue(r.ok, r.message)
+        lines = r.message.split("\n")
+        self.assertEqual(lines[-1], pw.TEXT_WARN_MARK + pw.TEXT_RISKY % 2)
+        self.assertIn("짧은 단어 2개", lines[-1])
+        self.assertIn("오탐", lines[-1])
+        for leak in ("가나다", "KIT\n", "KITWORD", "가람"):
+            self.assertNotIn(leak, r.message)
+        self.assertEqual(config.counts(self.home)["dictionary"], 4)         # 막지 않고 그대로 저장
+
+    def test_overlapping_words_count_and_long_words_do_not_warn(self):
+        s = self.fresh(words="가람소재공장\n다가람소재공장입니다")
+        self.assertEqual(s.risky_count(), 1)
+        s2 = self.fresh(words="%s\n%s" % (WORD_A, WORD_B))
+        self.assertEqual((s2.risky_count(), s2.risky_notice()), (0, ""))
+        r = s2.save()
+        self.assertNotIn("오탐", r.message)
 
     def test_a_save_without_changes_is_not_blocked_and_says_so(self):
         config.apply_state(self.home, self.state())
@@ -1295,7 +1316,7 @@ class TestMain(Base):
         for key, value in counts.items():
             self.assertTrue(isinstance(value, bool) or (isinstance(value, int) and value >= 0), key)
         self.assertEqual(set(counts), {"dictionary", "raw_dirs", "inner_tools", "lib_allow", "patterns", "web_search",
-                                       "real_data", "worker", "llm", "room_path"})
+                                       "real_data", "derived_level", "worker", "llm", "room_path"})
 
     def test_a_warning_goes_out_as_its_code(self):
         steps = [("text", k, v) for k, v in self.texts(raw_dirs=os.path.join(self.tmp, "없는폴더")).items()]
@@ -1756,7 +1777,7 @@ class TestNoWayAround(unittest.TestCase):
 
     def test_the_fixed_phrases_are_in_the_window_code(self):
         src = _source()
-        for want in ("정책 편집", "이 창에서만 바뀝니다 · 단어는 화면 밖으로 나가지 않습니다", "저장하지 않고 닫을까요", "보안 승인 받음",
+        for want in ("정책 편집", "이 창에서만 바뀝니다 · 단어는 화면 밖으로 나가지 않습니다", "저장하지 않고 닫을까요", "사내 자체 검증 완료",
                      "바뀐 것 없음", "01 DICT", "02 RAW", "03 TOOLS", "04 WORKER", "05 LIB", "06 OPTION", "폴더 고르기", "예시 넣기"):
             self.assertIn(want, src)
 

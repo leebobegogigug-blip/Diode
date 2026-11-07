@@ -410,9 +410,9 @@ class TestDocs(unittest.TestCase):
     def test_readme_promises(self):
         text = read("README.md")
         first = next(ln for ln in text.splitlines() if ln.strip())
-        self.assertIn("개발 중 (v0.0) — 합성 자료로만 시험했습니다. 사내 확인 (Windows · 사내 CLI · 보안 부서의 답) 전이라 실데이터에는 쓰지 마세요.", first)
-        self.assertIn("이름은 비유입니다 — 하드웨어 데이터 다이오드가 아닙니다.", text)
-        self.assertIn("화면 문법은 소형 하드웨어 계측기(Teenage Engineering 류)에서 영감을 받았고, 해당 회사와는 관련이 없습니다.", text)
+        self.assertIn("개발 중 (v0.0) — 합성 자료로만 시험했다. 사내 자체 검증을 마치기 전에는 real data 에 쓰지 않는다.", first)
+        self.assertIn("이름은 비유다 — 하드웨어 데이터 다이오드가 아니다.", text)
+        self.assertIn("화면 문법은 소형 하드웨어 계측기(Teenage Engineering 류)에서 영감을 받았으며, 해당 회사와는 관련이 없다.", text)
         self.assertIn("파이썬 3.8+ · 표준 라이브러리만", text)
         self.assertRegex(text, r"테스트 \d+ · WINDOWS \+ UBUNTU CI")
         for target in ("docs/PLAN.md", "docs/SPEC.md", "docs/BLUEPRINT.md", "RULES.md"):
@@ -426,7 +426,7 @@ class TestDocs(unittest.TestCase):
         self.assertLess(os.path.getsize(os.path.join(ROOT, src)), 2 * 1024 * 1024)
         self.assertGreater(len(alt), 10)
         self.assertNotIn("http", src)                                       # 바깥 주소로 가져오지 않는다 (W-03)
-        self.assertIn("공식 그림이 아닙니다", text)                           # 제품 그림 고지
+        self.assertIn("공식 그림이 아니다", text)                           # 제품 그림 고지
 
     def test_w10_exception_names_the_one_banner(self):
         rules = read("RULES.md")

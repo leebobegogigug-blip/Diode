@@ -10,6 +10,8 @@
   out       보낸 펼친 글 그대로 (text) · sha256 · 크기 — decision 이 sent 면 text 가 꼭 있다
   in        Claude 의 답 — text 를 남기지 않는다 (해시 · 크기 · 검사 결과만)
   dispatch  넘기기 (안쪽으로) — text 에 되돌리기 전의 지시 (토큰 꼴)
+  derive    파생 표본을 만든 기록 (derive_record) — 변환 종류별 열 수 · 행 수 · 토큰 수 · 표의 sha256 뿐 (값 · 열 이름 · 토큰 없음)
+  out (plan · ui)  표가 든 파생 초안을 보낸 기록 — 보낸 글 그대로에 더해 sample (변환 종류별 열 수 · 열 수 · 행 수)
 
 남기지 않는 것: 가명 표 · 원자료 · 사전 단어. 그것을 받을 인자 자체가 없다 (W-05).
 checks 는 SP-05 꼴의 칸 (검사 번호 · 개수 · 자리 · 판정 · 닫힌 까닭 번호) 만 받는다 (AL-11).
@@ -22,6 +24,8 @@ import json
 import os
 import re
 import tempfile
+
+from .render import sample_text
 
 FORMAT = 1
 AUDIT_DIR = "audit"
@@ -97,8 +101,29 @@ def _clean_checks(checks):
     return out
 
 
+def _clean_sample(sample):
+    """보낸 파생 표의 요약 {"transforms": {종류: 열 수}, "columns", "rows"} - 정수뿐 (값 · 열 이름 · 토큰이 들어갈 칸이 없다)."""
+    if not isinstance(sample, dict) or set(sample) != {"transforms", "columns", "rows"}:
+        raise AuditError("sample 꼴")
+    tf = sample["transforms"]
+    if not isinstance(tf, dict) or set(tf) != set(DERIVE_TRANSFORMS):
+        raise AuditError("sample 꼴")
+    clean = {}
+    for k in DERIVE_TRANSFORMS:
+        v = tf[k]
+        if isinstance(v, bool) or not isinstance(v, int) or not 0 <= v <= 8:
+            raise AuditError("sample 꼴")
+        clean[k] = v
+    cols, rows = sample["columns"], sample["rows"]
+    if isinstance(cols, bool) or not isinstance(cols, int) or cols != sum(clean.values()) or not 0 < cols <= 8:
+        raise AuditError("sample 꼴")
+    if isinstance(rows, bool) or not isinstance(rows, int) or not 0 < rows <= 50:
+        raise AuditError("sample 꼴")
+    return {"transforms": clean, "columns": cols, "rows": rows}
+
+
 def build(job, direction, kind, transport, decision, text=None, sha256=None, size=None,
-          checks=None, model="", effort="", now=None):
+          checks=None, model="", effort="", now=None, sample=None):
     """기록 한 건 (사전) 을 만든다. 꼴이 틀리면 AuditError."""
     if not isinstance(job, str) or not JOB_RE.match(job):
         raise AuditError("job 꼴")
@@ -114,6 +139,8 @@ def build(job, direction, kind, transport, decision, text=None, sha256=None, siz
         raise AuditError("model")
     if effort not in EFFORTS:
         raise AuditError("effort")
+    if sample is not None and (direction != "out" or kind not in ("plan", "ui")):
+        raise AuditError("sample 은 표가 든 plan · ui 를 내보낸 기록에만")
     if direction == "in" and text is not None:
         raise AuditError("in 은 글을 남기지 않는다")
     if direction != "in" and decision == "sent" and text is None:
@@ -148,12 +175,14 @@ def build(job, direction, kind, transport, decision, text=None, sha256=None, siz
     rec["checks"] = _clean_checks(checks)
     rec["model"] = model
     rec["effort"] = effort
+    if sample is not None:
+        rec["sample"] = _clean_sample(sample)
     return rec
 
 
 def _link_new(tmp, data, d, job, direction):
     """임시 파일을 다음 빈 순번의 이름에 링크한다 (있으면 다음 번호). 쓴 자리를 돌려준다."""
-    pat = re.compile(r"^" + re.escape(job) + r"-([0-9]+)-(?:out|in|dispatch)\.json\Z")
+    pat = re.compile(r"^" + re.escape(job) + r"-([0-9]+)-(?:out|in|dispatch|derive)\.json\Z")
     used = [int(m.group(1)) for m in (pat.match(fn) for fn in os.listdir(d)) if m]
     seq = (max(used) + 1) if used else 1
     while seq <= MAX_SEQ:
@@ -203,14 +232,111 @@ def write(home, rec):
 
 
 def record(home, job, direction, kind, transport, decision, text=None, sha256=None, size=None,
-           checks=None, model="", effort="", now=None):
+           checks=None, model="", effort="", now=None, sample=None):
     """감사 기록 한 건을 남긴다 → 쓴 파일 자리. 꼴이 틀리거나 못 쓰면 예외 (AL-03 — 보내지 않는다).
 
     가명 표 · 원자료 · 사전 단어를 받을 인자가 없다. direction "in" 은 text 를 받지 않는다 (sha256 · size 만).
     """
     rec = build(job, direction, kind, transport, decision, text=text, sha256=sha256, size=size,
-                checks=checks, model=model, effort=effort, now=now)
+                checks=checks, model=model, effort=effort, now=now, sample=sample)
     return write(home, rec)
+
+
+# 파생 표본 (L2) 의 만든 기록 - 변환 종류별 열 수 · 열 수 · 행 수 · 토큰 수 · 표의 sha256 뿐이다
+# (값 · 열 이름 · 토큰이 없다 · 모자이크 누계 L-05). 토큰 수와 sha256 은 propose · 허브가 "derive 가 만든 초안 그대로인가" 를 볼 때 쓴다.
+DERIVE_TRANSFORMS = ("bucket", "rank", "category")
+MAX_DERIVE_TOKENS = 100          # 열 8 + 범주 열마다 (행 50 / k 5) 묶음 10개 = 88 이하
+
+
+def table_sha256(sample):
+    """sample 이 펼쳐질 표 그대로의 글 (render.sample_text) 의 sha256 - 창이 보이고 보내는 바이트의 해시다."""
+    return hashlib.sha256(sample_text(sample).encode("utf-8")).hexdigest()
+
+
+MAX_SOURCE_ROWS = 10 ** 9        # 사람이 알려 준 원본 행 수의 상한 (꼴 점검용)
+
+
+def derive_record(home, job, transforms, rows, now=None, tokens=None, table_sha256=None, source_rows=None):
+    """파생 표본을 만들었다는 기록 한 건 -> 쓴 자리. transforms 는 {변환 종류: 열 수}. 꼴이 틀리거나 못 쓰면 예외 (만들지 않는다).
+
+    tokens (표에 나온 서로 다른 가명 토큰 수) · table_sha256 (표 글의 해시) 은 둘이 같이 있어야 하고, 있으면 기록한다.
+    source_rows (사람이 알려 준 원본 표의 전체 행 수 · 정수 하나 · 값이 아니다) 는 있으면 기록한다 - 옛 기록에는 없다.
+    파일 이름은 `<job>-<순번>-derive.json` - 보낸 것 (out) 이 아니라서 확정 목록 · job 상태에는 끼지 않는다.
+    """
+    if not isinstance(job, str) or not JOB_RE.match(job):
+        raise AuditError("job 꼴")
+    if not isinstance(transforms, dict) or set(transforms) - set(DERIVE_TRANSFORMS):
+        raise AuditError("transforms 꼴")
+    clean = {}
+    for k in DERIVE_TRANSFORMS:
+        v = transforms.get(k, 0)
+        if isinstance(v, bool) or not isinstance(v, int) or not 0 <= v <= 8:
+            raise AuditError("transforms 꼴")
+        clean[k] = v
+    if isinstance(rows, bool) or not isinstance(rows, int) or not 0 < rows <= 50:
+        raise AuditError("rows 꼴")
+    at = now or _now()
+    rec = {"format": FORMAT, "at": at.isoformat(), "job": job, "direction": "derive", "kind": "derive",
+           "transforms": clean, "columns": sum(clean.values()), "rows": rows}
+    if tokens is not None or table_sha256 is not None:
+        if isinstance(tokens, bool) or not isinstance(tokens, int) or not 0 < tokens <= MAX_DERIVE_TOKENS \
+                or not isinstance(table_sha256, str) or not HEX64_RE.match(table_sha256):
+            raise AuditError("tokens · table_sha256 꼴")
+        rec["tokens"] = tokens
+        rec["table_sha256"] = table_sha256
+    if source_rows is not None:
+        if isinstance(source_rows, bool) or not isinstance(source_rows, int) or not 0 < source_rows <= MAX_SOURCE_ROWS:
+            raise AuditError("source_rows 꼴")
+        rec["source_rows"] = source_rows
+    return write(home, rec)
+
+
+def derive_find(home, table_hash):
+    """표 해시가 맞는 derive 기록 -> {"job", "transforms", "columns", "rows", "tokens"} 또는 None (읽기만 한다).
+
+    해시가 없는 옛 기록 · 꼴이 틀린 기록은 맞지 않는다. 표 해시에는 실행마다 새로 뽑은 토큰이 들어 있어 사실상 한 기록만 맞는다.
+    """
+    if not isinstance(table_hash, str) or not HEX64_RE.match(table_hash):
+        return None
+    for _, rec in _records(home, ("-derive.json",)):
+        if rec.get("format") != FORMAT or rec.get("direction") != "derive" or rec.get("table_sha256") != table_hash:
+            continue
+        job, tf, cols, rows, toks = (rec.get(k) for k in ("job", "transforms", "columns", "rows", "tokens"))
+        try:
+            if not isinstance(job, str) or not JOB_RE.match(job) or not isinstance(tf, dict) \
+                    or set(tf) != set(DERIVE_TRANSFORMS) or any(isinstance(v, bool) or not isinstance(v, int) for v in tf.values()) \
+                    or any(isinstance(v, bool) or not isinstance(v, int) for v in (cols, rows, toks)) \
+                    or cols != sum(tf.values()):
+                continue
+        except Exception:
+            continue
+        return {"job": job, "transforms": dict(tf), "columns": cols, "rows": rows, "tokens": toks}
+    return None
+
+
+def derived_rows(home, job):
+    """그 job 의 파생 표본 누계 행 수 (모자이크 상한 L-05). 읽지 못한 기록은 건너뛴다 (읽기만 한다)."""
+    total = 0
+    for _, rec in _records(home, ("-derive.json",)):
+        if rec.get("format") == FORMAT and rec.get("direction") == "derive" and rec.get("job") == job:
+            r = rec.get("rows")
+            if isinstance(r, int) and not isinstance(r, bool) and r > 0:
+                total += r
+    return total
+
+
+def derived_source_rows(home, job):
+    """그 job 의 derive 기록에 적힌 원본 행 수 중 가장 작은 것 (없으면 None · 옛 기록은 건너뛴다 · 읽기만 한다).
+
+    사람이 나중에 더 큰 수를 말해도 누계 한도가 느슨해지지 않게 하는 데 쓴다 (벽은 아니다 - 새 job 번호를 쓰면 된다).
+    """
+    best = None
+    for _, rec in _records(home, ("-derive.json",)):
+        if rec.get("format") == FORMAT and rec.get("direction") == "derive" and rec.get("job") == job:
+            r = rec.get("source_rows")
+            if isinstance(r, int) and not isinstance(r, bool) and r > 0 and (best is None or r < best):
+                best = r
+    return best
 
 
 def sink(home, transport="room", kind="report"):
@@ -219,7 +345,7 @@ def sink(home, transport="room", kind="report"):
     [제안] 허브가 kind · transport 를 넘기지 않으면: dispatch 는 instruction · worker, 그 밖은 인자의 값.
     """
     allowed = ("job", "direction", "kind", "transport", "decision", "text", "sha256", "size", "checks",
-               "model", "effort")
+               "model", "effort", "sample")
 
     def _sink(rec):
         if not isinstance(rec, dict) or set(rec) - set(allowed):

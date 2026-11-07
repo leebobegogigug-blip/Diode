@@ -11,6 +11,26 @@ from .textnorm import prepare
 
 _COUNT_KEYS = ("changed_files", "tests_passed", "tests_failed", "tests_skipped")
 
+# 파생 표본 (sample) 의 닫힌 틀 (SP-03) - 칸은 한 자리 정수 · 토큰 · PH_other 뿐이다. scan 이 같은 글을 다시 읽어 맞춘다.
+SAMPLE_HEAD = "SAMPLE: coarse cells (bucket or rank class, not values; PH_other = pooled rare group)"
+SAMPLE_OTHER = "PH_other"
+
+
+def sample_lines(sample):
+    """sample (스키마를 통과한 dict) -> 펼친 줄 목록. 머리 줄 · 표 머리 · 구분줄 · 행."""
+    cols = sample["columns"]
+    out = [SAMPLE_HEAD]
+    out.append("| " + " | ".join("%s (%s)" % (c["token"], c["kind"]) for c in cols) + " |")
+    out.append("|" + "---|" * len(cols))
+    for row in sample["rows"]:
+        out.append("| " + " | ".join(str(c) for c in row) + " |")
+    return out
+
+
+def sample_text(sample):
+    """sample -> 펼친 글에 들어가는 표 그대로의 글 (줄 사이 \\n · 끝에 줄바꿈 하나). 창이 보이고 보내는 바이트와 같다."""
+    return "\n".join(sample_lines(sample)) + "\n"
+
 
 def _t(s):
     return prepare(s)
@@ -98,6 +118,8 @@ def render(brief):
     if fields:
         lines.append("FIELDS:")
         lines.extend(_field_line(f) for f in fields)
+    if brief.get("sample"):
+        lines.extend(sample_lines(brief["sample"]))
     _list(lines, "CONSTRAINTS", brief.get("constraints") or [])
     lines.append("ASK: " + _t(brief["ask"]))
     lines.append("[/diode brief]")

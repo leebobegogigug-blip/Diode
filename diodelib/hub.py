@@ -86,10 +86,12 @@ class Parts(object):
     transport: .put(job, sealed_text, route) -> None (방 outbox 에 원자적으로)
     audit(record: dict) -> None · confirmed() -> set(sha256)
     policy() -> scan.Policy (데이터 폴더의 사전 · 설정)
+    derive_lookup(table_sha256) -> {"job", "transforms", "columns", "rows", "tokens"} | None
+        derive 가 남긴 감사 기록 중 표 글의 sha256 이 맞는 것 (파생 표본 초안 · SP-18). 정책이 꺼져 있으면 None. 부품이 없으면 막는다.
     """
 
     def __init__(self, confirm=None, worker=None, judge=None, transport=None, audit=None, confirmed=None,
-                 policy=None, propose_cmd=None, reserve=None):
+                 policy=None, propose_cmd=None, reserve=None, derive_lookup=None):
         self.confirm = confirm
         self.worker = worker
         self.judge = judge
@@ -99,6 +101,7 @@ class Parts(object):
         self.policy = policy
         self.propose_cmd = propose_cmd or 'python "diode.py" propose <report.json>'
         self.reserve = reserve          # reserve(job) -> bool : 세션들 사이에서 job 번호를 하나만 쓰게
+        self.derive_lookup = derive_lookup
 
 
 class ProcessConfirm(object):
@@ -330,6 +333,8 @@ class Hub(object):
             job = self._find(draft.get("job")) if isinstance(draft, dict) else None
             if job is None or job.state != "working":
                 return "unknown_job"
+            if draft.get("kind") != "report":
+                return "blocked"        # 일꾼의 보고 길은 보고만 - plan · ui 는 derive 초안의 길 (take_derived) 로만
             if p.policy is None or p.confirm is None or p.audit is None or p.transport is None or p.judge is None:
                 return "blocked"
             res = seal(draft, job.table, p.policy())
@@ -360,11 +365,76 @@ class Hub(object):
             return "reported"
 
 
+    # ------------------------------------------------------------ 파생 표본 초안 (propose → 봉인 → 확정 → outbox · SP-18)
+
+    def take_derived(self, draft):
+        """derive 가 만든 plan · ui 초안 (sample) 하나를 처리한다 → 결정 (단어 없음): sent · rejected · blocked.
+
+        일꾼의 보고가 아니다: job 은 초안에 없고, 표 글의 sha256 이 맞는 derive 감사 기록의 job 이다 (기록이 없으면 막는다).
+        그 job 은 이 허브가 넘긴 일 (일꾼 보고의 자리) 이 아니어야 하고 outbox 에 같은 이름이 없어야 한다.
+        봉인 (D1–D6 · 토큰은 일방향 토큰 - 기록에 적힌 토큰 수 안의 정확한 꼴) → D7 (펼친 글 그대로 · 표 포함) → 확정 창
+        (D8 · 표를 보낼 바이트 그대로 보임) → job 번호 예약 → 건네기 (outbox) → 감사 기록 (kind · sample 요약 포함).
+        하나라도 실패하면 보내지 않는다. 가명 표는 쓰지 않는다 (새 빈 표 - 되돌릴 단어가 없다).
+        """
+        with self._lock:
+            try:
+                return self._take_derived(draft)
+            except Exception:
+                return "blocked"
+
+    def _take_derived(self, draft):
+        from . import derive
+        p = self.parts
+        if p.policy is None or p.confirm is None or p.audit is None or p.transport is None or p.judge is None \
+                or p.derive_lookup is None:
+            return "blocked"
+        if not derive.draft_shape_ok(draft):
+            return "blocked"
+        rec = p.derive_lookup(derive.draft_table_sha256(draft))
+        if rec is None:
+            return "blocked"                    # 정책 꺼짐 · derive 기록 없음 · 표가 달라짐 - job 을 알 수 없어 기록도 없다
+        job, kind = rec["job"], draft["kind"]
+        info = {"transforms": rec["transforms"], "columns": rec["columns"], "rows": rec["rows"]}
+
+        def blocked(checks):
+            p.audit({"job": job, "direction": "out", "kind": kind, "decision": "blocked", "checks": checks})
+            return "blocked"
+        try:
+            tokens = derive.check_draft(draft, rec)
+        except derive.DeriveError:
+            return blocked([{"check": "E", "code": "E-04"}])
+        if self._find(job) is not None or os.path.exists(os.path.join(self.project_dir, "outbox", job + ".md")):
+            return blocked([{"check": "E", "code": "E-04"}])       # 일꾼의 일 · 이미 보낸 job 과 겹친다
+        res = seal(draft, PseudonymTable(), p.policy(), known_tokens=tokens)
+        if not res.get("ok"):
+            return blocked(res.get("hits", []))
+        text = res["text"]
+        verdict = p.judge(text) or {}
+        if verdict.get("verdict") != "pass":
+            return blocked([{"check": "D7", "verdict": "block"}])
+        req = {"format": 1, "direction": "out", "job": job, "kind": kind, "transport": "room",
+               "text": text, "attachments": [], "checks": {"ok": True, "hits": []},
+               "model": "", "effort": "", "month": {"pct": None, "estimated": True}}
+        dec = p.confirm(req) or {}
+        if dec.get("decision") != "send" or dec.get("sha256") != sha256_text(text):
+            p.audit({"job": job, "direction": "out", "kind": kind,
+                     "decision": "timeout" if dec.get("decision") == "timeout" else "discarded",
+                     "sha256": sha256_text(text)})
+            return "rejected"
+        if p.reserve is not None and not p.reserve(job):
+            return blocked([{"check": "E", "code": "E-04"}])
+        p.transport.put(job, text, {})
+        p.audit({"job": job, "direction": "out", "kind": kind, "decision": "sent", "text": text,
+                 "sha256": sha256_text(text), "checks": [{"check": "D7", "verdict": "pass"}], "sample": info})
+        return "sent"
+
+
 # ---------------------------------------------------------------- 대기열 (propose → 허브) · 기본 부품
 
 QUEUE_DIR = "queue"
 JOBS_DIR = "jobs"
 QUEUE_MAX_AGE_S = 24 * 3600     # job 의 expired 와 같은 24시간 [제안]
+QUEUE_MAX_BYTES = 64 * 1024     # 내 일이 아닌 파일을 읽어 보는 상한 (propose 가 넣는 초안의 상한과 같다)
 _QUEUE_RE = re.compile(r"^(J-[0-9]{4})-[0-9a-z]{1,40}\.json$")
 
 
@@ -383,10 +453,12 @@ def file_reserver(home):
 
 
 def poll_queue(hub, home, now=None):
-    """데이터 폴더 queue\\ 의 보고 초안 가운데 이 허브의 working 인 일의 것만 처리한다 → 처리한 수.
+    """데이터 폴더 queue\\ 의 초안을 처리한다 → 처리한 수.
 
-    다른 세션의 일 · 이 허브가 모르는 일의 파일은 건드리지 않는다. 24시간 넘은 파일은 지운다 (초안에 진짜 이름이 들 수 있다).
-    읽은 파일은 처리하기 전에 지운다 (같은 보고를 두 번 띄우지 않게).
+    보고 초안은 이 허브의 working 인 일의 것만. 다른 세션의 일 · 이 허브가 모르는 일의 보고 파일은 건드리지 않는다.
+    derive 가 만든 파생 표본 초안 (plan · ui · sample) 은 일꾼의 일이 아니므로 job 번호와 상관없이 읽어 take_derived 로 넘긴다
+    (derive 기록이 맞는지는 거기서 본다 · 이 방의 허브가 먼저 읽은 쪽이 가져간다).
+    24시간 넘은 파일은 지운다 (초안에 진짜 이름이 들 수 있다). 읽은 파일은 처리하기 전에 지운다 (같은 초안을 두 번 띄우지 않게).
     """
     d = os.path.join(home, QUEUE_DIR)
     if not os.path.isdir(d):
@@ -402,16 +474,28 @@ def poll_queue(hub, home, now=None):
                 if not m or os.path.isfile(path):
                     os.unlink(path)
                 continue
-            if m.group(1) not in working:
+            mine = m.group(1) in working
+            if not mine and os.path.getsize(path) > QUEUE_MAX_BYTES:
                 continue
             with open(path, "r", encoding="utf-8") as f:
                 draft = json.load(f)
+            derived = _is_derived_draft(draft)
+            if not mine and not derived:
+                continue                    # 다른 세션 · 모르는 일의 보고
             os.unlink(path)
         except Exception:
             continue
-        hub.take_report(draft)
+        if derived:
+            hub.take_derived(draft)
+        else:
+            hub.take_report(draft)
         done += 1
     return done
+
+
+def _is_derived_draft(draft):
+    """대기열의 초안이 파생 표본 초안 (plan · ui + sample) 인가 - 종류만 본다. 맞는지는 take_derived 가 본다."""
+    return isinstance(draft, dict) and draft.get("kind") in ("plan", "ui") and "sample" in draft
 
 
 def _worker_from_config(home, room, worker):
@@ -427,6 +511,16 @@ def _worker_from_config(home, room, worker):
         return None
 
 
+def _derive_lookup(home):
+    """derive 가 남긴 감사 기록 찾기. 정책이 꺼져 있으면 (derive.effective_level) 없는 것으로 - 켜지 않은 곳에서는 표가 나가지 않는다 (E-30)."""
+    def lookup(table_hash):
+        from . import audit, derive
+        if derive.effective_level(home, True) != 1:
+            return None
+        return audit.derive_find(home, table_hash)
+    return lookup
+
+
 def default_parts(home, room, plugin_root=None):
     """실제 부품 — 확정 창 프로세스 · D7 · room 건네기 · 감사 기록 · 사전 · job 예약. 일꾼은 아직 없다 (E-01)."""
     from . import audit, judge, transport, worker
@@ -438,6 +532,7 @@ def default_parts(home, room, plugin_root=None):
                  audit=audit.sink(home),
                  confirmed=lambda: audit.confirmed_hashes(home),
                  policy=lambda: scan.policy_from_home(home),
+                 derive_lookup=_derive_lookup(home),
                  propose_cmd='python "%s" propose <report.json>' % os.path.join(root, "diode.py"),
                  reserve=file_reserver(home))
 

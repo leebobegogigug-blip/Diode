@@ -234,6 +234,14 @@ class Unseal(unittest.TestCase):
         big = "가" * (64 * 1024)
         self.assertTrue(unseal(big, self.t, policy(), "plan")["issues"]["U4"])
 
+    def test_md_limit_moves_the_u4_limit_of_text_answers(self):
+        big = "가" * (30 * 1024)                               # 90 KiB
+        self.assertTrue(unseal(big, self.t, policy(), "plan")["issues"]["U4"])
+        self.assertFalse(unseal(big, self.t, policy(), "plan", md_limit=256 * 1024)["issues"]["U4"])
+        self.assertTrue(unseal(big, self.t, policy(), "plan", md_limit=1024)["issues"]["U4"])
+        for bad in (0, -1, "9", True, 1.5):
+            self.assertFalse(unseal("a", self.t, policy(), "plan", md_limit=bad)["ok"], bad)
+
     def test_issues_have_no_words(self):
         ans = "가람소재 https://x.example.com PH_ZZZZ"
         res = unseal(ans, self.t, policy(), "plan")

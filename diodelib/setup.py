@@ -72,6 +72,14 @@ def hook_selftest(plugin_root=None):
         return False
 
 
+def risky_word_count(home):
+    """사전의 짧은 단어 + 겹침 항목 수 (단어는 내지 않는다). 못 읽으면 0 - 읽기 실패는 다른 줄이 알린다."""
+    try:
+        return sum(scan.risky_counts(config.load_state(home)["words"]))
+    except Exception:
+        return 0
+
+
 def room_folder(home):
     """방 자리: 설정 room.path → 기본."""
     try:
@@ -99,7 +107,7 @@ def check(home, plugin_root=None, python_probe=None):
         lines.append("사전 %d개 · 원자료 폴더 %d개 · 안쪽 도구 이름 %d개 (+ 기본 opencode)" % (c["dictionary"], c["raw_dirs"], c["inner_tools"]))
         lines.append("일꾼 명령 %s · 사내 LLM 판정 (D7) %s" % ("설정함" if c["worker"] else "없음 (일 넘기기는 E-01)",
                                                               "설정함" if c["llm"] else "없음 (보내기는 막힘)"))
-        lines.append("실데이터 %s" % ("허용됨 (보안 승인 뒤에만)" if c["real_data"] else "꺼짐 (기본)"))
+        lines.append("실데이터 %s" % ("허용됨 (사내 자체 검증 뒤에만)" if c["real_data"] else "꺼짐 (기본)"))
         if c["worker"]:
             from . import worker as wk
             try:
@@ -112,6 +120,9 @@ def check(home, plugin_root=None, python_probe=None):
                                                       "cmd_shim_prompt": "Windows .cmd 껍데기에 {prompt} 를 인자로 줌 (명령 주입 길 - 표준 입력으로 받게 {prompt} 를 빼세요)",
                                                       "config": "설정을 읽지 못함"}.get(prob, prob))
                 confirms.append("일꾼 명령에 문제가 있음 (%s) — 일 넘기기는 E-01" % prob)
+        risky = risky_word_count(home)
+        if risky:
+            lines.append("사전 짧은 단어 %d개 (오탐 위험)" % risky)
         if not c["dictionary"]:
             confirms.append("사전이 비어 있음 — 보내기를 막습니다")
         if not c["raw_dirs"]:

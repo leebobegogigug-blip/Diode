@@ -379,6 +379,36 @@ class RedTeamFixes(unittest.TestCase):
         self.assertTrue(scan.check_repro("import pandas as pd\nx = 10 ** 9\n", p))
 
 
+class RiskyWords(unittest.TestCase):
+    """오탐 경고 - 짧은 단어 · 겹침을 개수로만 센다."""
+
+    def test_short_hangul_words_count(self):
+        self.assertEqual(scan.risky_counts(["가나", "다라마", "바사아자"]), (2, 0))
+
+    def test_short_ascii_words_count_up_to_four(self):
+        self.assertEqual(scan.risky_counts(["abcd", "abcde", "KIT"]), (2, 0))
+
+    def test_ascii_limit_is_longer_than_hangul_limit(self):
+        self.assertEqual(scan.risky_counts(["가나다라"]), (0, 0))
+        self.assertEqual(scan.risky_counts(["abcd"]), (1, 0))
+
+    def test_overlap_counts_an_item_inside_another(self):
+        # 둘 다 짧지 않다: 앞의 것이 뒤의 것 안에 든다
+        self.assertEqual(scan.risky_counts(["가람소재공장", "다가람소재공장입니다"]), (0, 1))
+
+    def test_overlap_ignores_spacing_and_marks(self):
+        self.assertEqual(scan.risky_counts(["가람 소재-공장", "다가람소재공장입니다"]), (0, 1))
+
+    def test_long_ordinary_words_are_not_risky(self):
+        self.assertEqual(scan.risky_counts(["KITWORDALPHA", "가람소재공장", "다른별칭입니다"]), (0, 0))
+
+    def test_one_char_and_duplicates_and_non_strings(self):
+        self.assertEqual(scan.risky_counts(["가", "가나", "가나", 5, None]), (1, 0))
+
+    def test_empty(self):
+        self.assertEqual(scan.risky_counts([]), (0, 0))
+
+
 class ScanCommand(unittest.TestCase):
     def setUp(self):
         self.home = tempfile.mkdtemp(prefix="diode-test-")

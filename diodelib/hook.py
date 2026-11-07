@@ -58,7 +58,7 @@ MSG = {
     "mention_data": "DIODE V<Vth 막힘 · @파일 - 데이터 폴더의 파일은 끌어오지 않는다 (AL-12)",
     "e20": "DIODE V<Vth 막힘 · E-20 - 사전 · 설정을 읽지 못해 막았습니다 · /diode:setup",
     "unset": "DIODE: 아직 설정하지 않았습니다 - 이 세션은 지켜지지 않습니다 · /diode:setup",
-    "hint": " - 사내 말은 말 봉인 칸을 쓰세요",
+    "hint": " - 사내 말은 /diode:speak 말 봉인 창을 쓰세요",
 }
 
 
