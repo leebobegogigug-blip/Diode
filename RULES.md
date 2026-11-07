@@ -115,7 +115,7 @@ works 의 검사기 (`works_check.py`) 는 이 저장소를 보지 않습니다.
 - 확정 창과 문서 이미지는 works 의 [DESIGN.md](https://github.com/leebobegogigug-blip/Works/blob/13e56a0a5801da56dc18523363cd219ebf6d2e21/docs/DESIGN.md) 를 따릅니다. 색은 네이비와 라임 두 계열만 쓰고, 나머지는 무채색(회색 계열)입니다. **빨강은 쓰지 않습니다.** 걸린 곳을 강조할 때는 라임 · 네이비 · 글씨 굵기로 합니다.
 - **예외 — README 대표 그림 한 장** (`docs/img/diode-banner.png`): 설명용 일러스트라서 위 색 규칙을 따르지 않습니다 (사용자 결정 · 2026-11-06). 이 한 장에만 걸린다는 점을 꼭 기억하세요. 확정 창 · 도표 · 새 그림은 그대로 규칙을 따릅니다. 그림을 바꿀 때도 같은 자리를 쓰되, README 의 "각 제품의 공식 그림이 아니다" 고지는 지킵니다.
 - 이 저장소의 문서는 팔레트 값이나 원칙을 베껴 적지 않고 위 링크만 겁니다 (가져온 커밋의 SHA 로 고정). 검사기는 색을 보지 못하므로 리뷰에서 눈으로 봅니다.
-- 모든 문서는 중학생이 들어도 알아듣게 쓴다: 존댓말 · 짧은 문장 · 일상 문체의 설명문 ([DESIGN.md › 06](https://github.com/leebobegogigug-blip/Works/blob/13e56a0a5801da56dc18523363cd219ebf6d2e21/docs/DESIGN.md#06-문서와-말투)). 어려운 낱말은 처음 나올 때 풀어 쓴다. 규칙 문서 (RULES · AGENTS · SPEC · PLAN · INHOUSE) 도 같다 - 단, 뜻 · 번호 · 숫자 · 명령은 쉽게 쓰려고 바꾸지 않는다 (사용자 결정). 예외: README 는 고지문 (개발 중 · 이름은 비유 · 공식 그림 아님 · 영감) 까지 모두 평서문 `…다` 로 짧게 쓰고, raw data 처럼 굳은 용어는 영어 그대로 둔다 (사용자 결정 · 2026-11-07).
+- 모든 문서는 중학생이 들어도 알아듣게 쓴다: 존댓말 · 짧은 문장 · 일상 문체의 설명문 ([DESIGN.md › 06](https://github.com/leebobegogigug-blip/Works/blob/13e56a0a5801da56dc18523363cd219ebf6d2e21/docs/DESIGN.md#06-문서와-말투)). 어려운 낱말은 처음 나올 때 풀어 쓴다. 규칙 문서 (RULES · AGENTS · SPEC · PLAN · INHOUSE) 도 같다 - 단, 뜻 · 번호 · 숫자 · 명령은 쉽게 쓰려고 바꾸지 않는다 (사용자 결정). 예외: README 는 고지문 (개발 중 · 이름은 비유 · 공식 그림 아님 · 영감) 까지 모두 평서문 `…다` 로 짧게 쓰고, 기술 명사 (raw data · hook · junction · sealed report 등) 는 영어로, 일상 명사는 한국어로 쓴다 (사용자 결정 · 2026-11-07).
 
 ### W-11 약속은 CI 가 지킨다
 - `.github/workflows/diode.yml` 이 모든 push 와 PR 에서 Windows + Ubuntu × 최소 (3.8) · 최신 (3.13) Python 조합으로 `python -m unittest discover -s tests` 와 `python tools/diode_check.py --strict` 를 돌립니다.

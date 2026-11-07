@@ -436,10 +436,13 @@ class TestDocs(unittest.TestCase):
         self.assertEqual(sorted(os.listdir(os.path.join(ROOT, "docs", "img"))), ["diode-banner.png"])   # 예외가 슬그머니 늘지 않게
 
     def test_readme_uses_the_blueprint_metaphor(self):
+        """README 는 BLUEPRINT 의 PN 접합 비유를 쓴다 - README 는 기술 용어를 영어로 쓴다 (사용자 결정 · 2026-11-07)."""
         text = read("README.md")
-        for word in ("접합", "순방향", "역방향", "봉인 보고"):
-            self.assertIn(word, text)
-            self.assertIn(word, read("docs/BLUEPRINT.md"))
+        blueprint = read("docs/BLUEPRINT.md")
+        for en, ko in (("junction", "접합"), ("forward", "순방향"), ("reverse", "역방향"), ("sealed report", "봉인 보고")):
+            self.assertIn(en, text)
+            self.assertIn(ko, blueprint)                                    # 같은 비유의 정본은 BLUEPRINT
+        self.assertIn("docs/BLUEPRINT.md", text)
 
     def test_manual_opens_with_the_name_notice_and_has_the_development_commands(self):
         text = read("docs/MANUAL.md")
