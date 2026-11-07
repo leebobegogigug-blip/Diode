@@ -138,7 +138,7 @@ claude plugin details diode
   - `hook … failed; blocking because onFailure is block` (Claude Code 가 내는 글 · 판마다 다를 수 있다) — 훅이 못 돌았다. 대개 `python` 이름이 안 찾아지는 것이다 → 1단계.
   - 슬래시 명령이 없다고 하거나 `${CLAUDE_PLUGIN_ROOT}` 글자가 그대로 보이거나 파일을 못 찾는다고 하면: `claude plugin list` 의 `Status:` 가 enabled 인지 보고, 세션을 새로 열거나 `/reload-plugins` 를 해 본다. 그래도 같으면 출력을 그대로 보여 주고 멈춘다.
 
-설치만 하고 4단계를 마치기 전에는 보호가 없습니다. 새 세션 (Claude Code 를 새로 열어 시작하는 대화) 을 열었을 때 `DIODE: 아직 설정하지 않았습니다 …` 알림이 보이는 것이 정상입니다 ([알려진 한계](docs/MANUAL.md#알려진-한계)).
+설치는 사용자 범위 (`Scope: user`) 라서, 이제부터 이 PC 에서 새로 여는 모든 Claude Code 세션이 따로 부르지 않아도 Diode 의 훅을 거칩니다 ([MANUAL › 매번 부르지 않아도 됩니다](docs/MANUAL.md#매번-부르지-않아도-됩니다--설치하면-늘-거칩니다)). 다만 설치만 하고 4단계를 마치기 전에는 보호가 없습니다. 새 세션 (Claude Code 를 새로 열어 시작하는 대화) 을 열었을 때 `DIODE: 아직 설정하지 않았습니다 …` 알림이 보이는 것이 정상입니다 ([알려진 한계](docs/MANUAL.md#알려진-한계)).
 
 ## 4. 처음 설정
 
