@@ -410,10 +410,10 @@ class TestDocs(unittest.TestCase):
     def test_readme_promises(self):
         text = read("README.md")
         first = next(ln for ln in text.splitlines() if ln.strip())
-        self.assertIn("개발 중 (v0.0) — 합성 자료로만 시험했다. 사내 자체 검증을 마치기 전에는 real data 에 쓰지 않는다.", first)
-        self.assertIn("이름은 비유다 — 하드웨어 데이터 다이오드가 아니다.", text)
-        self.assertIn("화면 문법은 소형 하드웨어 계측기(Teenage Engineering 류)에서 영감을 받았으며, 해당 회사와는 관련이 없다.", text)
-        self.assertIn("파이썬 3.8+ · 표준 라이브러리만", text)
+        self.assertIn("개발 중 (v0.0) — synthetic data 로만 시험했다. 사내 자체 검증을 마치기 전에는 real data 에 쓰지 않는다.", first)
+        self.assertIn("이름은 비유다 — hardware data diode 가 아니다.", text)
+        self.assertIn("UI 문법은 소형 hardware instrument (Teenage Engineering 류) 에서 영감을 받았으며, 해당 회사와는 관련이 없다.", text)
+        self.assertIn("Python 3.8+ · standard library only", text)
         self.assertRegex(text, r"테스트 \d+ · WINDOWS \+ UBUNTU CI")
         for target in ("docs/PLAN.md", "docs/SPEC.md", "docs/BLUEPRINT.md", "RULES.md"):
             self.assertIn(target, text)
@@ -436,10 +436,13 @@ class TestDocs(unittest.TestCase):
         self.assertEqual(sorted(os.listdir(os.path.join(ROOT, "docs", "img"))), ["diode-banner.png"])   # 예외가 슬그머니 늘지 않게
 
     def test_readme_uses_the_blueprint_metaphor(self):
+        """README 는 BLUEPRINT 의 PN 접합 비유를 쓴다 - README 는 기술 용어를 영어로 쓴다 (사용자 결정 · 2026-11-07)."""
         text = read("README.md")
-        for word in ("접합", "순방향", "역방향", "봉인 보고"):
-            self.assertIn(word, text)
-            self.assertIn(word, read("docs/BLUEPRINT.md"))
+        blueprint = read("docs/BLUEPRINT.md")
+        for en, ko in (("junction", "접합"), ("forward", "순방향"), ("reverse", "역방향"), ("sealed report", "봉인 보고")):
+            self.assertIn(en, text)
+            self.assertIn(ko, blueprint)                                    # 같은 비유의 정본은 BLUEPRINT
+        self.assertIn("docs/BLUEPRINT.md", text)
 
     def test_manual_opens_with_the_name_notice_and_has_the_development_commands(self):
         text = read("docs/MANUAL.md")
