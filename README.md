@@ -1,5 +1,5 @@
-> **개발 중 (v0.0) — 합성 자료로만 시험했다. 사내 자체 검증을 마치기 전에는 real data 에 쓰지 않는다.**<br>
-> 이름은 비유다 — 하드웨어 데이터 다이오드가 아니다. 일방향 망연계 장비와 같은 보증을 주지 않는다.
+> **개발 중 (v0.0) — synthetic data 로만 시험했다. 사내 자체 검증을 마치기 전에는 real data 에 쓰지 않는다.**<br>
+> 이름은 비유다 — hardware data diode 가 아니다. one-way gateway 와 같은 보증을 주지 않는다.
 
 # Diode
 
@@ -13,8 +13,8 @@
 </p>
 
 <p align="center"><sub>
-CLAUDE CODE 플러그인 · 저장소 하나 = 플러그인 하나 = 마켓플레이스 하나<br>
-파이썬 3.8+ · 표준 라이브러리만<br>
+CLAUDE CODE PLUGIN · REPO 하나 = PLUGIN 하나 = MARKETPLACE 하나<br>
+Python 3.8+ · standard library only<br>
 테스트 994 · WINDOWS + UBUNTU CI
 </sub></p>
 
@@ -51,7 +51,7 @@ PN junction diode 는 current 를 한쪽으로만 흘린다. forward bias 에서
 
 ## Make it leak — 단, 가리고 정규화해서
 
-진짜 다이오드도 reverse 로 아주 조금은 샌다. Diode 는 그 leakage 를 일부러 만든다. **Make it leak — but only by design.** reverse 로 나갈 수 있는 것은 sealed report 하나뿐이고, raw data 를 그대로 내보내는 길은 없다. 무언가를 밖으로 흘리려면 이름은 가리고 (masking) 내용은 정규화해서 (normalize) 일의 모양만 남겨야 한다.
+실제 PN junction diode 도 reverse 로 아주 조금은 샌다. Diode 는 그 leakage 를 일부러 만든다. **Make it leak — but only by design.** reverse 로 나갈 수 있는 것은 sealed report 하나뿐이고, raw data 를 그대로 내보내는 길은 없다. 무언가를 밖으로 흘리려면 이름은 가리고 (masking) 내용은 정규화해서 (normalize) 일의 모양만 남겨야 한다.
 
 1. **masking — 이름을 pseudonym token 으로 바꾼다.** 제품·공정·과제·고객 이름처럼 dictionary 에 올린 in-house term 은 `PH_K7Q2` 같은 token 이 된다. token 은 자문마다 새로 뽑고, 진짜 이름과 짝지은 pseudonym table 은 memory 에만 둔다. Claude 의 답이 돌아오면 아는 token 만 안쪽에서 진짜 이름으로 되돌린다. 사람이 사내 말로 Claude 에게 물을 때는 `/diode:speak` window 가 같은 일을 한다.
 2. **normalize — 내용을 모양으로 바꾼다.** in-house LLM 은 결과를 closed format 의 brief 로 다시 쓴다. free text 는 일반적인 말로만 쓰고, 숫자·path·address·source code·log 를 적을 field 는 처음부터 없다. 표가 꼭 필요하면 `diode.py derive` 가 값을 bucket (0–4) · rank (0–9) · category token 으로 아주 거칠게 줄인 derived sample 만 만든다. 이 기능은 기본으로 꺼져 있다.
@@ -63,15 +63,15 @@ PN junction diode 는 current 를 한쪽으로만 흘린다. forward bias 에서
 ## 더 읽을 것
 
 <table align="center">
-<tr><td width="620"><a href="INSTALL.md">설치</a> <sub>· Claude Code 가 그대로 따라 하는 단계별 안내</sub></td><td align="right" width="40">›</td></tr>
-<tr><td><a href="docs/BLUEPRINT.md">청사진</a> <sub>· PN junction 으로 읽는 설계 · datasheet</sub></td><td align="right">›</td></tr>
-<tr><td><a href="docs/PLAN.md">기획서</a> <sub>· 설계의 까닭 · 불변식 · 새는 길</sub></td><td align="right">›</td></tr>
-<tr><td><a href="docs/SPEC.md">명세</a> <sub>· 칸 · 판정 · 출력 꼴 · 오류 번호</sub></td><td align="right">›</td></tr>
-<tr><td><a href="docs/MANUAL.md">매뉴얼</a> <sub>· 명령 · 알려진 한계</sub></td><td align="right">›</td></tr>
-<tr><td><a href="RULES.md">규칙</a> <sub>· 이 저장소가 지키는 헌법 열두 조</sub></td><td align="right">›</td></tr>
+<tr><td width="620"><a href="INSTALL.md">Install</a> <sub>· Claude Code 가 그대로 따라 하는 단계별 안내</sub></td><td align="right" width="40">›</td></tr>
+<tr><td><a href="docs/BLUEPRINT.md">Blueprint</a> <sub>· PN junction 으로 읽는 design · datasheet</sub></td><td align="right">›</td></tr>
+<tr><td><a href="docs/PLAN.md">Plan</a> <sub>· design rationale · invariant · leak path</sub></td><td align="right">›</td></tr>
+<tr><td><a href="docs/SPEC.md">Spec</a> <sub>· field · verdict · output format · error code</sub></td><td align="right">›</td></tr>
+<tr><td><a href="docs/MANUAL.md">Manual</a> <sub>· command · known limitation</sub></td><td align="right">›</td></tr>
+<tr><td><a href="RULES.md">Rules</a> <sub>· 이 repo 가 지키는 12 articles</sub></td><td align="right">›</td></tr>
 </table>
 
 <p align="center"><sub>
-Diode · MIT 라이선스<br>
-화면 문법은 소형 하드웨어 계측기(Teenage Engineering 류)에서 영감을 받았으며, 해당 회사와는 관련이 없다.
+Diode · MIT License<br>
+UI 문법은 소형 hardware instrument (Teenage Engineering 류) 에서 영감을 받았으며, 해당 회사와는 관련이 없다.
 </sub></p>
