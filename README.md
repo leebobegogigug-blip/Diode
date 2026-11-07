@@ -1,5 +1,5 @@
-> **개발 중 (v0.0) — 합성 자료로만 시험했습니다. 사내 자체 검증을 마치기 전에는 real data 에 쓰지 마세요.**<br>
-> 이름은 비유입니다 — 하드웨어 데이터 다이오드가 아닙니다. 일방향 망연계 장비와 같은 보증을 주지 않습니다.
+> **개발 중 (v0.0) — 합성 자료로만 시험했다. 사내 자체 검증을 마치기 전에는 real data 에 쓰지 않는다.**<br>
+> 이름은 비유다 — 하드웨어 데이터 다이오드가 아니다. 일방향 망연계 장비와 같은 보증을 주지 않는다.
 
 # Diode
 
@@ -9,7 +9,7 @@
 <img src="docs/img/diode-banner.png" alt="왼쪽 Claude (바깥) 에서 지시가 Diode 를 지나 오른쪽 opencode (안쪽) 로 흐르고, 거꾸로 나가려는 raw data 는 Diode 에서 막히는 그림" width="100%">
 <br>
 <sub>바깥 (Claude CLI) · 접합 (Diode) · 안쪽 (in-house LLM) — 지시는 안으로 흐르고, raw data 는 밖으로 나가지 못한다.<br>
-그림 속 Claude · Opencode 는 설명을 위한 표현이며 각 제품의 공식 그림이 아닙니다.</sub>
+그림 속 Claude · Opencode 는 설명을 위한 표현이며 각 제품의 공식 그림이 아니다.</sub>
 </p>
 
 <p align="center"><sub>
@@ -73,5 +73,5 @@ PN 접합 다이오드는 전류를 한쪽으로만 흘린다. 순방향으로 �
 
 <p align="center"><sub>
 Diode · MIT 라이선스<br>
-화면 문법은 소형 하드웨어 계측기(Teenage Engineering 류)에서 영감을 받았고, 해당 회사와는 관련이 없습니다.
+화면 문법은 소형 하드웨어 계측기(Teenage Engineering 류)에서 영감을 받았으며, 해당 회사와는 관련이 없다.
 </sub></p>
