@@ -24,6 +24,8 @@ Diode 는 Claude Code 에 설치하는 plugin 이다. skill 하나와 hook, MCP 
 
 회사의 raw data 는 Claude 에게 넘어가면 안 된다. 그렇다고 기획과 화면 설계까지 in-house LLM 에만 맡기면 Claude 의 장점을 살리지 못한다. Diode 는 일을 둘로 나눈다. Claude 는 앞에서 기획하고 instruction 을 내리고, raw data 를 다루는 일은 in-house LLM (opencode) 이 맡는다. Diode 는 그 둘 사이에 놓여 무엇이 어느 쪽으로 흐를 수 있는지를 정한다.
 
+한 번 설치하면 매번 부를 필요가 없다. plugin 은 user scope 로 설치되어 이 PC 의 모든 Claude Code session 에서 기본으로 켜지고, hook 이 session 시작 · 모든 prompt · 모든 tool call 을 먼저 거친다. slash command (`/diode:setup` · `/diode:status` · `/diode:speak` 등) 는 설정이나 확인처럼 사람이 할 일이 있을 때만 쓴다. 다만 처음 설정 (`/diode:setup`) 을 마치기 전이나 plugin 을 끄면 지켜지지 않는다 — 자세한 것은 [Manual](docs/MANUAL.md#매번-부르지-않아도-됩니다--설치하면-늘-거칩니다) 에 있다.
+
 ## PN junction diode 처럼 작동한다
 
 PN junction diode 는 current 를 한쪽으로만 흘린다. forward bias 에서 threshold voltage 를 넘기면 current 가 흐르고, reverse bias 에서는 아주 작은 leakage current 만 흐른다. Diode 는 정보에 대해 같은 일을 한다.
