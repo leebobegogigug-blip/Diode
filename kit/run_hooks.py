@@ -77,6 +77,12 @@ def broken_python_dir(work):
 def scenarios(lay):
     secret = os.path.join(lay["raw"], "secret.txt")
     word = rk.CANARY["dict_word"]
+    # 가명 금고 (SP-20) 흉내 - 데이터 폴더 기본 자리의 vault/ 에 사전 단어를 진짜 값으로 둔다 (훅은 내용이 아니라 자리를 본다)
+    vault_file = os.path.join(data_dir_of("{HOME}"), "vault", "P-0001.vault")
+    vault_text = 'DIODE-VAULT-1\nplain\n{"entries":[{"kind":"word","real":"%s","token":"PH_K7Q2"}],"files":[],' \
+                 '"format":1,"halted":false,"project":"P-0001","sent_bytes":0}' % word
+    vault_cat = ('cd "$LOCALAPPDATA" && cat diode/vault/P-0001.vault' if os.name == "nt"
+                 else "cd ~/.local/share && cat diode/vault/P-0001.vault")
     return [
         {"id": "R01", "what": "대조: 방 · 깨끗한 말 → 모델 요청이 간다", "cwd": "room", "prompt": "안녕", "expect": "requests"},
         {"id": "R06", "what": "방 · 사전 단어 (변형) → 막힘", "cwd": "room", "prompt": "이건 kit-word alpha 야",
@@ -109,6 +115,14 @@ def scenarios(lay):
         {"id": "R18", "what": "보통 폴더 · 사전 파일 (데이터 폴더) Read → deny · 사전 단어가 Claude 에게 가지 않는다", "cwd": "other",
          "prompt": "읽어", "server": "tool", "tool": "Read", "tool_input": {"file_path": "{DATA}/dictionary.json"},
          "args": ["--allowedTools", "Read"], "expect": "deny_nodict"},
+        {"id": "R27", "what": "보통 폴더 · 데이터 폴더의 가명 금고 (vault/P-0001.vault) Read → deny · 금고 안의 진짜 값이 Claude 에게 가지 않는다 (SP-20)",
+         "cwd": "other", "prompt": "읽어", "server": "tool", "tool": "Read",
+         "tool_input": {"file_path": "{DATA}/vault/P-0001.vault"}, "write": {vault_file: vault_text},
+         "args": ["--allowedTools", "Read"], "expect": "deny_nodict"},
+        {"id": "R28", "what": "보통 폴더 · 셸이 데이터 폴더의 위 폴더로 옮긴 뒤 상대 경로 (diode/vault/…) 로 금고를 cat → deny (폴더 이름 규칙)",
+         "cwd": "other", "prompt": "실행해", "server": "tool", "tool": "Bash",
+         "tool_input": {"command": vault_cat, "description": "kit"}, "write": {vault_file: vault_text},
+         "args": ["--allowedTools", "Bash"], "expect": "deny_nodict"},
         {"id": "R19", "what": "보통 폴더 · 플러그인 소스 폴더에 새 파일 Write → deny · 파일이 안 생김 (세션 중 훅 · 허브를 스스로 고치지 못함)",
          "cwd": "other", "prompt": "고쳐", "server": "tool", "tool": "Write",
          "tool_input": {"file_path": os.path.join(REPO, "kit", "out", "r19-new-file.txt"), "content": "x"},

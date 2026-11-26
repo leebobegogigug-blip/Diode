@@ -54,7 +54,7 @@
 | 1 | 설치 | [INSTALL.md](../INSTALL.md) 1–6단계 | 각 단계의 **확인** 이 맞다 | 문제 해결 표 · 표에 없으면 출력 그대로 보고 |
 | 2 | 점검 | `python diode.py setup --check --report` ([질문지](../kit/inhouse-questions.md) H1) | 개수 · 참거짓만 나온다 | 출력 전체를 옮긴다 (값이 없다) |
 | 3 | 처음부터 끝까지 | `python kit/run_install.py` (H7) | I1–I6 모두 OK | 어느 줄이 실패했나 - I1 이면 마켓플레이스/설치가 막힌 것 (관리형 설정) |
-| 4 | 훅 시나리오 | `python kit/run_hooks.py` (H2) | R01–R26 모두 OK | R17 이면 Git Bash 에서 `${CLAUDE_PLUGIN_ROOT}` 가 안 풀린 것 |
+| 4 | 훅 시나리오 | `python kit/run_hooks.py` (H2) | R01–R28 모두 OK | R17 이면 Git Bash 에서 `${CLAUDE_PLUGIN_ROOT}` 가 안 풀린 것 |
 | 5 | 일꾼 연결 | `python kit/run_opencode.py --opencode <사내 opencode>` (H5) | R1–R4 모두 OK, **`.cmd` 껍데기면 R5 도 OK** | R5 실패는 명령 주입 방어가 뚫린 것 - 일꾼을 달지 않는다 |
 | 6 | 눈으로 확인 | 정책 창 · 확정 창 · 말 봉인 창을 직접 연다 | 창이 맨 위에 보인다 · 한글 입력이 된다 (IME) · 글자 크기가 읽힌다 (DPI) | CI 는 "프로세스가 떴다" 까지만 안다 |
 | 7 | 보안 부서 (참고용 - 승인은 필수가 아니다) | [kit/security-brief.md](../kit/security-brief.md) 의 질문 1–12 | 답이 도구 설정 (허용 범위 · 보존 기간) 에 반영된다 | 답이 없으면 `policy.real_data` 는 꺼 둔다 - 실데이터 0 |

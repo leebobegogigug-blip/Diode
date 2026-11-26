@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """diode - Claude Code 플러그인 Diode 의 진입점 (표준 라이브러리만 · Python 3.8+)
 
-  diode.py version | help | check | scan | lib names <이름> | derive <csv> --out <초안> | hook <session|prompt|tool>
+  diode.py version | help | check | scan | lib names <이름> | derive <csv> --out <초안> | project <open|close|status|resume> | hook <session|prompt|tool>
 
 개발 중 (v0.0) — 훅 · 허브 · 확정 창 · 정책 창 · 명령까지 있다. 합성 자료로만 시험했다 (사내 확인 전 · docs/PLAN.md › 10 로드맵).
 아직 없는 명령은 PENDING 에 적는다 - 부르면 종료 코드 2 로 끝난다 (지금은 없다).
@@ -10,6 +10,7 @@ hook 은 Claude Code 훅 (SP-11) — 플러그인 hooks/hooks.json 이 부른다
 scan 은 표준 입력의 글을 검사한다 (D2 · D3 · D5) — 종료 코드 0 통과 · 2 막음 (SP-16 · 훅과 같은 뜻).
 lib names 는 허용 라이브러리의 공개 이름을 안쪽 PC 에 설치된 판에서 뽑아 데이터 폴더의 libnames/<이름>.json 에 쓴다 (SP-05 D5a).
 speak 은 말 봉인 창이다 — 사내 말로 쓰면 사전 단어를 가명 토큰으로 바꾼 글을 보이고, 사람이 확인해 복사한다 (SP-09 · /diode:speak).
+project 는 작업 묶음과 가명 금고다 (SP-20) — open · close · resume 은 사람이 안쪽 터미널에서 직접 · 출력은 번호 · 개수뿐.
 종료 코드: 0 OK · 1 점검 실패 · 2 사용법 오류 · 3 사람 확인 필요 (RULES.md › S-03)
 점검 출력의 마지막 줄은 결과: OK · 결과: 확인 필요 · 결과: 점검 실패 중 하나 (에이전트가 이 줄로 판단한다)
 """
@@ -60,6 +61,9 @@ HELP = """%s %s — Claude Code 플러그인 (개발 중 · v0.0 · 합성 자�
                                   --detached 는 창을 따로 떼어 열고 바로 돌아온다 (/diode:speak)
   derive <csv> --out <초안 json>  파생 표본 초안 만들기 (사람이 안쪽 터미널에서 직접 · 정책 창에서 켠 뒤에만 · 열과 변환은 터미널에서 직접 고름 ·
                                   출력은 개수 · 코드뿐 · 0 만듦 · 2 한도 · 꼴 · 검사에 걸림 · 3 꺼짐 또는 터미널 아님)
+  project open|close|status|resume 작업 묶음 (가명 금고 · SP-20). open · close · resume 은 사람이 안쪽 터미널에서 직접 (아니면 3) ·
+                                  close 는 금고를 지운다 (그 묶음의 토큰은 다시 되돌릴 수 없다) · resume 은 멈춘 묶음을 푼다 ·
+                                  출력은 번호 · 개수뿐 · 0 OK · 3 터미널 아님 · 이미 열림 · 열린 묶음 없음 · 1 금고 오류
 
 %s종료 코드  0 OK · 1 점검 실패 · 2 사용법 오류 · 3 사람 확인 필요
 설계는 docs/PLAN.md · 계약은 docs/SPEC.md (SP-16) 에 있습니다.
@@ -110,6 +114,7 @@ def build_parser():
     dv = sub.add_parser("derive", add_help=False)
     dv.add_argument("csv")
     dv.add_argument("--out", required=True)
+    sub.add_parser("project", add_help=False).add_argument("rest", nargs=argparse.REMAINDER)
     for name, _ in PENDING:
         sub.add_parser(name, add_help=False).add_argument("rest", nargs=argparse.REMAINDER)
     return p
@@ -227,6 +232,19 @@ def speak_command(args, out, err):
         return FAIL
 
 
+def project_command(rest, out, err, inp=None):
+    """project open|close|status|resume - 작업 묶음과 가명 금고 (SP-20). 출력은 번호 · 개수 · 오류 번호뿐이다 (AL-11)."""
+    if len(rest) != 1 or rest[0] not in ("open", "close", "status", "resume"):
+        raise UsageError("project 는 `project open` · `project close` · `project status` · `project resume` 꼴로 씁니다")
+    try:
+        from diodelib import vault
+        return vault.run_command(rest[0], data_dir(), inp, out, err)
+    except Exception:
+        out.write('{"project": false, "error": "E-20"}\n결과: 점검 실패\n')
+        err.write("diode.py project: 실패 (E-20)\n")
+        return FAIL
+
+
 def setup_command(name, args, out, err):
     """/diode:setup · :room · :dict 가 부르는 명령. 출력은 개수 · 참거짓 · 코드뿐이다 (슬래시 명령의 출력은 Claude 의 맥락에 붙는다)."""
     try:
@@ -303,6 +321,8 @@ def run(args, out, err, inp=None):
     if args.command == "derive":
         from diodelib import derive
         return derive.run_command(args.csv, args.out, data_dir(), inp, out, err)
+    if args.command == "project":
+        return project_command(args.rest, out, err, inp)
     if args.command == "mcp":
         from diodelib import hub
         return hub.main(stdin=inp if inp is not None else None, stdout=out if out is not sys.stdout else None)
