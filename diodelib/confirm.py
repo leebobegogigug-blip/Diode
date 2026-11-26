@@ -4,8 +4,9 @@
 `python diode.py confirm <요청 파일>` 이 부른다. 허브 (MCP 서버) 가 따로 된 프로세스로 띄우고, 이 프로세스는
 요청 파일을 읽어 창을 보이고, 사람의 결정을 표준 출력 한 줄 JSON 으로 돌려준다. 가명 표는 창에 오지 않는다.
 
-요청 파일 (format 1) - UTF-8 JSON 객체 하나 · 256 KiB 이하 [제안]. 같은 키 두 번 · NaN · 모르는 칸은 오류다.
-  {"format": 1, "direction": "out" | "dispatch", "job": "J-0007", "kind": "report" | "plan" | "ui" | "lib",
+요청 파일 (format 1) - UTF-8 JSON 객체 하나 · 256 KiB 이하 (가린 묶음 bundle 만 4 MiB 이하) [제안].
+같은 키 두 번 · NaN · 모르는 칸은 오류다.
+  {"format": 1, "direction": "out" | "dispatch", "job": "J-0007", "kind": "report" | "plan" | "ui" | "lib" | "bundle",
    "transport": "room" | "clipboard", "text": "<보낼 바이트 그대로 (UTF-8 글)>", "attachments": ["a.html"],
    "checks": {"ok": true, "hits": []}, "model": "<이름>", "effort": "high",
    "month": {"pct": 12, "estimated": false}, "effort_env_override": false, "timeout_s": 600}
@@ -13,17 +14,26 @@
                넘기는 지시는 토큰을 되돌린 글이라 사내 말이 보일 수 있다 - 이 창 안에서만.
   - job        J-0007 꼴 (J- 와 숫자 4-9자리)
   - text       비어 있지 않은 글 · UTF-8 로 64 KiB 이하 [제안]. 창은 이 글을 그대로 보이고, 결과의 sha256 은 이 글의 UTF-8 바이트다
-  - attachments  글 5개 이하 (각 120자 이하 · 한 줄). 없으면 []
+               (bundle 이면 MANIFEST.md 글이고 sha256 은 묶음 다이제스트 - 아래)
+  - attachments  글 20개 이하 (각 120자 이하 · 한 줄). 없으면 [] (bundle 은 반드시 [])
   - checks     SP-05 의 결과 꼴. ok 가 참이면 hits 는 비어 있고 거짓이면 비어 있지 않다. 거짓이면 보내기 단추는 끝까지 꺼져 있다
   - model      한 줄 글 (80자 이하 · 빈 글 가능 = 창에 "-")
   - effort     "" | auto | low | medium | high | xhigh | max
   - month      pct = 0-1000 의 수 또는 null (한도를 모름 = 창에 "-") · estimated = 어림이면 true (창에 "~12%")
   - effort_env_override  (없어도 됨 · 없으면 false) 참이면 "환경 변수 CLAUDE_CODE_EFFORT_LEVEL 이 effort 를 덮어씁니다" 알림
   - timeout_s  (없어도 됨 · 없으면 600) 1-600 으로 자른다 [제안]
+  가린 파일 묶음 (SP-20 · kind "bundle") - direction "out" · transport "room" 일 때만. 아래 두 칸이 꼭 있다 (다른 kind 에는 없다).
+  - files      [{"name": "F01.md", "type": "doc" | "table" | "code", "text": "<가린 바이트 그대로>"}] 1-20개.
+               name 은 F + 숫자 2-4자리 + . + 영숫자 1-8자 · 이름이 겹치지 않음 (대소문자 무시) ·
+               text 는 text 칸과 같은 규칙에 파일마다 256 KiB · 합계 1 MiB 이하
+  - stats      {"files": n, "bytes": n, "tokens": n, "marked": n, "auto": n} 0 이상의 정수 (bool 아님) ·
+               files = 파일 수 · bytes = 파일 글의 UTF-8 바이트 합 (둘 다 실제와 같아야 한다)
+  되돌린 첨부 (SP-20 · 넘기기) - direction "dispatch" 에만 있을 수 있는 칸 하나.
+  - restored   [{"name": "<되돌린 이름>", "tokens": n}] attachments 와 길이 · 차례 · 이름이 같다 · tokens 는 되돌린 토큰 수
 모르는 format · 빠진 칸 · 꼴이 틀린 칸 · 읽을 수 없는 JSON -> 창을 띄우지 않고 E-04.
 
 결과 (표준 출력 한 줄 JSON · 글 · 단어는 넣지 않는다 - sha256 만)
-  {"decision": "send" | "discard" | "edit" | "timeout", "sha256": "<text 의 UTF-8 sha256>"}
+  {"decision": "send" | "discard" | "edit" | "timeout", "sha256": "<text 의 UTF-8 sha256 · bundle 은 bundle_sha256>"}
   {"decision": "error", "code": "E-04" | "E-07" | "E-20"}
   send = [보내기] / [넘기기] (clipboard 는 [보내기] 다음에 [복사] 가 성공한 뒤) · discard = [버리기] · 창 닫기 · Esc ·
   edit = [고치기] (허브가 다시 seal 한다) · timeout = 시간이 다 됨.
@@ -31,7 +41,7 @@
            1 창을 못 띄움 (E-07) 또는 그 밖의 예외 (E-20). 어떤 예외도 send 로 끝나지 않는다 (AL-03).
 
 구조 - 논리와 화면을 나눈다.
-  ConfirmSession  시간 · 단추 상태 · 결정. 화면을 모른다. 시각은 부르는 쪽이 now 로 준다.
+  ConfirmSession  시간 · 단추 상태 · 결정 · (bundle) 연 항목. 화면을 모른다. 시각은 부르는 쪽이 now 로 준다.
   TkView          tkinter 화면. 그리기만 하고, 누른 것은 session 에 알린다.
   create_view()   화면 백엔드를 만드는 곳. 시험은 이 이름을 바꿔 끼워 가짜 화면으로 논리를 본다 (AL-02).
 
@@ -40,6 +50,7 @@
   창을 띄울 화면이 있는지 보는 DISPLAY · WAYLAND_DISPLAY 둘뿐이다 (E-07 쪽으로만 작용한다).
 - 보내기 단추는 창이 뜬 지 SEND_DELAY_S 뒤에 켜진다 · 기본 초점은 [버리기] · Enter 로 보내지 않는다 ·
   창 닫기 (X) 와 Esc 는 버리기 · 시간이 지나면 timeout.
+- 가린 묶음은 MANIFEST 와 모든 파일을 한 번씩 글 칸에 열어 봐야 [보내기] 가 켜진다 (습관 확정 줄이기 · L-13).
 - 요청 파일을 지우지 않고 아무 파일도 쓰지 않는다 (지우는 것은 허브). 출력 · 로그에 글을 쓰지 않는다 (AL-11).
 - 화면 문구는 한국어, 색은 works DESIGN.md 의 네이비 · 라임 · 회색뿐이다 - 빨강 없음 (W-10).
 """
@@ -60,15 +71,25 @@ from .render import SAMPLE_HEAD
 
 FORMAT = 1
 DIRECTIONS = ("out", "dispatch")
-KINDS = ("report", "plan", "ui", "lib")
+KINDS = ("report", "plan", "ui", "lib", "bundle")
+BUNDLE = "bundle"                   # 가린 파일 묶음 (SP-20) - 바깥으로 · 방으로만
+FILE_TYPES = ("doc", "table", "code")
 TRANSPORTS = ("room", "clipboard")
 EFFORTS = ("", "auto", "low", "medium", "high", "xhigh", "max")
 DECISIONS = ("send", "discard", "edit", "timeout")
 
-MAX_REQUEST_BYTES = 256 * 1024      # 요청 파일 상한 [제안]
+MAX_REQUEST_BYTES = 4 * 1024 * 1024     # 요청 파일 상한 [제안] - 가린 묶음 (파일 합계 1 MiB) 의 JSON 이스케이프 몫까지
+MAX_PLAIN_REQUEST_BYTES = 256 * 1024    # 묶음이 아닌 요청의 상한 [제안] (SP-09)
 MAX_TEXT_BYTES = 64 * 1024          # 보낼 글 상한 [제안] - 펼친 글은 8 KiB (SP-02) · 되돌린 지시는 더 길 수 있다
-MAX_ATTACHMENTS = 5                 # SP-08
+MAX_ATTACHMENTS = 20                # 묶음의 파일 수와 같게 (SP-20 · 허브도 같다)
 MAX_NAME_CHARS = 120                # SP-08
+MAX_BUNDLE_FILES = 20               # SP-20 묶음 꼴의 한도
+MAX_FILE_BYTES = 256 * 1024         # 파일마다 (SP-20)
+MAX_BUNDLE_BYTES = 1024 * 1024      # 파일 합계 (SP-20)
+MAX_STAT = 10 ** 9                  # stats 의 수 하나의 상한 - 창에 적을 수 있는 크기로 (있을 수 없는 값을 막는다)
+MANIFEST_NAME = "MANIFEST.md"       # 묶음의 첫 항목 (허브가 만든 목록 글 = text)
+MANIFEST_TYPE = "manifest"
+STATS_KEYS = ("files", "bytes", "tokens", "marked", "auto")
 MAX_MODEL_CHARS = 80
 MAX_HITS = 32
 MAX_WHERE = 50
@@ -80,6 +101,9 @@ MAX_TIMEOUT_S = 600
 SEND_DELAY_S = 2.0                  # 창이 뜬 뒤 보내기 단추가 켜지기까지 [제안] - 습관으로 누르는 것을 줄인다
 POLL_S = 0.05                       # 화면을 돌보는 간격
 SCREEN_MARGIN_PX = 120              # 창 제목줄 · 작업 표시줄 몫 - 창이 이만큼 뺀 화면 높이를 넘으면 글 칸의 줄 수를 줄인다
+TEXT_ROWS = 14                      # 글 칸 (와 묶음의 항목 목록) 의 처음 줄 수
+ITEM_ROW = " %s %-14s %-8s %7d B %6d"                                   # 묶음 목록의 한 줄 (연 표시 · 이름 · 종류 · 바이트 · 줄)
+ITEM_HEAD = "   %-14s %-8s %9s %6s" % ("NAME", "TYPE", "BYTES", "LINES")  # 그 위의 칸 이름 (같은 너비)
 WRAP_MARGIN_PX = 70                 # 줄을 감는 너비 = 글 칸의 너비 - 이 여백
 
 EXIT_SEND, EXIT_FAILED, EXIT_BAD_REQUEST, EXIT_HUMAN = 0, 1, 2, 3
@@ -108,6 +132,14 @@ TEXT_SAMPLE = ("‼ 표가 들어 있습니다 (%d열 · %d행) - 이 표는 실
 TEXT_CHECK_BLOCKED = "검사에 걸린 글이라 보낼 수 없습니다 - [고치기] 로 돌아가세요"
 TEXT_APPROVED = "보내기를 눌렀습니다 - [복사] 를 누르면 클립보드에 넣고 끝납니다 (복사 = 보냄)"
 TEXT_COPY_FAILED = "클립보드에 넣지 못했습니다 - 다시 눌러 보거나 [버리기] 를 누르세요"
+# 가린 파일 묶음 (SP-20) · 되돌린 첨부
+TEXT_BUNDLE_SUBTITLE = "가린 파일 %d개를 회사 밖 (Claude) 방으로 보냅니다"
+TEXT_BUNDLE_ACT = "[보내기] 를 누르면 이 파일들이 그대로 방의 outbox/%s/ 에 쓰입니다"
+TEXT_BUNDLE_SAFETY_NET = "‼ 자동 가림 %d개 - opencode 의 표시가 모자랐습니다. 파일을 꼼꼼히 보세요"
+TEXT_BUNDLE_MARKS = "opencode 가 표시한 곳 %d개 · Diode 가 자동으로 가린 곳 %d개"
+TEXT_UNVIEWED = "아직 안 본 파일 %d개 - 목록에서 하나씩 열어 보세요"
+TEXT_BUNDLE_FILES = "MANIFEST.md + 파일 %d개 - 01 TEXT 의 목록에서 하나씩 엽니다"
+TEXT_RESTORED = "첨부 %d개를 금고로 되돌려 넘깁니다 (진짜 값은 이 PC 안에만)"
 
 
 class RequestError(Exception):
@@ -126,6 +158,14 @@ _CHECK_RE = re.compile(r"[A-Za-z0-9]{1,4}\Z")
 _REQUIRED = ("format", "direction", "job", "kind", "transport", "text", "attachments", "checks", "model", "effort",
              "month")
 _OPTIONAL = ("effort_env_override", "timeout_s")
+_BUNDLE_ONLY = ("files", "stats")           # kind bundle 에는 꼭 있고 다른 kind 에는 없다
+_DISPATCH_ONLY = ("restored",)              # direction dispatch 에만 있을 수 있다
+_FILE_NAME_RE = re.compile(r"F[0-9]{2,4}\.[A-Za-z0-9]{1,8}\Z")      # 나가는 이름 (SP-20) - 원래 이름은 금고에만
+_FILE_KEYS = frozenset(["name", "type", "text"])
+_RESTORED_KEYS = frozenset(["name", "tokens"])
+
+# 묶음의 항목 하나 (MANIFEST 또는 파일) - 이름 · 종류 · 글 · UTF-8 바이트 수 · 줄 수
+BundleFile = collections.namedtuple("BundleFile", "name type text bytes lines")
 
 
 def _no_duplicates(pairs):
@@ -144,6 +184,24 @@ def _no_constant(name):
 def text_sha256(text):
     """보낼 글의 UTF-8 바이트의 sha256 (16진 소문자). 허브는 자기가 보낼 글로 이 값을 구해 결과와 맞춰 본다."""
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def bundle_sha256(manifest_text, files):
+    """가린 묶음의 다이제스트 (16진 소문자) - 확정 창 결과의 sha256 (SP-20).
+
+    sha256( json.dumps([MANIFEST 글, [[이름, 종류, 파일 글의 UTF-8 sha256 (16진 소문자)], ...]],
+                       ensure_ascii=False, separators=(",", ":")) 의 UTF-8 ).
+    files 는 요청의 files 칸 그대로 ({"name", "type", "text"} 의 목록 · 차례대로). 허브는 이 함수를 불러 자기가 쓸
+    파일들로 값을 구해 결과와 맞춰 본다 - 한 파일의 한 바이트 · 이름 · 종류 · 차례가 달라도 값이 다르다.
+    """
+    rows = [[f["name"], f["type"], text_sha256(f["text"])] for f in files]
+    blob = json.dumps([manifest_text, rows], ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+
+def line_count(text):
+    """줄 수 - 마지막 줄바꿈 뒤의 빈 줄은 세지 않는다."""
+    return text.count("\n") + (0 if text.endswith("\n") else 1)
 
 
 def _line(v, name, limit, empty=False):
@@ -172,6 +230,74 @@ def _choice(v, name, choices):
     if type(v) is not str or v not in choices:
         raise RequestError(name)
     return v
+
+
+def _count(v, name):
+    """0 이상의 정수 (bool 아님 · MAX_STAT 이하)."""
+    if type(v) is not int or not 0 <= v <= MAX_STAT:
+        raise RequestError(name)
+    return v
+
+
+def _utf8_text(v, name, limit):
+    """비어 있지 않은 글 -> UTF-8 바이트 수. 홀로 선 서로게이트 (\\ud800) 는 바이트가 될 수 없다 · limit 바이트 이하."""
+    if type(v) is not str or not v:
+        raise RequestError(name)
+    try:
+        size = len(v.encode("utf-8"))
+    except UnicodeEncodeError:
+        raise RequestError(name)
+    if size > limit:
+        raise RequestError(name)
+    return size
+
+
+def _files(v):
+    """가린 묶음의 파일들 (SP-20) -> (BundleFile, ...). 1-20개 · 이름 꼴 · 겹침 (대소문자 무시 - Windows 폴더에서 같은 파일) ·
+    종류 · 글 (text 칸과 같은 규칙 · 파일마다 256 KiB) · 합계 1 MiB."""
+    if type(v) is not list or not 1 <= len(v) <= MAX_BUNDLE_FILES:
+        raise RequestError("files")
+    out, seen, total = [], set(), 0
+    for f in v:
+        if type(f) is not dict or set(f) != _FILE_KEYS:
+            raise RequestError("files")
+        name = f["name"]
+        if type(name) is not str or not _FILE_NAME_RE.match(name) or name.lower() in seen:
+            raise RequestError("files")
+        seen.add(name.lower())
+        _choice(f["type"], "files", FILE_TYPES)
+        size = _utf8_text(f["text"], "files", MAX_FILE_BYTES)
+        total += size
+        if total > MAX_BUNDLE_BYTES:
+            raise RequestError("files")
+        out.append(BundleFile(name, f["type"], f["text"], size, line_count(f["text"])))
+    return tuple(out)
+
+
+def _stats(v, files):
+    """묶음의 수 (SP-20). 키 집합이 정확하고 · 모두 0 이상의 정수 · files 와 bytes 는 실제 파일과 같다."""
+    if type(v) is not dict or set(v) != set(STATS_KEYS):
+        raise RequestError("stats")
+    for key in STATS_KEYS:
+        _count(v[key], "stats")
+    if v["files"] != len(files) or v["bytes"] != sum(f.bytes for f in files):
+        raise RequestError("stats")
+    return dict((key, v[key]) for key in STATS_KEYS)
+
+
+def _restored(v, attachments):
+    """되돌린 첨부 (넘기기) -> ((이름, 되돌린 토큰 수), ...). attachments 와 길이 · 차례 · 이름이 같아야 한다."""
+    if type(v) is not list or len(v) != len(attachments):
+        raise RequestError("restored")
+    out = []
+    for item, name in zip(v, attachments):
+        if type(item) is not dict or set(item) != _RESTORED_KEYS:
+            raise RequestError("restored")
+        _line(item["name"], "restored", MAX_NAME_CHARS)
+        if item["name"] != name:
+            raise RequestError("restored")
+        out.append((name, _count(item["tokens"], "restored")))
+    return tuple(out)
 
 
 def _checks(v):
@@ -203,16 +329,30 @@ def _checks(v):
 
 
 class Request(object):
-    """검사를 마친 요청. 칸은 parse_request 가 모두 확인했다."""
+    """검사를 마친 요청. 칸은 parse_request 가 모두 확인했다.
 
-    def __init__(self, data):
+    bundle 이면 files (BundleFile 들) · stats (사전) 가 있고, items 는 MANIFEST (text) 를 첫 항목으로 한 창의 목록이다.
+    sha256 은 bundle 이면 bundle_sha256 · 아니면 text 의 sha256. restored 는 넘기기의 ((이름, 토큰 수), ...) 또는 None.
+    """
+
+    def __init__(self, data, files=(), stats=None, restored=None):
         self.direction = data["direction"]
         self.job = data["job"]
         self.kind = data["kind"]
         self.transport = data["transport"]
         self.text = data["text"]
         self.text_bytes = len(self.text.encode("utf-8"))
-        self.sha256 = text_sha256(self.text)
+        self.is_bundle = self.kind == BUNDLE
+        self.files = tuple(files)
+        self.stats = stats
+        self.restored = restored
+        if self.is_bundle:
+            self.sha256 = bundle_sha256(self.text, [f._asdict() for f in self.files])
+            manifest = BundleFile(MANIFEST_NAME, MANIFEST_TYPE, self.text, self.text_bytes, line_count(self.text))
+            self.items = (manifest,) + self.files
+        else:
+            self.sha256 = text_sha256(self.text)
+            self.items = ()
         self.attachments = tuple(data["attachments"])
         self.checks = data["checks"]
         self.checks_ok = data["checks"]["ok"]
@@ -225,7 +365,13 @@ class Request(object):
 
 
 def parse_request(raw):
-    """요청 파일의 바이트 -> Request. 꼴이 틀리면 RequestError (E-04)."""
+    """요청 파일의 바이트 -> Request. 꼴이 틀리면 RequestError (E-04).
+
+    크기: 4 MiB (MAX_REQUEST_BYTES) 까지 읽고, 묶음 (bundle) 이 아닌 요청은 256 KiB (MAX_PLAIN_REQUEST_BYTES) 를 넘으면 E-04.
+    """
+    size = len(raw)
+    if size > MAX_REQUEST_BYTES:
+        raise RequestError("size")
     try:
         if raw[:3] == b"\xef\xbb\xbf":
             raw = raw[3:]
@@ -239,27 +385,35 @@ def parse_request(raw):
     keys = set(data)
     if not set(_REQUIRED) <= keys:
         raise RequestError("missing")
-    if not keys <= set(_REQUIRED) | set(_OPTIONAL):
+    if not keys <= set(_REQUIRED) | set(_OPTIONAL) | set(_BUNDLE_ONLY) | set(_DISPATCH_ONLY):
         raise RequestError("unknown")
     _choice(data["direction"], "direction", DIRECTIONS)
     if type(data["job"]) is not str or not _JOB_RE.match(data["job"]):
         raise RequestError("job")
     _choice(data["kind"], "kind", KINDS)
     _choice(data["transport"], "transport", TRANSPORTS)
-    text = data["text"]
-    if type(text) is not str or not text:
-        raise RequestError("text")
-    try:
-        encoded = text.encode("utf-8")          # 홀로 선 서로게이트 (\ud800) 는 바이트가 될 수 없다
-    except UnicodeEncodeError:
-        raise RequestError("text")
-    if len(encoded) > MAX_TEXT_BYTES:
-        raise RequestError("text")
+    bundle = data["kind"] == BUNDLE
+    if bundle:
+        if data["direction"] != "out" or data["transport"] != "room":       # 가린 묶음은 바깥으로 · 방으로만
+            raise RequestError("kind")
+        if not set(_BUNDLE_ONLY) <= keys:
+            raise RequestError("missing")
+    else:
+        if size > MAX_PLAIN_REQUEST_BYTES:
+            raise RequestError("size")
+        if keys & set(_BUNDLE_ONLY):
+            raise RequestError("unknown")
+    if keys & set(_DISPATCH_ONLY) and data["direction"] != "dispatch":
+        raise RequestError("unknown")
+    _utf8_text(data["text"], "text", MAX_TEXT_BYTES)
     att = data["attachments"]
-    if type(att) is not list or len(att) > MAX_ATTACHMENTS:
+    if type(att) is not list or len(att) > MAX_ATTACHMENTS or (bundle and att):
         raise RequestError("attachments")
     for name in att:
         _line(name, "attachments", MAX_NAME_CHARS)
+    files = _files(data["files"]) if bundle else ()
+    stats = _stats(data["stats"], files) if bundle else None
+    restored = _restored(data["restored"], att) if "restored" in keys else None
     _checks(data["checks"])
     _line(data["model"], "model", MAX_MODEL_CHARS, empty=True)
     _choice(data["effort"], "effort", EFFORTS)
@@ -273,11 +427,13 @@ def parse_request(raw):
         _flag(data["effort_env_override"], "effort_env_override")
     if "timeout_s" in data:
         _number(data["timeout_s"], "timeout_s", -math.inf, math.inf)     # 수이기만 하면 된다 - 1-600 으로 자르는 것은 Request
-    return Request(data)
+    return Request(data, files, stats, restored)
 
 
 def read_request(path):
-    """요청 파일을 읽는다. path 가 글이 아니면 RequestError (사용법 오류) · 읽지 못하면 OSError (부르는 쪽이 E-20)."""
+    """요청 파일을 읽는다. path 가 글이 아니면 RequestError (사용법 오류) · 읽지 못하면 OSError (부르는 쪽이 E-20).
+
+    4 MiB 하나 더까지만 읽는다 - 크기를 kind 에 따라 가르는 것은 parse_request."""
     if type(path) is not str or not path:
         raise RequestError("path")
     with open(path, "rb") as f:
@@ -333,8 +489,14 @@ def display_segments(text):
     return out
 
 
+# items · item_segments · stats · stats_note 는 가린 묶음 (bundle) 에만 찬다 (아니면 빈 것).
+#   items          ((이름, 종류, 바이트, 줄 수), ...) - 첫 항목은 MANIFEST.md (종류 "manifest")
+#   item_segments  항목마다의 display_segments - 화면이 고른 항목의 것을 글 칸에 그린다 (segments 는 첫 항목의 것)
+#   stats          맨 위에 크게 적을 수 ((칩 이름, 글), ...) - 넷 (DESIGN.md › 01 의 원칙 1)
+#   stats_note     그 밑의 작은 한 줄 (표시한 곳 · 자동으로 가린 곳)
 Panels = collections.namedtuple(
-    "Panels", "chip title subtitle text_info segments check_line check_ok files route notices act_note send_label")
+    "Panels", "chip title subtitle text_info segments check_line check_ok files route notices act_note send_label "
+              "items item_segments stats stats_note")
 
 
 def sample_shape(text):
@@ -360,19 +522,33 @@ def _mmss(seconds):
 
 
 def build_panels(req):
-    """창에 적을 글 (화면 도구와 무관) - 시험이 화면 없이 문구를 본다. 걸린 단어 · 값은 어디에도 없다."""
+    """창에 적을 글 (화면 도구와 무관) - 시험이 화면 없이 문구를 본다. 걸린 단어 · 값은 어디에도 없다.
+
+    보낼 글 (bundle 이면 MANIFEST 와 파일들의 글) 은 segments · item_segments 에만 있다 - 다른 칸에는 이름 · 수만 적는다.
+    """
     out = req.direction == "out"
-    segments = tuple(display_segments(req.text))
-    hidden = sum(1 for _, form in segments if form == "hidden")
-    lines = req.text.count("\n") + (0 if req.text.endswith("\n") else 1)
+    bundle = req.is_bundle
+    if bundle:
+        item_segments = tuple(tuple(display_segments(item.text)) for item in req.items)
+        items = tuple((item.name, item.type, item.bytes, item.lines) for item in req.items)
+    else:
+        item_segments, items = (), ()
+    segments = item_segments[0] if bundle else tuple(display_segments(req.text))
+    hidden = sum(1 for segs in (item_segments or (segments,)) for _, form in segs if form == "hidden")
     info = [req.job, req.kind] + ([req.transport] if out else [])
-    info += ["%d B" % req.text_bytes, "%d 줄" % lines, "sha256 %s" % req.sha256[:16]]
+    if bundle:
+        info += ["파일 %d개 + %s" % (len(req.files), MANIFEST_NAME), "%d B" % req.stats["bytes"],
+                 "묶음 sha256 %s" % req.sha256[:16]]
+    else:
+        info += ["%d B" % req.text_bytes, "%d 줄" % line_count(req.text), "sha256 %s" % req.sha256[:16]]
     if req.month_pct is None:
         month = "-"
     else:
         month = "%s%d%%" % ("~" if req.month_estimated else "", int(round(req.month_pct)))
     route = "모델 %s · effort %s · 이번 달 %s" % (req.model or "-", req.effort or "-", month)
     notices = []
+    if bundle and req.stats["auto"] > 0:
+        notices.append((TEXT_BUNDLE_SAFETY_NET % req.stats["auto"], "alert"))
     if req.effort_env_override:
         notices.append((TEXT_EFFORT_ENV, "alert"))
     if hidden:
@@ -382,34 +558,56 @@ def build_panels(req):
         notices.append((TEXT_SAMPLE % shape, "alert"))
     if not out:
         notices.append((TEXT_INNER_WORDS, "note"))
+    if req.restored:
+        notices.append((TEXT_RESTORED % len(req.restored), "note"))
     notices.append((TEXT_IRREVERSIBLE[req.direction], "strong"))
     notices.append((TEXT_AUDIT, "strong"))
     if not out:
         act = "[넘기기] 를 누르면 이 지시가 안쪽 일꾼에게 들어갑니다"
+    elif bundle:
+        act = TEXT_BUNDLE_ACT % req.job
     elif req.transport == "clipboard":
         act = "[보내기] 다음에 [복사] 를 눌러야 클립보드에 들어갑니다 (복사 = 보냄)"
     else:
         act = "[보내기] 를 누르면 이 글이 그대로 방의 outbox 에 쓰입니다"
+    if bundle:
+        files = TEXT_BUNDLE_FILES % len(req.files)                      # 이름은 01 의 목록에 하나씩 있다
+    elif req.restored:
+        files = " · ".join("%s (되돌린 토큰 %d)" % pair for pair in req.restored)
+    else:
+        files = " · ".join(req.attachments) if req.attachments else "없음"
+    if bundle:
+        s = req.stats
+        stats = (("FILES", "%d" % s["files"]), ("BYTES", "%d" % s["bytes"]), ("TOKENS", "%d" % s["tokens"]),
+                 ("AUTO", "%d" % s["auto"]))
+        stats_note = TEXT_BUNDLE_MARKS % (s["marked"], s["auto"])
+        subtitle = TEXT_BUNDLE_SUBTITLE % len(req.files)
+    else:
+        stats, stats_note = (), ""
+        subtitle = "회사 밖 (Claude) 으로 나가는 글입니다" if out else "안쪽 일꾼 (사내 LLM) 에게 넘기는 지시입니다"
     return Panels(
         chip="OUT" if out else "IN",
         title="바깥으로 보내기" if out else "안쪽으로 넘기기",
-        subtitle="회사 밖 (Claude) 으로 나가는 글입니다" if out else "안쪽 일꾼 (사내 LLM) 에게 넘기는 지시입니다",
+        subtitle=subtitle,
         text_info=" · ".join(info), segments=segments,
         check_line=scan.format_line(req.checks), check_ok=req.checks_ok,
-        files=" · ".join(req.attachments) if req.attachments else "없음",
-        route=route, notices=tuple(notices), act_note=act, send_label="보내기" if out else "넘기기")
+        files=files, route=route, notices=tuple(notices), act_note=act, send_label="보내기" if out else "넘기기",
+        items=items, item_segments=item_segments, stats=stats, stats_note=stats_note)
 
 
 # ---------------------------------------------------------------- 창의 논리 (화면을 모른다)
 
+# unviewed  아직 글 칸에 열지 않은 항목 수 (bundle · 아니면 0) · viewed 항목마다 연 적이 있는가 · selected 글 칸의 항목 번호
 Snapshot = collections.namedtuple(
-    "Snapshot", "send_enabled copy_enabled approved check_ok delay_s remaining_s message decided")
+    "Snapshot", "send_enabled copy_enabled approved check_ok delay_s remaining_s message decided unviewed viewed selected")
 
 
 class ConfirmSession(object):
     """시간 · 단추 상태 · 결정. 화면 (TkView 나 시험의 가짜 화면) 이 now (초) 를 주며 부른다.
 
     첫 결정이 이긴다. 결정이 나면 단추를 눌러도 아무 일도 없다. 보내기는 send_enabled 일 때만 먹는다.
+    가린 묶음 (bundle) 은 항목 (MANIFEST + 파일) 을 모두 한 번씩 view 해야 send_enabled 가 된다 (L-13).
+    창이 뜰 때 (start) 글 칸에 있는 첫 항목 (MANIFEST) 은 연 것으로 센다.
     """
 
     def __init__(self, request, clipboard=None):
@@ -419,16 +617,43 @@ class ConfirmSession(object):
         self.approved = False                # clipboard: [보내기] 를 눌렀고 [복사] 를 기다림
         self.message = ""
         self._t0 = None
+        self.items = tuple(item.name for item in request.items)
+        self.selected = 0
+        self._viewed = [False] * len(self.items)
 
     @property
     def needs_copy(self):
         """바깥으로 가는 길이 clipboard 면 [복사] 가 성공해야 send 다 (복사 = 보냄). 안쪽으로 넘기는 지시는 복사하지 않는다."""
         return self.request.transport == "clipboard" and self.request.direction == "out"
 
+    @property
+    def unviewed(self):
+        """아직 글 칸에 연 적이 없는 항목 수 (bundle 이 아니면 0)."""
+        return self._viewed.count(False)
+
     def start(self, now):
-        """창이 화면에 뜬 때. 2초 · 남은 시간은 여기서부터 센다."""
+        """창이 화면에 뜬 때. 2초 · 남은 시간은 여기서부터 센다. 글 칸에 있는 항목 (처음에는 MANIFEST) 은 연 것으로 센다."""
         if self._t0 is None:
             self._t0 = now
+            if self._viewed:
+                self._viewed[self.selected] = True
+
+    def view(self, item, now):
+        """글 칸에 항목 하나를 연다 (bundle) - item 은 번호 (0 = MANIFEST) 나 이름. 먹었으면 True.
+
+        창이 뜨기 전 · 결정이 난 뒤 · 시간 초과 뒤 · 모르는 항목이면 아무 일도 없다 (고른 항목도 연 것도 그대로).
+        """
+        if self._expired(now) or self._t0 is None:
+            return False
+        if type(item) is int and 0 <= item < len(self.items):
+            index = item
+        elif type(item) is str and item in self.items:
+            index = self.items.index(item)
+        else:
+            return False
+        self.selected = index
+        self._viewed[index] = True
+        return True
 
     def _expired(self, now):
         if self.decision is None and self._t0 is not None and now - self._t0 >= self.request.timeout_s:
@@ -440,13 +665,13 @@ class ConfirmSession(object):
 
     def _can_send(self, now):
         return (self._t0 is not None and self.decision is None and not self.approved and self.request.checks_ok
-                and now - self._t0 >= SEND_DELAY_S)
+                and self.unviewed == 0 and now - self._t0 >= SEND_DELAY_S)
 
     def _can_copy(self):
         return self.needs_copy and self.approved and self.decision is None
 
     def press_send(self, now):
-        """[보내기] / [넘기기]. 먹었으면 True. 시간 초과 · 검사에 걸림 · 2초 전 · 이미 눌림이면 아무 일도 없다."""
+        """[보내기] / [넘기기]. 먹었으면 True. 시간 초과 · 검사에 걸림 · 2초 전 · 이미 눌림 · 안 본 항목이 있음이면 아무 일도 없다."""
         if self._expired(now) or not self._can_send(now):
             return False
         if self.needs_copy:
@@ -496,13 +721,22 @@ class ConfirmSession(object):
         started = self._t0 is not None
         elapsed = now - self._t0 if started else 0.0
         self._expired(now)
+        unviewed = self.unviewed
+        if self.message:
+            message = self.message
+        elif not self.request.checks_ok:
+            message = TEXT_CHECK_BLOCKED
+        elif unviewed and self.decision is None:
+            message = TEXT_UNVIEWED % unviewed
+        else:
+            message = ""
         return Snapshot(
             send_enabled=self._can_send(now), copy_enabled=self._can_copy(), approved=self.approved,
             check_ok=self.request.checks_ok,
             delay_s=int(math.ceil(max(0.0, SEND_DELAY_S - elapsed))),
             remaining_s=int(math.ceil(max(0.0, self.request.timeout_s - elapsed))),
-            message=self.message or ("" if self.request.checks_ok else TEXT_CHECK_BLOCKED),
-            decided=self.decision is not None)
+            message=message, decided=self.decision is not None,
+            unviewed=unviewed, viewed=tuple(self._viewed), selected=self.selected)
 
 
 # ---------------------------------------------------------------- 화면 (tkinter)
@@ -532,6 +766,8 @@ class TkView(object):
         self._family = None
         self._fonts = {}
         self._wrapped = []
+        self._shown = None                   # 글 칸에 그린 항목 번호 (묶음)
+        self._drawn = None                   # 목록에 그린 연 표시 (묶음)
         self.widgets = {}
 
     @property
@@ -567,7 +803,9 @@ class TkView(object):
         except Exception:
             self.close()
             raise
-        session.start(self._clock())
+        now = self._clock()
+        session.start(now)
+        self._render(session.snapshot(now))                 # 뜬 때의 상태 (묶음이면 첫 항목을 연 것으로)
 
     def pump(self):
         """한 바퀴: 눌림을 처리하고 시간을 흘리고 단추를 그린다."""
@@ -679,35 +917,51 @@ class TkView(object):
         w["title"] = tk.Label(head, text=p.title, font=self._fonts["title"], bg=c["navy"], fg=c["white"], anchor="w")
         w["title"].grid(row=0, column=1, sticky="w")
         self._label(head, p.subtitle, "small", c["navy"], c["navy5"]).grid(row=1, column=1, sticky="w")
+        if p.stats:                                         # 가린 묶음의 수 - 맨 위에 크게 (넷까지 · DESIGN.md › 01 원칙 1)
+            counts = tk.Frame(head, bg=c["navy"])
+            counts.grid(row=2, column=1, sticky="w", pady=(10, 0))
+            for i, (name, value) in enumerate(p.stats):
+                cell = tk.Frame(counts, bg=c["navy1"], padx=8, pady=4)
+                cell.grid(row=0, column=i, sticky="w", padx=(0, 8))
+                self._chip(cell, name).pack(side="left")
+                w["stat_" + name.lower()] = tk.Label(cell, text=value, font=self._fonts["title"], bg=c["navy1"], fg=c["white"])
+                w["stat_" + name.lower()].pack(side="left", padx=(8, 0))
+                if name == "AUTO" and value != "0":         # 자동으로 가린 곳이 있다 = 표시가 모자랐다 (가장 밝은 칩)
+                    self._chip(cell, "‼", c["white"], c["black"]).pack(side="left", padx=(8, 0))
+            w["marks"] = self._label(head, p.stats_note, "small", c["navy"], c["navy5"])
+            w["marks"].grid(row=3, column=1, sticky="w", pady=(4, 0))
 
-        # 01 글 - 보낼 바이트 그대로
+        # 01 글 - 보낼 바이트 그대로 (가린 묶음이면 왼쪽 목록에서 고른 항목의 바이트)
         zone = tk.Frame(root, bg=c["black"], padx=16, pady=8)
         zone.grid(row=1, column=0, sticky="nsew")
-        zone.columnconfigure(0, weight=1)
+        tc = 1 if p.items else 0                            # 글 칸의 열 - 묶음이면 0 열에 항목 목록
+        zone.columnconfigure(tc, weight=1)
         zone.rowconfigure(1, weight=1)
         bar = tk.Frame(zone, bg=c["black"])
-        bar.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 6))
+        bar.grid(row=0, column=0, columnspan=tc + 2, sticky="ew", pady=(0, 6))
         self._chip(bar, "01 TEXT").pack(side="left")
+        w["item"] = None
+        if p.items:
+            w["item"] = tk.Label(bar, text="", font=self._fonts["strong"], bg=c["black"], fg=c["lime3"])
+            w["item"].pack(side="left", padx=(8, 0))
         w["info"] = tk.Label(bar, text=p.text_info, font=self._fonts["small"], bg=c["black"], fg=c["gray2"])
         w["info"].pack(side="left", padx=8)
-        text = tk.Text(zone, wrap="word", width=84, height=14, font=self._fonts["body"], bg=c["black"], fg=c["gray4"],
-                       insertwidth=0, relief="flat", bd=0, padx=10, pady=8, highlightthickness=1,
+        text = tk.Text(zone, wrap="word", width=84, height=TEXT_ROWS, font=self._fonts["body"], bg=c["black"],
+                       fg=c["gray4"], insertwidth=0, relief="flat", bd=0, padx=10, pady=8, highlightthickness=1,
                        highlightbackground=c["navy3"], highlightcolor=c["lime"], selectbackground=c["navy3"],
                        selectforeground=c["white"], takefocus=1)
-        text.grid(row=1, column=0, sticky="nsew")
+        text.grid(row=1, column=tc, sticky="nsew")
         scroll = tk.Scrollbar(zone, orient="vertical", command=text.yview, bg=c["navy2"], troughcolor=c["black"],
                               activebackground=c["navy3"], relief="flat", bd=0)
-        scroll.grid(row=1, column=1, sticky="ns")
+        scroll.grid(row=1, column=tc + 1, sticky="ns")
         text.configure(yscrollcommand=scroll.set)
         text.tag_configure("token", background=c["lime"], foreground=c["black"])
         text.tag_configure("hidden", background=c["white"], foreground=c["navy"], font=self._fonts["strong"])
-        for piece, form in p.segments:
-            if form:
-                text.insert("end", piece, form)
-            else:
-                text.insert("end", piece)
-        text.configure(state="disabled")                    # 읽기 전용
         w["text"] = text
+        self._fill_text(p.segments)                         # 읽기 전용 (묶음이면 첫 항목 MANIFEST)
+        w["items"] = None
+        if p.items:
+            self._build_items(zone)
 
         # 02 검사 · 03 첨부 · 04 모델
         spec = tk.Frame(root, bg=c["black"], padx=16)
@@ -781,6 +1035,81 @@ class TkView(object):
         except tk.TclError:
             w["discard"].focus_set()
 
+    def _build_items(self, zone):
+        """가린 묶음의 항목 목록 (MANIFEST + 파일) - 고르면 session.view 를 부르고 글 칸을 그 항목으로 다시 그린다."""
+        tk = self._tk
+        c = PALETTE
+        lines = [self._item_line(i, False) for i in range(len(self._panels.items))]
+        side = tk.Frame(zone, bg=c["black"])
+        side.grid(row=1, column=0, sticky="ns", padx=(0, 8))
+        side.rowconfigure(1, weight=1)
+        self.widgets["items_head"] = tk.Label(side, text=ITEM_HEAD, font=self._fonts["body"], bg=c["black"], fg=c["gray2"],
+                                              anchor="w", padx=1)
+        self.widgets["items_head"].grid(row=0, column=0, columnspan=2, sticky="ew")
+        items = tk.Listbox(side, selectmode="browse", exportselection=False, activestyle="none",
+                           width=max(len(line) for line in lines) + 1, height=min(len(lines), TEXT_ROWS),
+                           font=self._fonts["body"], bg=c["black"], fg=c["white"], selectbackground=c["navy3"],
+                           selectforeground=c["white"], disabledforeground=c["gray1"], highlightthickness=1,
+                           highlightbackground=c["navy3"], highlightcolor=c["lime"], relief="flat", bd=0, takefocus=1)
+        items.grid(row=1, column=0, sticky="ns")
+        if len(lines) > TEXT_ROWS:
+            bar = tk.Scrollbar(side, orient="vertical", command=items.yview, bg=c["navy2"], troughcolor=c["black"],
+                               activebackground=c["navy3"], relief="flat", bd=0)
+            bar.grid(row=1, column=1, sticky="ns")
+            items.configure(yscrollcommand=bar.set)
+        for line in lines:
+            items.insert("end", line)
+        items.bind("<<ListboxSelect>>", self._on_pick)
+        for sequence in ("<Return>", "<KP_Enter>"):
+            items.bind(sequence, self._on_enter)
+        self.widgets["items"] = items
+
+    def _item_line(self, index, viewed):
+        """목록 한 줄: 연 적이 있으면 √ · 아니면 ○ + 이름 · 종류 · 바이트 · 줄 수 (글은 적지 않는다).
+        ASCII 만 쓴다 - Unifont 의 한글은 목록의 줄 높이보다 커서 옆 줄을 덮는다 (칸 이름은 ITEM_HEAD 에)."""
+        name, kind, size, lines = self._panels.items[index]
+        return ITEM_ROW % ("√" if viewed else "○", name, kind, size, lines)
+
+    def _fill_text(self, segments):
+        """글 칸을 segments 로 다시 채우고 읽기 전용으로 둔다 (맨 위부터 보인다)."""
+        text = self.widgets["text"]
+        text.configure(state="normal")
+        text.delete("1.0", "end")
+        for piece, form in segments:
+            if form:
+                text.insert("end", piece, form)
+            else:
+                text.insert("end", piece)
+        text.configure(state="disabled")
+        text.yview_moveto(0.0)
+
+    def _on_pick(self, event):
+        picked = self.widgets["items"].curselection()
+        now = self._clock()
+        if picked:
+            self._session.view(int(picked[0]), now)
+        self._render(self._session.snapshot(now))
+
+    def _render_items(self, snap):
+        """고른 항목을 글 칸에 · 연 표시 (√) 를 목록에 · 목록의 고름을 session 의 것과 같게."""
+        items = self.widgets["items"]
+        c = PALETTE
+        if snap.selected != self._shown:
+            self._shown = snap.selected
+            self._fill_text(self._panels.item_segments[snap.selected])
+            name, kind, size, lines = self._panels.items[snap.selected]
+            self.widgets["item"].configure(text="▶ %s · %s · %d B · %d 줄" % (name, kind, size, lines))
+        for i, seen in enumerate(snap.viewed):
+            if self._drawn is None or self._drawn[i] != seen:
+                items.delete(i)
+                items.insert(i, self._item_line(i, seen))
+                items.itemconfigure(i, foreground=c["gray2"] if seen else c["white"])
+        self._drawn = snap.viewed
+        if tuple(int(i) for i in items.curselection()) != (snap.selected,):
+            items.selection_clear(0, "end")
+            items.selection_set(snap.selected)
+        items.activate(snap.selected)
+
     def _fit_height(self, limit):
         """창이 limit 픽셀보다 크면 글 칸의 줄 수를 줄여 단추가 화면 안에 들게 한다 (글 칸은 끌어서 다시 키울 수 있다)."""
         root, text = self._root, self.widgets["text"]
@@ -789,6 +1118,9 @@ class TkView(object):
         if over > 0:
             line = max(1, self._fonts["body"].metrics("linespace"))
             text.configure(height=max(4, int(text.cget("height")) - (over + line - 1) // line))
+            items = self.widgets.get("items")
+            if items is not None:                           # 목록도 글 칸보다 길지 않게
+                items.configure(height=min(int(items.cget("height")), int(text.cget("height"))))
             root.update_idletasks()
 
     def _style(self, button, enabled, label, accent=False):
@@ -801,11 +1133,13 @@ class TkView(object):
             button.configure(state="disabled", text=label, bg=c["gray0"], fg=c["gray1"], disabledforeground=c["gray1"])
 
     def _render(self, snap):
-        """단추 · 시간 · 알림을 snap 대로 맞춘다 (바뀐 때만)."""
+        """단추 · 시간 · 알림 (묶음이면 고른 항목 · 연 표시도) 을 snap 대로 맞춘다 (바뀐 때만)."""
         if snap == self._last:
             return
         self._last = snap
         w = self.widgets
+        if w.get("items") is not None:
+            self._render_items(snap)
         label = self._panels.send_label
         if snap.approved:
             label += " √"

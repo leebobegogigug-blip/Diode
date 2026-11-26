@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """확정 창 (diodelib.confirm) - 요청 파일 꼴 · 창의 논리 (2초 · Enter · 닫기 · 시간 초과 · clipboard) · 결정과 종료 코드 ·
-창에 적는 글 · 창을 못 띄움 (E-07) · 건너뛰는 길이 없음 (AL-02) · 실제 tk 창 (DISPLAY 가 있을 때만).
+창에 적는 글 · 창을 못 띄움 (E-07) · 건너뛰는 길이 없음 (AL-02) · 실제 tk 창 (DISPLAY 가 있을 때만) ·
+가린 파일 묶음 (kind bundle · SP-20 - 요청 꼴 · 묶음 다이제스트 · 파일마다 한 번 열기 · 창에 적는 수) · 되돌린 첨부 (restored).
 
 화면은 가짜 백엔드로 바꿔 끼운다 (FakeView - 이 파일 안에만 있다. 실행 코드에는 우회가 없다). 모든 자료는 지어낸 것이다.
 """
@@ -64,6 +65,58 @@ def sha(text):
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+# 가린 파일 묶음 (kind bundle · SP-20) - 지어낸 글. 표시 낱말 (메모노을 · 보라수평선 · zeta_quux · col_2) 은
+# 글 칸 (segments) 밖으로 새는지 보려고 넣었다.
+MANIFEST = ("[diode bundle format=1 job=J-0007]\n"
+            "note: 목록 화면을 손본다 메모노을\n"
+            "- F01.md doc\n"
+            "- F02.py code\n"
+            "- F03.csv table\n"
+            "[/diode bundle]\n")
+FILES = [
+    {"name": "F01.md", "type": "doc", "text": "# PH_K7Q2 화면\n\n보라수평선 단추를 PH_M3X9 로 바꾼다.\n"},
+    {"name": "F02.py", "type": "code", "text": "def PH_A2B3(x):\n    return x + zeta_quux\n"},
+    {"name": "F03.csv", "type": "table", "text": "col_1,col_2\nPH_K7Q2,7"},
+]
+LEAK_WORDS = ("메모노을", "보라수평선", "zeta_quux", "col_2", "단추를", "return")
+
+
+def stats_of(files, tokens=4, marked=5, auto=0):
+    return {"files": len(files), "bytes": sum(len(f["text"].encode("utf-8")) for f in files), "tokens": tokens,
+            "marked": marked, "auto": auto}
+
+
+def bundle(files=None, **over):
+    """가린 묶음 요청 (사전) - files 를 주면 stats 의 files · bytes 도 그 파일로 맞춘다."""
+    files = copy.deepcopy(FILES if files is None else files)
+    d = make(kind="bundle", text=MANIFEST, files=files, stats=stats_of(files))
+    d.update(over)
+    return d
+
+
+def bundle_raw(files=None, **over):
+    return json.dumps(bundle(files, **over)).encode("utf-8")
+
+
+def parse_bundle(files=None, **over):
+    return confirm.parse_request(bundle_raw(files, **over))
+
+
+def ref_digest(manifest, files):
+    """묶음 다이제스트를 계약 (SP-20 · 허브와 같은 식) 그대로 따로 구한다."""
+    rows = [[f["name"], f["type"], sha(f["text"])] for f in files]
+    return sha(json.dumps([manifest, rows], ensure_ascii=False, separators=(",", ":")))
+
+
+def n_files(n, size=10):
+    """n 개의 지어낸 파일 (F01.md ... · 각 size 바이트 ASCII)."""
+    return [{"name": "F%02d.md" % (i + 1), "type": "doc", "text": ("f%d " % i + "x" * size)[:size]} for i in range(n)]
+
+
+RESTORED_ATT = ["src/list_view.py", "F01.md"]
+RESTORED = [{"name": "src/list_view.py", "tokens": 3}, {"name": "F01.md", "tokens": 0}]
+
+
 class Clock(object):
     """시각을 손으로 흘린다."""
 
@@ -80,7 +133,8 @@ class Clock(object):
 class FakeView(object):
     """화면 백엔드 흉내 - 대본대로 시간을 흘리고 단추를 누른다. 시험 안에만 둔다 (실행 코드에 우회가 생기지 않게).
 
-    대본의 걸음: ("wait", 초) · ("send",) · ("copy",) · ("edit",) · ("discard",) · ("close",) · ("key", 이름) · ("raise", 예외)
+    대본의 걸음: ("wait", 초) · ("send",) · ("copy",) · ("edit",) · ("discard",) · ("close",) · ("key", 이름) · ("raise", 예외) ·
+               ("view", 번호 또는 이름) (가린 묶음의 항목 열기)
     """
 
     def __init__(self, script=(), clipboard_error=None, fail_after=None):
@@ -118,6 +172,8 @@ class FakeView(object):
                 session.close(self.now)
             elif op == "key":
                 session.key(step[1], self.now)
+            elif op == "view":
+                session.view(step[1], self.now)
             elif op == "raise":
                 raise step[1]
         if self.fail_after is not None:
@@ -152,7 +208,7 @@ BAD_VALUES = [
     ("transport", "adapter"), ("transport", ""), ("transport", None),
     ("text", ""), ("text", None), ("text", 5), ("text", ["a"]), ("text", "가\ud800나"), ("text", "가" * 22000),
     ("attachments", None), ("attachments", "a.html"), ("attachments", [1]), ("attachments", [""]),
-    ("attachments", ["a\nb"]), ("attachments", ["a\u202eb"]), ("attachments", ["x" * 121]), ("attachments", ["a"] * 6),
+    ("attachments", ["a\nb"]), ("attachments", ["a\u202eb"]), ("attachments", ["x" * 121]), ("attachments", ["a"] * 21),
     ("checks", None), ("checks", {}), ("checks", {"ok": True}), ("checks", {"ok": True, "hits": [], "x": 1}),
     ("checks", {"ok": 1, "hits": []}),
     ("checks", {"ok": True, "hits": [{"check": "D2", "count": 1, "where": ["ask"]}]}),     # ok 인데 hits 가 있음
@@ -674,6 +730,469 @@ class TestPanels(unittest.TestCase):
         self.assertIn("복사", confirm.build_panels(parse(transport="clipboard")).act_note)
         self.assertIn("일꾼", confirm.build_panels(parse(direction="dispatch", kind="plan")).act_note)
 
+    def test_a_plain_request_has_no_bundle_parts(self):
+        p = confirm.build_panels(parse())
+        self.assertEqual((p.items, p.item_segments, p.stats, p.stats_note), ((), (), (), ""))
+
+
+# ─────────────────────────────────────────────────────────────── 가린 파일 묶음 (kind bundle · SP-20) · 되돌린 첨부
+
+BAD_FILES = [
+    [],                                                                         # 0개
+    n_files(21),                                                                # 21개
+    "F01.md", None, [None], ["F01.md"],
+    [{"name": "F01.md", "type": "doc"}],                                        # 글이 없음
+    [{"name": "F01.md", "type": "doc", "text": "a", "path": "x"}],             # 모르는 칸
+    [{"name": "F01.md", "type": "doc", "text": "a"}, {"name": "F01.md", "type": "code", "text": "b"}],     # 이름 겹침
+    [{"name": "F01.md", "type": "doc", "text": "a"}, {"name": "F01.MD", "type": "doc", "text": "b"}],     # 대소문자만 다름
+    [{"name": "F01.md", "type": "image", "text": "a"}], [{"name": "F01.md", "type": "Doc", "text": "a"}],
+    [{"name": "F01.md", "type": None, "text": "a"}],
+    [{"name": "F01.md", "type": "doc", "text": ""}], [{"name": "F01.md", "type": "doc", "text": None}],
+    [{"name": "F01.md", "type": "doc", "text": 5}], [{"name": "F01.md", "type": "doc", "text": "가\ud800나"}],
+    [{"name": "F01.md", "type": "doc", "text": "가" * (confirm.MAX_FILE_BYTES // 3 + 1)}],             # 파일 하나 256 KiB 넘음
+]
+BAD_NAMES = ["F1.md", "F00000.md", "F12345.md", "f01.md", "F01", "F01.", ".md", "F01.md\n", "F01.ab-c", "F01.abcdefghi",
+             "FF01.md", "F01.m d", "F١٢.md", "F01.ｍｄ", "../F01.md", "F01.md/", "F01.md.txt", "", 1, None,
+             "MANIFEST.md", "F01.md​"]
+GOOD_NAMES = ["F01.md", "F00.TXT", "F100.py", "F9999.abcdefgh", "F20.c"]
+BAD_STATS = [
+    None, [], {}, {"files": 3, "bytes": 1}, dict(stats_of(FILES), extra=1),
+    dict(stats_of(FILES), tokens=-1), dict(stats_of(FILES), auto=True), dict(stats_of(FILES), marked=1.0),
+    dict(stats_of(FILES), tokens="4"), dict(stats_of(FILES), auto=None), dict(stats_of(FILES), tokens=10 ** 9 + 1),
+    dict(stats_of(FILES), files=2), dict(stats_of(FILES), files=4),                                   # 실제 파일 수와 다름
+    dict(stats_of(FILES), bytes=stats_of(FILES)["bytes"] + 1), dict(stats_of(FILES), bytes=0),       # 실제 바이트와 다름
+]
+
+
+class TestBundleRequest(Base):
+    def test_a_good_bundle_is_read(self):
+        r = parse_bundle()
+        self.assertTrue(r.is_bundle)
+        self.assertEqual((r.kind, r.direction, r.transport, r.attachments), ("bundle", "out", "room", ()))
+        self.assertEqual([(f.name, f.type, f.text) for f in r.files], [(f["name"], f["type"], f["text"]) for f in FILES])
+        self.assertEqual([f.bytes for f in r.files], [len(f["text"].encode("utf-8")) for f in FILES])
+        self.assertEqual([f.lines for f in r.files], [3, 2, 2])
+        self.assertEqual(r.stats, stats_of(FILES))
+        self.assertEqual([i.name for i in r.items], ["MANIFEST.md", "F01.md", "F02.py", "F03.csv"])
+        self.assertEqual((r.items[0].type, r.items[0].text), ("manifest", MANIFEST))
+        self.assertEqual(r.sha256, ref_digest(MANIFEST, FILES))
+        self.assertEqual(r.sha256, confirm.bundle_sha256(MANIFEST, FILES))
+        self.assertNotEqual(r.sha256, sha(MANIFEST))                          # 묶음은 MANIFEST 글만의 해시가 아니다
+        self.assertIsNone(r.restored)
+
+    def test_utf8_and_every_file_type_are_read(self):
+        files = [{"name": "F%02d.txt" % i, "type": t, "text": "가나 %s\n" % t} for i, t in enumerate(confirm.FILE_TYPES)]
+        data = json.dumps(bundle(files), ensure_ascii=False).encode("utf-8")
+        self.assertEqual([f.type for f in confirm.parse_request(data).files], ["doc", "table", "code"])
+
+    def test_files_and_stats_are_both_required(self):
+        for key in ("files", "stats"):
+            d = bundle()
+            del d[key]
+            with self.assertRaises(confirm.RequestError, msg=key):
+                confirm.parse_request(json.dumps(d).encode())
+
+    def test_other_kinds_may_not_carry_files_or_stats(self):
+        for kind in ("report", "plan", "ui", "lib"):
+            for extra in ({"files": copy.deepcopy(FILES)}, {"stats": stats_of(FILES)},
+                          {"files": copy.deepcopy(FILES), "stats": stats_of(FILES)}):
+                with self.assertRaises(confirm.RequestError, msg=(kind, sorted(extra))):
+                    parse(kind=kind, **extra)
+
+    def test_a_bundle_goes_out_to_the_room_only(self):
+        for over in ({"direction": "dispatch"}, {"transport": "clipboard"}, {"direction": "dispatch", "transport": "clipboard"}):
+            with self.assertRaises(confirm.RequestError, msg=over):
+                parse_bundle(**over)
+
+    def test_a_bundle_has_no_attachments(self):
+        for att in (["F01.md"], ["a.html"], [""]):
+            with self.assertRaises(confirm.RequestError, msg=att):
+                parse_bundle(attachments=att)
+
+    def test_the_manifest_follows_the_text_rules(self):
+        for text in ("", None, 5, "가\ud800나", "가" * (confirm.MAX_TEXT_BYTES // 3 + 1)):
+            with self.assertRaises(confirm.RequestError, msg=repr(text)[:30]):
+                parse_bundle(text=text)
+
+    def test_wrong_files_are_errors(self):
+        for files in BAD_FILES:
+            d = bundle()
+            d["files"] = files                              # stats 는 처음 파일들 그대로 - files 의 꼴 자체를 본다
+            if isinstance(files, list) and files and all(isinstance(f, dict) for f in files):
+                try:
+                    d["stats"] = stats_of(files)            # 수가 맞아도 꼴에서 걸려야 한다
+                except (KeyError, TypeError, AttributeError, UnicodeEncodeError):
+                    pass
+            with self.assertRaises(confirm.RequestError, msg=repr(files)[:60]):
+                confirm.parse_request(json.dumps(d).encode())
+
+    def test_file_names(self):
+        for name in GOOD_NAMES:
+            files = [{"name": name, "type": "code", "text": "x = 1\n"}]
+            self.assertEqual(parse_bundle(files).files[0].name, name)
+        for name in BAD_NAMES:
+            files = [{"name": name, "type": "code", "text": "x = 1\n"}]
+            with self.assertRaises(confirm.RequestError, msg=repr(name)):
+                parse_bundle(files)
+
+    def test_file_count_limits(self):
+        self.assertEqual(confirm.MAX_BUNDLE_FILES, 20)
+        self.assertEqual(len(parse_bundle(n_files(1)).files), 1)
+        self.assertEqual(len(parse_bundle(n_files(20)).files), 20)
+        with self.assertRaises(confirm.RequestError):
+            parse_bundle(n_files(21))
+
+    def test_file_size_limits(self):
+        edge = "a" * confirm.MAX_FILE_BYTES                                    # 정확히 256 KiB
+        self.assertEqual(parse_bundle([{"name": "F01.md", "type": "doc", "text": edge}]).files[0].bytes, 256 * 1024)
+        with self.assertRaises(confirm.RequestError):
+            parse_bundle([{"name": "F01.md", "type": "doc", "text": edge + "a"}])
+        four = [{"name": "F%02d.md" % i, "type": "doc", "text": edge} for i in range(4)]                  # 합계 정확히 1 MiB
+        self.assertEqual(sum(f.bytes for f in parse_bundle(four).files), confirm.MAX_BUNDLE_BYTES)
+        with self.assertRaises(confirm.RequestError):
+            parse_bundle(four + [{"name": "F09.md", "type": "doc", "text": "a"}])                        # 1 MiB + 1 바이트
+
+    def test_wrong_stats_are_errors(self):
+        for stats in BAD_STATS:
+            with self.assertRaises(confirm.RequestError, msg=repr(stats)[:80]):
+                parse_bundle(stats=stats)
+        one = [{"name": "F01.md", "type": "doc", "text": "a"}]
+        with self.assertRaises(confirm.RequestError):                          # bool 은 수가 아니다 (True == 1 이어도)
+            parse_bundle(one, stats={"files": True, "bytes": 1, "tokens": 0, "marked": 0, "auto": 0})
+        self.assertEqual(parse_bundle(one, stats={"files": 1, "bytes": 1, "tokens": 0, "marked": 0, "auto": 0}).stats["files"], 1)
+
+    def test_the_request_size_depends_on_the_kind(self):
+        self.assertEqual(confirm.MAX_REQUEST_BYTES, 4 * 1024 * 1024)
+        self.assertEqual(confirm.MAX_PLAIN_REQUEST_BYTES, 256 * 1024)
+        plain = raw()
+        pad = confirm.MAX_PLAIN_REQUEST_BYTES - len(plain)
+        self.assertEqual(confirm.parse_request(plain + b" " * pad).text, TEXT)                  # 정확히 256 KiB
+        with self.assertRaises(confirm.RequestError):
+            confirm.parse_request(plain + b" " * (pad + 1))                                       # 묶음이 아니면 256 KiB 를 넘을 수 없다
+        with self.assertRaises(confirm.RequestError):
+            confirm.read_request(self.write(plain + b" " * (pad + 1)))
+        big = [{"name": "F%02d.md" % i, "type": "doc", "text": "가" * 80000} for i in range(4)]   # 파일 합계 약 940 KiB
+        data = bundle_raw(big)
+        self.assertGreater(len(data), confirm.MAX_PLAIN_REQUEST_BYTES)
+        self.assertEqual(len(confirm.read_request(self.write(data)).files), 4)                    # 묶음은 4 MiB 까지
+        edge = data + b" " * (confirm.MAX_REQUEST_BYTES - len(data))
+        self.assertEqual(len(confirm.parse_request(edge).files), 4)                               # 정확히 4 MiB
+        with self.assertRaises(confirm.RequestError):
+            confirm.parse_request(edge + b" ")
+        with self.assertRaises(confirm.RequestError):
+            confirm.read_request(self.write(edge + b" "))
+
+    def test_attachments_go_up_to_twenty(self):
+        self.assertEqual(confirm.MAX_ATTACHMENTS, 20)
+        self.assertEqual(len(parse(direction="dispatch", attachments=["a%d.html" % i for i in range(20)]).attachments), 20)
+        with self.assertRaises(confirm.RequestError):
+            parse(direction="dispatch", attachments=["a%d.html" % i for i in range(21)])
+
+    def test_restored_is_read_on_a_dispatch(self):
+        r = parse(direction="dispatch", attachments=RESTORED_ATT, restored=RESTORED)
+        self.assertEqual(r.restored, (("src/list_view.py", 3), ("F01.md", 0)))
+        self.assertEqual(r.sha256, sha(TEXT))                                  # 넘기기의 해시는 그대로 지시 글
+        empty = parse(direction="dispatch", attachments=[], restored=[])
+        self.assertEqual(empty.restored, ())
+        self.assertIsNone(parse(direction="dispatch", attachments=RESTORED_ATT).restored)       # 없어도 된다
+
+    def test_wrong_restored_is_an_error(self):
+        bad = [
+            None, "F01.md", RESTORED[:1], RESTORED + [{"name": "x", "tokens": 0}],              # 길이가 다름
+            [RESTORED[1], RESTORED[0]],                                                            # 차례가 다름
+            [{"name": "src/other.py", "tokens": 3}, RESTORED[1]],                                 # 이름이 다름
+            [{"name": "src/list_view.py"}, RESTORED[1]], [dict(RESTORED[0], x=1), RESTORED[1]],
+            [{"name": "src/list_view.py", "tokens": True}, RESTORED[1]],
+            [{"name": "src/list_view.py", "tokens": -1}, RESTORED[1]],
+            [{"name": "src/list_view.py", "tokens": "3"}, RESTORED[1]],
+            [{"name": "src/list_view.py", "tokens": 1.5}, RESTORED[1]],
+            [["src/list_view.py", 3], RESTORED[1]],
+        ]
+        for restored in bad:
+            with self.assertRaises(confirm.RequestError, msg=repr(restored)[:80]):
+                parse(direction="dispatch", attachments=RESTORED_ATT, restored=restored)
+        with self.assertRaises(confirm.RequestError):                          # 한 줄 글이 아닌 이름 (첨부도 같은 이름)
+            parse(direction="dispatch", attachments=["a\nb"], restored=[{"name": "a\nb", "tokens": 1}])
+
+    def test_restored_only_on_a_dispatch(self):
+        with self.assertRaises(confirm.RequestError):
+            parse(direction="out", attachments=RESTORED_ATT, restored=RESTORED)
+        with self.assertRaises(confirm.RequestError):
+            parse_bundle(restored=[])
+
+    def test_error_messages_carry_no_text_or_names(self):
+        for build in (lambda: parse_bundle([{"name": "F01.md", "type": "image", "text": "보라수평선"}]),
+                      lambda: parse(direction="dispatch", attachments=["src/list_view.py"],
+                                    restored=[{"name": "src/zeta_quux.py", "tokens": 1}])):
+            with self.assertRaises(confirm.RequestError) as ctx:
+                build()
+            for word in ("보라수평선", "zeta_quux", "list_view", "F01"):
+                self.assertNotIn(word, str(ctx.exception))
+
+
+class TestBundleDigest(unittest.TestCase):
+    def test_the_formula(self):
+        self.assertEqual(confirm.bundle_sha256(MANIFEST, FILES), ref_digest(MANIFEST, FILES))
+        self.assertRegex(confirm.bundle_sha256(MANIFEST, FILES), r"\A[0-9a-f]{64}\Z")
+        utf8 = [{"name": "F01.md", "type": "doc", "text": "가나다\n​"}]
+        self.assertEqual(confirm.bundle_sha256("목록 가나", utf8), ref_digest("목록 가나", utf8))      # 이스케이프 없는 UTF-8
+
+    def test_one_byte_in_one_file_changes_it(self):
+        base = confirm.bundle_sha256(MANIFEST, FILES)
+        for i in range(len(FILES)):
+            changed = copy.deepcopy(FILES)
+            changed[i]["text"] = changed[i]["text"][:-1] + ("Y" if changed[i]["text"][-1] != "Y" else "Z")
+            self.assertNotEqual(confirm.bundle_sha256(MANIFEST, changed), base, i)
+        added = copy.deepcopy(FILES)
+        added[0]["text"] += " "
+        self.assertNotEqual(confirm.bundle_sha256(MANIFEST, added), base)
+
+    def test_order_names_types_and_the_manifest_change_it(self):
+        base = confirm.bundle_sha256(MANIFEST, FILES)
+        self.assertNotEqual(confirm.bundle_sha256(MANIFEST, [FILES[1], FILES[0], FILES[2]]), base)
+        self.assertNotEqual(confirm.bundle_sha256(MANIFEST, FILES[:2]), base)
+        renamed = copy.deepcopy(FILES)
+        renamed[0]["name"] = "F04.md"
+        self.assertNotEqual(confirm.bundle_sha256(MANIFEST, renamed), base)
+        retyped = copy.deepcopy(FILES)
+        retyped[2]["type"] = "doc"
+        self.assertNotEqual(confirm.bundle_sha256(MANIFEST, retyped), base)
+        self.assertNotEqual(confirm.bundle_sha256(MANIFEST + " ", FILES), base)
+        moved = copy.deepcopy(FILES)                                          # 경계를 옮겨도 (한 파일 끝 -> 다음 파일 머리) 다르다
+        moved[0]["text"], moved[1]["text"] = moved[0]["text"][:-1], moved[0]["text"][-1] + moved[1]["text"]
+        self.assertNotEqual(confirm.bundle_sha256(MANIFEST, moved), base)
+
+    def test_the_request_hash_is_the_digest_and_a_plain_one_is_the_text(self):
+        self.assertEqual(parse_bundle().sha256, confirm.bundle_sha256(MANIFEST, FILES))
+        self.assertEqual(parse().sha256, confirm.text_sha256(TEXT))
+
+
+class TestBundleSession(unittest.TestCase):
+    def make(self, start=0.0, files=None, **over):
+        s = confirm.ConfirmSession(parse_bundle(files, **over))
+        if start is not None:
+            s.start(start)
+        return s
+
+    def test_send_stays_off_until_every_item_is_opened(self):
+        s = self.make()
+        self.assertEqual(s.items, ("MANIFEST.md", "F01.md", "F02.py", "F03.csv"))
+        self.assertEqual(s.unviewed, 3)                                       # 처음 보이는 MANIFEST 는 연 것
+        for t, item in ((5.0, 1), (6.0, "F02.py")):
+            self.assertFalse(s.snapshot(t).send_enabled)
+            self.assertFalse(s.press_send(t))
+            self.assertTrue(s.view(item, t))
+        self.assertEqual(s.snapshot(7.0).unviewed, 1)
+        self.assertFalse(s.press_send(7.0))
+        self.assertTrue(s.view(3, 8.0))
+        snap = s.snapshot(8.0)
+        self.assertEqual((snap.unviewed, snap.send_enabled, snap.selected), (0, True, 3))
+        self.assertTrue(s.press_send(8.0))
+        self.assertEqual(s.decision, "send")
+
+    def test_before_the_window_starts_nothing_is_opened(self):
+        s = self.make(start=None)
+        self.assertEqual(s.unviewed, 4)
+        self.assertFalse(s.view(1, 0.0))
+        self.assertEqual(s.unviewed, 4)
+        s.start(10.0)
+        self.assertEqual(s.unviewed, 3)
+        self.assertEqual(s.snapshot(10.0).viewed, (True, False, False, False))
+
+    def test_viewing_everything_still_waits_the_two_seconds(self):
+        s = self.make()
+        for i in (1, 2, 3):
+            self.assertTrue(s.view(i, 0.5))
+        self.assertFalse(s.snapshot(1.9).send_enabled)
+        self.assertFalse(s.press_send(1.9))
+        self.assertTrue(s.press_send(2.0))
+
+    def test_reopening_and_going_back_count_once(self):
+        s = self.make()
+        for item in (1, 1, 0, "F01.md", 2, 0):
+            s.view(item, 3.0)
+        snap = s.snapshot(3.0)
+        self.assertEqual((snap.unviewed, snap.selected, snap.viewed), (1, 0, (True, True, True, False)))
+        self.assertFalse(s.press_send(3.0))
+
+    def test_failed_checks_never_send_even_after_every_item(self):
+        s = self.make(checks={"ok": False, "hits": [{"check": "R4", "count": 2, "where": ["F02:L14"]}]})
+        for i in range(4):
+            s.view(i, 3.0)
+        for t in (3.0, 100.0, 599.0):
+            self.assertFalse(s.snapshot(t).send_enabled)
+            self.assertFalse(s.press_send(t))
+        self.assertIn("검사에 걸린", s.snapshot(10.0).message)
+        self.assertIsNone(s.decision)
+
+    def test_view_after_the_deadline_or_a_decision_does_nothing(self):
+        s = self.make(timeout_s=30)
+        self.assertFalse(s.view(1, 31.0))
+        self.assertEqual(s.decision, "timeout")
+        snap = s.snapshot(31.0)
+        self.assertEqual((snap.unviewed, snap.selected, snap.send_enabled), (3, 0, False))
+        s = self.make()
+        s.press_discard(1.0)
+        self.assertFalse(s.view(2, 2.0))
+        self.assertEqual((s.unviewed, s.selected, s.decision), (3, 0, "discard"))
+
+    def test_unknown_items_are_ignored(self):
+        s = self.make()
+        for item in (4, -1, 99, True, False, None, 1.0, "F09.md", "manifest.md", "", ["F01.md"]):
+            self.assertFalse(s.view(item, 3.0), repr(item))
+        self.assertEqual((s.unviewed, s.selected), (3, 0))
+        self.assertTrue(s.view("MANIFEST.md", 3.0))
+
+    def test_the_message_counts_what_is_left(self):
+        s = self.make()
+        self.assertIn("아직 안 본 파일 3개", s.snapshot(3.0).message)
+        s.view(1, 3.0)
+        self.assertIn("아직 안 본 파일 2개", s.snapshot(3.0).message)
+        s.view(2, 3.0)
+        s.view(3, 3.0)
+        self.assertEqual(s.snapshot(3.0).message, "")
+
+    def test_a_plain_request_has_nothing_to_open(self):
+        s = confirm.ConfirmSession(parse())
+        s.start(0.0)
+        self.assertEqual((s.items, s.unviewed), ((), 0))
+        self.assertFalse(s.view(0, 3.0))
+        snap = s.snapshot(3.0)
+        self.assertEqual((snap.unviewed, snap.viewed, snap.send_enabled, snap.message), (0, (), True, ""))
+        self.assertTrue(s.press_send(3.0))
+
+
+class TestBundleMain(Base):
+    def run_bundle(self, view, files=None, **over):
+        path = self.write(bundle_raw(files, **over))
+        with mock.patch.object(confirm, "create_view", return_value=view):
+            return confirm.main_confirm(path)
+
+    def test_the_result_hash_is_the_bundle_digest(self):
+        code, line = self.run_bundle(FakeView([("view", 1), ("view", 2), ("view", 3), ("wait", 3), ("send",)]))
+        self.assertEqual((code, line), (0, json.dumps({"decision": "send", "sha256": ref_digest(MANIFEST, FILES)})))
+        self.assertEqual(confirm.parse_result(code, line, confirm.bundle_sha256(MANIFEST, FILES)), ("send", None))
+        self.assertEqual(confirm.parse_result(code, line, confirm.text_sha256(MANIFEST)), ("error", "E-20"))   # MANIFEST 만으로는 안 맞는다
+        other = copy.deepcopy(FILES)
+        other[1]["text"] += "#"
+        self.assertEqual(confirm.parse_result(code, line, confirm.bundle_sha256(MANIFEST, other)), ("error", "E-20"))
+
+    def test_a_send_without_opening_every_file_is_not_a_send(self):
+        view = FakeView([("wait", 3), ("send",), ("view", 1), ("view", 2), ("send",), ("discard",)])
+        self.assertEqual(json.loads(self.run_bundle(view)[1])["decision"], "discard")
+        view = FakeView([("wait", 3), ("send",)])                                       # 안 본 채 화면이 끝남 = 결정 없음
+        self.assertEqual(self.run_bundle(view), (1, '{"decision": "error", "code": "E-20"}'))
+        view = FakeView([("view", "F01.md"), ("view", "F02.py"), ("view", "F03.csv"), ("wait", 601), ("send",)])
+        self.assertEqual(json.loads(self.run_bundle(view)[1])["decision"], "timeout")
+
+    def test_the_result_carries_no_text_or_names(self):
+        code, line = self.run_bundle(FakeView([("view", 1), ("view", 2), ("view", 3), ("wait", 3), ("send",)]))
+        self.assertEqual(sorted(json.loads(line)), ["decision", "sha256"])
+        for piece in LEAK_WORDS + ("F01", "MANIFEST", "PH_", "bundle"):
+            self.assertNotIn(piece, line)
+
+    def test_bad_bundles_never_open_a_window(self):
+        bad = [bundle_raw(direction="dispatch"), bundle_raw(transport="clipboard"), bundle_raw(attachments=["a"]),
+               bundle_raw(stats=dict(stats_of(FILES), files=9)), bundle_raw(n_files(21)),
+               raw(files=FILES), raw(direction="dispatch", attachments=["a"], restored=[{"name": "b", "tokens": 1}])]
+        for data in bad:
+            path = self.write(data)
+            with mock.patch.object(confirm, "create_view") as create:
+                self.assertEqual(confirm.main_confirm(path), (2, '{"decision": "error", "code": "E-04"}'))
+                create.assert_not_called()
+
+
+class TestBundlePanels(unittest.TestCase):
+    def panels(self, files=None, **over):
+        return confirm.build_panels(parse_bundle(files, **over))
+
+    def test_the_numbers_on_top(self):
+        p = self.panels(stats=dict(stats_of(FILES), tokens=7, marked=5, auto=2))
+        b = stats_of(FILES)["bytes"]
+        self.assertEqual(p.stats, (("FILES", "3"), ("BYTES", str(b)), ("TOKENS", "7"), ("AUTO", "2")))
+        self.assertIn("표시한 곳 5개", p.stats_note)
+        self.assertIn("자동으로 가린 곳 2개", p.stats_note)
+        self.assertIn("가린 파일 3개를 회사 밖 (Claude) 방으로 보냅니다", p.subtitle)
+        self.assertEqual((p.chip, p.title, p.send_label), ("OUT", "바깥으로 보내기", "보내기"))
+
+    def test_the_safety_net_alert_only_when_something_was_masked_automatically(self):
+        none = self.panels()
+        self.assertEqual([lv for _, lv in none.notices if lv == "alert"], [])
+        self.assertFalse(any("자동 가림" in n for n, _ in none.notices))
+        some = self.panels(stats=dict(stats_of(FILES), auto=3))
+        alerts = [n for n, lv in some.notices if lv == "alert"]
+        self.assertEqual(len(alerts), 1)
+        self.assertIn("자동 가림 3개", alerts[0])
+        self.assertIn("opencode 의 표시가 모자랐습니다", alerts[0])
+        self.assertTrue(alerts[0].startswith("‼"))
+
+    def test_the_usual_notices_and_the_act_note_stay(self):
+        notices = dict(self.panels().notices)
+        self.assertEqual(notices["보내면 되돌릴 수 없습니다"], "strong")
+        self.assertEqual(notices["이 내용이 감사 기록에 남습니다"], "strong")
+        act = self.panels().act_note
+        self.assertIn("outbox/J-0007/", act)
+        self.assertIn("이 파일들이 그대로", act)
+
+    def test_the_item_list(self):
+        p = self.panels()
+        self.assertEqual(p.items[0], ("MANIFEST.md", "manifest", len(MANIFEST.encode("utf-8")), 6))
+        self.assertEqual(p.items[1:], tuple((f["name"], f["type"], len(f["text"].encode("utf-8")), n)
+                                            for f, n in zip(FILES, (3, 2, 2))))
+        self.assertEqual(p.files, "MANIFEST.md + 파일 3개 - 01 TEXT 의 목록에서 하나씩 엽니다")
+        for want in ("J-0007", "bundle", "room", "파일 3개", "%d B" % stats_of(FILES)["bytes"],
+                     "묶음 sha256 " + ref_digest(MANIFEST, FILES)[:16]):
+            self.assertIn(want, p.text_info)
+
+    def test_each_item_shows_its_bytes_verbatim(self):
+        p = self.panels()
+        self.assertEqual(len(p.item_segments), 4)
+        self.assertEqual(p.segments, p.item_segments[0])                       # 처음에는 MANIFEST
+        for segs, text in zip(p.item_segments, [MANIFEST] + [f["text"] for f in FILES]):
+            self.assertEqual("".join(s for s, _ in segs), text)
+        self.assertEqual([s for s, f in p.item_segments[1] if f == "token"], ["PH_K7Q2", "PH_M3X9"])
+
+    def test_hidden_characters_in_any_file_are_shown_and_counted(self):
+        files = copy.deepcopy(FILES)
+        files[1]["text"] = "x = 1​\n"
+        files[2]["text"] = "a,‮b\n"
+        p = self.panels(files)
+        self.assertEqual([s for s, f in p.item_segments[2] if f == "hidden"], ["[U+200B]"])
+        self.assertEqual([s for s, f in p.item_segments[3] if f == "hidden"], ["[U+202E]"])
+        alerts = [n for n, lv in p.notices if lv == "alert"]
+        self.assertEqual(len(alerts), 1)
+        self.assertIn("보이지 않는 글자 2개", alerts[0])
+
+    def test_the_text_never_leaks_out_of_the_segments(self):
+        p = self.panels(stats=dict(stats_of(FILES), auto=1))
+        for field in p._fields:
+            if field in ("segments", "item_segments"):
+                continue
+            shown = repr(getattr(p, field))
+            for word in LEAK_WORDS:
+                self.assertNotIn(word, shown, (field, word))
+        inside = repr(p.item_segments)
+        for word in LEAK_WORDS:
+            self.assertIn(word, inside, word)                                  # 글 칸에는 그대로 있다
+
+
+class TestRestoredPanels(unittest.TestCase):
+    def test_each_attachment_shows_its_restored_tokens(self):
+        p = confirm.build_panels(parse(direction="dispatch", attachments=RESTORED_ATT, restored=RESTORED))
+        self.assertEqual(p.files, "src/list_view.py (되돌린 토큰 3) · F01.md (되돌린 토큰 0)")
+        notes = dict(p.notices)
+        self.assertEqual(notes["첨부 2개를 금고로 되돌려 넘깁니다 (진짜 값은 이 PC 안에만)"], "note")
+        self.assertIn("넘기면 되돌릴 수 없습니다", notes)
+        self.assertEqual((p.chip, p.send_label), ("IN", "넘기기"))
+
+    def test_without_restored_nothing_changes(self):
+        p = confirm.build_panels(parse(direction="dispatch", attachments=RESTORED_ATT))
+        self.assertEqual(p.files, "src/list_view.py · F01.md")
+        self.assertFalse(any("금고" in n for n, _ in p.notices))
+        empty = confirm.build_panels(parse(direction="dispatch", attachments=[], restored=[]))
+        self.assertEqual(empty.files, "없음")
+        self.assertFalse(any("금고" in n for n, _ in empty.notices))
+
 
 # ─────────────────────────────────────────────────────────────── 창을 못 띄움 (E-07)
 
@@ -1110,6 +1629,185 @@ class TestRealWindow(Base):
         path = self.write(raw())
         with mock.patch.dict(os.environ, {"DISPLAY": ":987"}):
             self.assertEqual(confirm.main_confirm(path), (1, '{"decision": "error", "code": "E-07"}'))
+
+    def test_restored_attachments_are_listed(self):
+        self.open(direction="dispatch", attachments=RESTORED_ATT, restored=RESTORED)
+        self.assertEqual(self.w["files"]["text"], "src/list_view.py (되돌린 토큰 3) · F01.md (되돌린 토큰 0)")
+        labels = [wd["text"] for wd in all_widgets(self.view.root) if wd.winfo_class() == "Label"]
+        self.assertIn("첨부 2개를 금고로 되돌려 넘깁니다 (진짜 값은 이 PC 안에만)", labels)
+        self.assertIsNone(self.w["items"])
+
+
+@unittest.skipUnless(TK_OK, "DISPLAY 가 없거나 tkinter 로 창을 열 수 없어 실제 창 시험은 건너뜀")
+class TestRealBundleWindow(Base):
+    """가린 묶음의 창 - 왼쪽 항목 목록 · 고르면 글 칸이 그 바이트 · 모두 열어야 [보내기] (L-13)."""
+
+    def setUp(self):
+        super().setUp()
+        import tkinter
+        self.tk = tkinter
+        self.clock = Clock()
+        self.view = confirm.TkView(tkinter, clock=self.clock)
+        self.addCleanup(self.view.close)
+
+    def open(self, files=None, **over):
+        self.session = confirm.ConfirmSession(parse_bundle(files, **over), clipboard=self.view.set_clipboard)
+        self.view.open(self.session)
+        self.w = self.view.widgets
+        return self.session
+
+    def wake(self, seconds=3.0):
+        self.clock.advance(seconds)
+        self.view.pump()
+
+    def pick(self, index):
+        """사람이 목록의 한 줄을 누른 것처럼."""
+        items = self.w["items"]
+        items.selection_clear(0, "end")
+        items.selection_set(index)
+        items.event_generate("<<ListboxSelect>>")
+        self.view.root.update()
+
+    def shown(self):
+        return self.w["text"].get("1.0", "end-1c")
+
+    def test_the_list_starts_on_the_manifest(self):
+        self.open()
+        items = self.w["items"]
+        self.assertEqual(items.size(), 4)
+        lines = items.get(0, "end")
+        self.assertTrue(lines[0].startswith(" √ MANIFEST.md"), lines[0])
+        self.assertTrue(all(line.startswith(" ○ F0") for line in lines[1:]), lines)
+        self.assertEqual(self.shown(), MANIFEST)
+        self.assertEqual(tuple(int(i) for i in items.curselection()), (0,))
+        self.assertIn("MANIFEST.md", self.w["item"]["text"])
+        for line in lines:
+            for word in LEAK_WORDS:
+                self.assertNotIn(word, line)                                  # 목록에는 이름 · 수만
+
+    def test_picking_an_item_shows_its_bytes_exactly(self):
+        s = self.open()
+        self.pick(1)
+        self.assertEqual(self.shown(), FILES[0]["text"])
+        text = self.w["text"]
+        ranges = text.tag_ranges("token")
+        self.assertEqual([text.get(str(a), str(b)) for a, b in zip(ranges[0::2], ranges[1::2])], ["PH_K7Q2", "PH_M3X9"])
+        self.assertEqual(str(text.cget("state")), "disabled")
+        text.insert("end", "끼워 넣기")
+        self.assertEqual(self.shown(), FILES[0]["text"])
+        self.pick(3)
+        self.assertEqual(self.shown(), FILES[2]["text"])
+        self.assertEqual((s.selected, s.unviewed), (3, 1))
+        self.assertTrue(self.w["items"].get(3).startswith(" √ F03.csv"))
+        self.assertIn("F03.csv", self.w["item"]["text"])
+        self.pick(0)
+        self.assertEqual(self.shown(), MANIFEST)
+
+    def test_hidden_characters_are_shown_in_a_file(self):
+        files = copy.deepcopy(FILES)
+        files[1]["text"] = "x = 1​\r\n"
+        self.open(files)
+        self.pick(2)
+        self.assertEqual(self.shown(), "x = 1[U+200B][U+000D]\n")
+
+    def test_send_wakes_only_after_every_item_is_opened(self):
+        s = self.open()
+        self.wake()
+        self.assertEqual(str(self.w["send"]["state"]), "disabled")
+        self.assertIn("아직 안 본 파일 3개", self.w["message"]["text"])
+        self.w["send"].invoke()
+        self.assertIsNone(s.decision)
+        for i in (1, 2):
+            self.pick(i)
+        self.view.pump()
+        self.assertEqual(str(self.w["send"]["state"]), "disabled")
+        self.assertIn("아직 안 본 파일 1개", self.w["message"]["text"])
+        self.pick(3)
+        self.view.pump()
+        self.assertEqual(str(self.w["send"]["state"]), "normal")
+        self.assertEqual(self.w["message"]["text"], "")
+        self.w["send"].invoke()
+        self.assertEqual(s.decision, "send")
+
+    def test_enter_on_the_list_never_sends(self):
+        s = self.open()
+        for i in (1, 2, 3):
+            self.pick(i)
+        self.wake()
+        self.assertEqual(str(self.w["send"]["state"]), "normal")
+        root = self.view.root
+        self.w["items"].focus_force()
+        root.update()
+        for sequence in ("<Return>", "<KP_Enter>", "<space>"):
+            self.w["items"].event_generate(sequence)
+            root.update()
+        self.assertIsNone(s.decision)
+        self.assertEqual(str(root.tk.call("focus", "-lastfor", ".")), str(self.w["items"]))
+
+    def test_the_default_focus_is_still_discard(self):
+        self.open()
+        self.view.root.update()
+        self.assertEqual(str(self.view.root.tk.call("focus", "-lastfor", ".")), str(self.w["discard"]))
+
+    def test_a_pick_after_the_deadline_changes_nothing(self):
+        s = self.open(timeout_s=30)
+        self.wake(31.0)
+        self.assertEqual(s.decision, "timeout")
+        self.pick(2)
+        self.assertEqual((s.selected, s.unviewed), (0, 3))
+        self.assertEqual(self.shown(), MANIFEST)
+
+    def test_the_big_numbers_and_the_safety_net(self):
+        self.open(stats=dict(stats_of(FILES), tokens=7, marked=5, auto=2))
+        got = [self.w["stat_" + k]["text"] for k in ("files", "bytes", "tokens", "auto")]
+        self.assertEqual(got, ["3", str(stats_of(FILES)["bytes"]), "7", "2"])
+        self.assertGreater(self.w["stat_files"].winfo_reqheight(), self.w["info"].winfo_reqheight())       # 크게
+        self.assertIn("표시한 곳 5개", self.w["marks"]["text"])
+        labels = [wd["text"] for wd in all_widgets(self.view.root) if wd.winfo_class() == "Label"]
+        self.assertIn(" ‼ ", labels)                                          # 자동 가림이 있으면 밝은 칩
+        self.assertTrue(any("자동 가림 2개" in t for t in labels))
+        self.assertTrue(any("outbox/J-0007/" in t for t in labels))
+        self.view.close()
+        self.view = confirm.TkView(self.tk, clock=self.clock)
+        self.open()
+        labels = [wd["text"] for wd in all_widgets(self.view.root) if wd.winfo_class() == "Label"]
+        self.assertNotIn(" ‼ ", labels)
+        self.assertFalse(any("자동 가림" in t for t in labels))
+
+    def test_twenty_files_fit_the_screen(self):
+        self.open(n_files(20, size=4000), stats=dict(stats_of(n_files(20, size=4000)), auto=4))
+        root = self.view.root
+        self.assertEqual(self.w["items"].size(), 21)
+        self.assertLessEqual(root.winfo_reqheight(), root.winfo_screenheight() - 120)
+        self.assertLessEqual(root.winfo_reqwidth(), root.winfo_screenwidth())
+        for key in ("send", "edit", "discard", "time", "items", "text"):
+            self.assertTrue(self.w[key].winfo_ismapped(), key)
+        self.pick(20)
+        self.assertEqual(self.shown(), n_files(20, size=4000)[19]["text"])
+
+    def test_every_color_is_navy_lime_or_gray(self):
+        self.open(checks={"ok": False, "hits": [{"check": "R1", "count": 1, "where": ["F01:L2"]}]},
+                  stats=dict(stats_of(FILES), auto=1))
+        self.pick(1)
+        self.wake()
+        seen = 0
+        for widget in all_widgets(self.view.root):
+            for option in COLOR_OPTIONS:
+                try:
+                    value = widget.cget(option)
+                except self.tk.TclError:
+                    continue
+                if not str(value):
+                    continue
+                r, g, b = (v >> 8 for v in widget.winfo_rgb(str(value)))
+                self.assertTrue(color_ok(r, g, b), "%s %s=%s" % (widget, option, value))
+                seen += 1
+        items = self.w["items"]
+        for i in range(items.size()):
+            value = items.itemcget(i, "foreground")
+            r, g, b = (v >> 8 for v in items.winfo_rgb(value))
+            self.assertTrue(color_ok(r, g, b), "item %d %s" % (i, value))
+        self.assertGreater(seen, 60)
 
 
 if __name__ == "__main__":
