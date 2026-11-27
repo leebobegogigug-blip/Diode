@@ -22,7 +22,10 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
+sys.path.insert(0, REPO)
 import run_kit as rk  # noqa: E402
+from diodelib import audit  # noqa: E402
+from diodelib import hub as diode_hub  # noqa: E402
 
 ROOM_SETTINGS = {
     "autoMemoryEnabled": False,
@@ -83,6 +86,21 @@ def scenarios(lay):
                  '"format":1,"halted":false,"project":"P-0001","sent_bytes":0}' % word
     vault_cat = ('cd "$LOCALAPPDATA" && cat diode/vault/P-0001.vault' if os.name == "nt"
                  else "cd ~/.local/share && cat diode/vault/P-0001.vault")
+    # 가린 묶음 (SP-20) - 방 outbox/J-0001/ 에 진짜 허브가 쓰는 꼴 그대로: 가린 파일 (토큰 꼴 합성 글) + MANIFEST.md.
+    # "confirm" 의 파일은 데이터 폴더 감사 기록에 out · bundle · sent 로 남긴다 (허브 take_bundle 과 같은 꼴 · AL-13).
+    box = os.path.join(lay["room"], "outbox", "J-0001")
+    f01 = "# 가린 묶음 F01 (합성)\ndef PH_W8N4(rows):\n    return sum(r[PH_M3X9] for r in rows)\n"
+    manifest = diode_hub.manifest_text("J-0001", "", [{"name": "F01.py", "type": "code", "text": f01}])
+    sent = {os.path.join(box, "F01.py"): f01, os.path.join(box, "MANIFEST.md"): manifest}
+    unconfirmed = dict(sent)                       # 안쪽 프로그램이 확정 없이 outbox 에 직접 쓴 파일 (원자료 카나리아)
+    unconfirmed[os.path.join(box, "F02.py")] = "%s\n" % rk.CANARY["raw_text"]
+    with_vault = dict(sent)                        # 금고에는 진짜 값 (사전 단어) 과 원래 이름 (원자료 이름 카나리아) 이 있다
+    with_vault[vault_file] = 'DIODE-VAULT-1\nplain\n{"entries":[{"kind":"word","real":"%s","token":"PH_W8N4"}],' \
+        '"files":[{"name":"F01.py","real":"kitsrc/%s.py"}],"format":1,"halted":false,"project":"P-0001",' \
+        '"sent_bytes":0}' % (word, rk.CANARY["raw_name"])
+    listing = {"reports": [{"job": "J-0001", "kind": "bundle", "files": [
+        {"name": "MANIFEST.md", "type": "manifest", "bytes": len(manifest.encode("utf-8"))},
+        {"name": "F01.py", "type": "code", "bytes": len(f01.encode("utf-8"))}]}]}
     return [
         {"id": "R01", "what": "대조: 방 · 깨끗한 말 → 모델 요청이 간다", "cwd": "room", "prompt": "안녕", "expect": "requests"},
         {"id": "R06", "what": "방 · 사전 단어 (변형) → 막힘", "cwd": "room", "prompt": "이건 kit-word alpha 야",
@@ -123,6 +141,20 @@ def scenarios(lay):
          "cwd": "other", "prompt": "실행해", "server": "tool", "tool": "Bash",
          "tool_input": {"command": vault_cat, "description": "kit"}, "write": {vault_file: vault_text},
          "args": ["--allowedTools", "Bash"], "expect": "deny_nodict"},
+        {"id": "R29", "what": "방 · 확정된 가린 묶음 파일 (outbox/J-0001/F01.py) Read → 허락 · 토큰 꼴 글이 Claude 에게 닿는다 (SP-20 · AL-13)",
+         "cwd": "room", "prompt": "읽어", "server": "tool", "tool": "Read",
+         "tool_input": {"file_path": os.path.join(box, "F01.py")}, "write": sent, "confirm": sorted(sent),
+         "args": ["--allowedTools", "Read"], "expect": "tool_result", "want": ["def PH_W8N4(rows):"]},
+        {"id": "R30", "what": "방 · 같은 폴더의 확정 기록 없는 파일 (F02.py) Read → deny · 그 안의 카나리아가 Claude 에게 가지 않는다",
+         "cwd": "room", "prompt": "읽어", "server": "tool", "tool": "Read",
+         "tool_input": {"file_path": os.path.join(box, "F02.py")}, "write": unconfirmed, "confirm": sorted(sent),
+         "args": ["--allowedTools", "Read"], "expect": "deny", "deny_word": "확정되지 않은 outbox"},
+        {"id": "R31", "what": "방 · 허브 inbox → 가린 묶음 목록 (나가는 이름 · 종류 · 바이트) 만 · 원래 이름 · 경로 · 금고 값은 없다",
+         "cwd": "room", "prompt": "받아", "server": "steps", "vars": {"inbox": r"mcp__plugin_diode_hub__inbox"},
+         "steps": [{"tool": "ToolSearch", "input": {"query": "select:{inbox}", "max_results": 1}},
+                   {"tool": "{inbox}", "input": {}}],
+         "write": with_vault, "confirm": sorted(sent), "args": ["--allowedTools", "mcp__plugin_diode_hub__inbox"],
+         "expect": "tool_result", "want": [json.dumps(listing, separators=(",", ":"))]},
         {"id": "R19", "what": "보통 폴더 · 플러그인 소스 폴더에 새 파일 Write → deny · 파일이 안 생김 (세션 중 훅 · 허브를 스스로 고치지 못함)",
          "cwd": "other", "prompt": "고쳐", "server": "tool", "tool": "Write",
          "tool_input": {"file_path": os.path.join(REPO, "kit", "out", "r19-new-file.txt"), "content": "x"},
@@ -211,10 +243,20 @@ def run_one(sc, a, work, lay):
         seed_data(home, lay)
     sc = dict(sc)
     sc["write"] = {wp.replace("{HOME}", home): wt for wp, wt in (sc.get("write") or {}).items()}
+    made = []                                                  # 이 시나리오가 새로 만든 폴더 (끝나고 비었으면 지운다)
     for wp, wt in sc["write"].items():
+        d = os.path.dirname(wp)
+        while d and not os.path.isdir(d) and d not in made:
+            made.append(d)
+            d = os.path.dirname(d)
         os.makedirs(os.path.dirname(wp), exist_ok=True)
-        with open(wp, "w", encoding="utf-8") as f:
+        with open(wp, "w", encoding="utf-8", newline="") as f:     # 바이트 그대로 (확정 기록의 해시와 같게)
             f.write(wt)
+    for cp in sc.get("confirm") or []:                          # 허브 take_bundle 이 남기는 꼴: 파일마다 out · bundle · sent 한 건
+        with open(cp, "rb") as f:
+            text = f.read().decode("utf-8")
+        audit.record(data_dir_of(home), os.path.basename(os.path.dirname(cp)), "out", "bundle", "room", "sent",
+                     text=text, checks=[{"check": "D7", "verdict": "pass"}])
     local = os.path.join(lay["room"], ".claude", "settings.local.json")
     if sc.get("local_settings"):
         with open(local, "w", encoding="utf-8") as f:
@@ -244,6 +286,11 @@ def run_one(sc, a, work, lay):
         for wp in (sc.get("write") or {}):
             if os.path.exists(wp):
                 os.remove(wp)
+        for d in sorted(made, key=len, reverse=True):
+            try:
+                os.rmdir(d)
+            except OSError:
+                pass
     res = rk.analyze(out, lay, sc)
     res["stdout"] = stdout or ""
     time.sleep(0.5)
@@ -257,7 +304,7 @@ def run_one(sc, a, work, lay):
     if sc["expect"] == "none":
         ok = n == 0
     elif sc["expect"] == "deny":
-        ok = "DIODE" in trs and not leaked and not created
+        ok = "DIODE" in trs and sc.get("deny_word", "") in trs and not leaked and not created
     elif sc["expect"] == "deny_nodict":
         ok = "DIODE" in trs and "dict_word" not in res["found"] and not leaked
     elif sc["expect"] == "window_unavailable":
@@ -268,6 +315,10 @@ def run_one(sc, a, work, lay):
     elif sc["expect"] == "cmd_status":
         body = json.dumps([d.get("body") for d in rk.load_dumps(out)], ensure_ascii=False)
         ok = n > 0 and "결과:" in body and "CLAUDE_PLUGIN_ROOT" not in body.replace("${CLAUDE_PLUGIN_ROOT}/diode.py", "") \
+            and "dict_word" not in res["found"] and not leaked
+    elif sc["expect"] == "tool_result":                     # 도구 결과에 want 가 그대로 닿고 · 막힘 · 사전 단어 · 원자료가 없다
+        flat = trs.replace("\\", "").replace(" ", "")
+        ok = n > 0 and all(w.replace(" ", "") in flat for w in sc["want"]) and "DIODE" not in trs \
             and "dict_word" not in res["found"] and not leaked
     elif sc["expect"] == "hub_e01":
         ok = '{"sent":false,"error":"E-01"}' in trs.replace(" ", "").replace("\\", "") and not leaked

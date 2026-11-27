@@ -72,7 +72,7 @@ jobs:
       - name: 처음부터 끝까지 (설치 → 설정 → 방 → 훅 · 허브) I1–I6
         shell: bash
         run: python kit/run_install.py --claude "$CLAUDE_BIN"
-      - name: 훅 시나리오 R01–R25 (진짜 CLI · 가짜 서버)
+      - name: 훅 시나리오 R01–R31 (진짜 CLI · 가짜 서버)
         if: always()
         shell: bash
         timeout-minutes: 30
