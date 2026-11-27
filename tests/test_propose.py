@@ -102,6 +102,129 @@ class Propose(Base):
                          {"queued": False, "error": "E-20"})
 
 
+# 합성 카나리아 (가린 묶음) - 대기열 · 출력 어디에도 있으면 안 된다
+K_WORD = "KITPROPOSEWORDQ"
+K_IDENT = "kitProposeCalcQ"
+K_NUMBER = "731337"
+K_DIR = "kitsrcq"
+K_FILE = "kitpropose_secret_mod.py"
+O, C = "\u27e6", "\u27e7"
+
+
+class ProposeBundle(Base):
+    """propose bundle.json (SP-20) - 가리기는 안쪽 프로세스에서 · 대기열에는 가린 바이트만."""
+
+    def setUp(self):
+        Base.setUp(self)
+        from diodelib import vault
+        self.vault = vault
+        self.work = os.path.join(self.tmp, "opencode-work")
+        os.makedirs(os.path.join(self.work, K_DIR))
+        with open(os.path.join(self.work, K_DIR, K_FILE), "w", encoding="utf-8", newline="\n") as f:
+            f.write("def %si:%s%s():\n    return %sn:%s%s  # %s%s%s\n" % (O, K_IDENT, C, O, K_NUMBER, C, O, K_WORD, C))
+        with open(os.path.join(self.work, "kitnotes.md"), "w", encoding="utf-8", newline="\n") as f:
+            f.write("%s%s%s 와 KITWORDALPHA 의 계산\n" % (O, K_WORD, C))      # 사전 단어는 자동 가림
+
+    def manifest(self, **kw):
+        m = {"format": 1, "kind": "bundle", "note": "계산 함수를 고쳐 달라",
+             "files": [{"path": K_DIR + "/" + K_FILE, "type": "code"}, {"path": "kitnotes.md", "type": "doc"}]}
+        m.update(kw)
+        return m
+
+    def run_propose(self, man):
+        p = os.path.join(self.work, "bundle.json")
+        with open(p, "w", encoding="utf-8") as f:
+            json.dump(man, f, ensure_ascii=False)
+        code, line = propose.main_propose(p, home=self.home)
+        for c in (K_WORD, K_IDENT, K_NUMBER, K_DIR, K_FILE, "kitnotes", "KITWORDALPHA", self.tmp):
+            self.assertNotIn(c, line)
+        return code, json.loads(line)
+
+    def test_no_open_project_is_e33(self):
+        self.assertEqual(self.run_propose(self.manifest()), (2, {"queued": False, "error": "E-33"}))
+        self.assertEqual(self.queue(), [])
+
+    def test_queued_file_has_only_masked_bytes(self):
+        self.vault.open_project(self.home, False)
+        self.assertEqual(self.run_propose(self.manifest()), (0, {"queued": True, "bundle": True}))
+        q = self.queue()
+        self.assertEqual(len(q), 1)
+        self.assertTrue(q[0].startswith("bundle-"))
+        path = os.path.join(self.home, "queue", q[0])
+        if os.name != "nt":
+            self.assertEqual(stat.S_IMODE(os.stat(path).st_mode), 0o600)
+        with open(path, "rb") as f:
+            raw = f.read()
+        for c in (K_WORD, K_IDENT, K_NUMBER, K_DIR, K_FILE, "kitnotes", "KITWORDALPHA", self.work, "\u27e6"):
+            self.assertNotIn(c.encode("utf-8"), raw)        # 원본 바이트 · 원래 이름 · 경로 · 표시가 없다
+        d = json.loads(raw.decode("utf-8"))
+        self.assertEqual(set(d), {"format", "kind", "project", "job", "note", "files", "stats"})
+        self.assertEqual((d["kind"], d["project"], d["job"]), ("bundle", "P-0001", None))
+        self.assertEqual([(f["name"], f["type"]) for f in d["files"]], [("F01.py", "code"), ("F02.md", "doc")])
+        self.assertEqual(d["stats"]["files"], 2)
+        self.assertGreaterEqual(d["stats"]["auto"], 1)
+        self.assertEqual(self.vault.project_status(self.home)["files"], 2)       # 원래 이름은 금고에만
+
+    def test_job_is_optional(self):
+        self.vault.open_project(self.home, False)
+        self.assertEqual(self.run_propose(self.manifest(job="J-0007")), (0, {"queued": True, "job": "J-0007"}))
+        self.assertTrue(self.queue()[0].startswith("J-0007-"))
+        self.assertEqual(self.run_propose(self.manifest(job="7"))[1], {"queued": False, "error": "E-04", "where": ["job"]})
+
+    def test_hits_have_no_words(self):
+        self.vault.open_project(self.home, False)
+        with open(os.path.join(self.work, "kitnotes.md"), "w", encoding="utf-8", newline="\n") as f:
+            f.write("값 8642 는 표시하지 않았다\n")           # 금고에 없는 수 (금고 값이면 자동 가림이 가린다)
+        code, res = self.run_propose(self.manifest())
+        self.assertEqual(code, 2)
+        self.assertFalse(res["queued"])
+        self.assertIn({"check": "R4", "count": 1, "where": ["F02:L1"]}, res["hits"])
+        self.assertEqual(self.queue(), [])
+
+    def test_bad_marks_and_shapes_are_e04_with_places_only(self):
+        self.vault.open_project(self.home, False)
+        with open(os.path.join(self.work, "kitnotes.md"), "w", encoding="utf-8", newline="\n") as f:
+            f.write("첫 줄\n%s%s 닫지 않음\n" % (O, K_WORD))
+        self.assertEqual(self.run_propose(self.manifest()), (2, {"queued": False, "error": "E-04", "where": ["files[1]:L2"]}))
+        for man in (self.manifest(files=[{"path": "../x.md", "type": "doc"}]), self.manifest(extra=1),
+                    self.manifest(files=[{"path": "kitnotes.md", "type": "raw"}])):
+            code, res = self.run_propose(man)
+            self.assertEqual((code, res["error"]), (2, "E-04"))
+        with open(os.path.join(self.work, "kitnotes.md"), "w", encoding="utf-8", newline="\n") as f:
+            f.write("")
+        self.assertEqual(self.run_propose(self.manifest())[1], {"queued": False, "error": "E-04", "where": ["files[1]"]})
+        self.assertEqual(self.queue(), [])
+
+    def test_queue_limit_is_4_mib_for_bundles(self):
+        self.vault.open_project(self.home, False)
+        self.assertEqual(propose.MAX_BUNDLE_QUEUE_BYTES, 4 * 1024 * 1024)
+        self.assertEqual(hub.QUEUE_MAX_BUNDLE_BYTES, propose.MAX_BUNDLE_QUEUE_BYTES)
+        saved = propose.MAX_BUNDLE_QUEUE_BYTES
+        propose.MAX_BUNDLE_QUEUE_BYTES = 200                     # 상한을 줄여 넘김을 본다 (실행 코드에는 바꾸는 길이 없다)
+        try:
+            self.assertEqual(self.run_propose(self.manifest()), (2, {"queued": False, "error": "E-04"}))
+        finally:
+            propose.MAX_BUNDLE_QUEUE_BYTES = saved
+        self.assertEqual(self.queue(), [])
+
+    def test_halted_project_is_refused(self):
+        self.vault.open_project(self.home, False)
+        with self.vault.Vault.locked(self.home, False) as v:
+            v.halt()
+        self.assertEqual(self.run_propose(self.manifest()), (2, {"queued": False, "error": "E-20"}))
+
+    def test_big_queue_files_of_other_sessions_are_left(self):
+        d = os.path.join(self.home, "queue")
+        os.makedirs(d)
+        with open(os.path.join(d, "J-0042-1.json"), "w", encoding="utf-8") as f:
+            f.write(json.dumps({"kind": "bundle", "pad": "x" * (hub.QUEUE_MAX_BYTES + 10)}))
+        room = os.path.join(self.tmp, "room")
+        make_room(room)
+        h = hub.Hub(room, hub.Parts())
+        self.assertEqual(hub.poll_queue(h, self.home), 0)
+        self.assertEqual(self.queue(), ["J-0042-1.json"])
+
+
 class FakeWorker(object):
     def check(self):
         return True

@@ -169,6 +169,19 @@ class AuditTest(unittest.TestCase):
         for j in st:
             self.assertEqual(set(j), {"job", "state"})
 
+    def test_bundle_files_are_confirmed_and_report_the_job(self):
+        sink = audit.sink(self.home)
+        for text in ("PH_K7Q2 의 글\n", "# MANIFEST J-0007\n"):
+            sink({"job": "J-0007", "direction": "out", "kind": "bundle", "decision": "sent", "text": text,
+                  "sha256": audit.sha256_text(text), "checks": [{"check": "D7", "verdict": "pass"}]})
+        self.assertEqual(audit.confirmed_hashes(self.home),
+                         set(audit.sha256_text(t) for t in ("PH_K7Q2 의 글\n", "# MANIFEST J-0007\n")))
+        self.assertEqual(audit.job_states(self.home), [{"job": "J-0007", "state": "reported"}])
+        with self.assertRaises(audit.AuditError):           # 원래 이름 · 경로를 받을 칸이 없다
+            sink({"job": "J-0007", "direction": "out", "kind": "bundle", "decision": "blocked", "name": "x"})
+        with self.assertRaises(audit.AuditError):
+            sink({"job": "J-0007", "direction": "out", "kind": "bundle", "decision": "sent"})       # 글 없이 sent 없음
+
     def test_sink_for_hub(self):
         sink = audit.sink(self.home)
         p = sink({"job": "J-0007", "direction": "dispatch", "decision": "sent", "text": "지시 PH_K7Q2",

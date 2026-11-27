@@ -134,6 +134,12 @@ class JudgeTest(unittest.TestCase):
         self.assertTrue(body["messages"][0]["content"].startswith("당신은 사내 보안 판정기다."))
         self.assertEqual(req["headers"].get("Authorization"), "Bearer " + FAKE_KEY)
 
+    def test_bundle_kind_sends_appendix_a2(self):
+        self.llm.mode = "pass"
+        r = judge.judge(TEXT, self.cfg, timeout=5, kind="bundle")
+        self.assertEqual(r["verdict"], "pass")
+        self.assertEqual(self.llm.requests[-1]["body"]["messages"][0]["content"], judge.PROMPT_BUNDLE % TEXT)
+
     def test_block(self):
         r = self.run_mode("block")
         self.assertEqual(r, {"check": "D7", "verdict": "block", "reason": "number"})
@@ -224,6 +230,18 @@ class JudgeTest(unittest.TestCase):
             self.assertEqual(r["verdict"], "block")
         self.assertEqual(self.llm.requests, [])
 
+    def test_bundle_chunks_up_to_64_kib(self):
+        """가린 묶음의 조각 (SP-20) 만 64 KiB 까지 묻는다 - 기본은 펼친 글 8 KiB · 상한보다 크게는 못 늘린다."""
+        self.llm.mode = "pass"
+        mid = "가" * 5000                                           # 15,000 B
+        self.assertEqual(judge.judge(mid, self.cfg)["verdict"], "block")
+        self.assertEqual(self.llm.requests, [])
+        self.assertEqual(judge.judge(mid, self.cfg, max_bytes=judge.MAX_CHUNK_BYTES)["verdict"], "pass")
+        self.assertEqual(len(self.llm.requests), 1)
+        huge = "가" * (judge.MAX_CHUNK_BYTES // 3 + 1)
+        self.assertEqual(judge.judge(huge, self.cfg, max_bytes=10 ** 9)["verdict"], "block")
+        self.assertEqual(len(self.llm.requests), 1)
+
     def test_connect_fail_blocks(self):
         self.cfg["base_url"] = "http://127.0.0.1:1/v1"
         r = judge.judge(TEXT, self.cfg, timeout=2)
@@ -258,3 +276,21 @@ class JudgeTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BundlePrompt(unittest.TestCase):
+    """부록 A2 (가린 파일 묶음 조각) — SPEC 과 글자 하나까지 같고, kind 로 고른다 (SP-20)."""
+
+    def test_same_as_spec_appendix_a2(self):
+        spec = open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "docs", "SPEC.md"),
+                    encoding="utf-8").read()
+        i = spec.index("### 부록 A2")
+        body = spec[spec.index("```text", i) + len("```text\n"):]
+        body = body[:body.index("```")].rstrip("\n").replace("<가린 파일의 조각>", "%s")
+        self.assertEqual(body, judge.PROMPT_BUNDLE)
+
+    def test_kinds(self):
+        self.assertEqual(set(judge.PROMPTS), {"report", "bundle"})
+        self.assertIs(judge.PROMPTS["report"], judge.PROMPT)
+        self.assertEqual(judge.judge("글", {"base_url": "http://127.0.0.1:9"}, kind="nope"),
+                         {"check": "D7", "verdict": "block", "reason": "other"})

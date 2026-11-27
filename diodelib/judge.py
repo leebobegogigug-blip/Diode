@@ -24,6 +24,7 @@ CHECK = "D7"
 TIMEOUT_SEC = 60                 # SP-05 — 이보다 길게 기다리지 않는다
 MAX_ANSWER_BYTES = 1048576       # 응답 본문 상한 [제안]
 MAX_TEXT_BYTES = 8192            # 펼친 글 상한 (SP-02 와 같다)
+MAX_CHUNK_BYTES = 64 * 1024      # 가린 파일 묶음은 파일마다 이 크기의 조각으로 묻는다 (SP-20) - max_bytes 의 상한
 # 사내 LLM 이 답하는 까닭 번호 (부록 A)
 LLM_REASONS = ("name", "number", "path", "code", "other", "none")
 # 판정을 못 해 막은 까닭 번호 [제안] — 설정 없음 · 설정 꼴 · 시간 초과 · 연결 · HTTP 오류 · 답 꼴
@@ -39,6 +40,21 @@ PROMPT = (
     "%s\n"
     "[/글]"
 )
+# 가린 파일 묶음 (SP-20) 의 조각을 묻는 프롬프트 (부록 A2 · 고정 글). 부록 A 는 "코드 원문 · 수치 → block" 이라
+# 코드 · 표 묶음을 거의 다 막는다 - 묶음은 모양과 작은 수는 두고, 가려지지 않은 채 남은 사내 값만 묻는다.
+PROMPT_BUNDLE = (
+    "당신은 사내 보안 판정기다. 아래 [글] 은 회사 밖으로 보내려는 파일 (문서 · 표 · 소스 코드) 의 한 조각이고,\n"
+    "사내 값은 PH_ 로 시작하는 토큰으로 이미 가려 두었다. 토큰은 그 자체로는 문제가 아니다.\n"
+    "코드 · 표 · 문서의 모양, 0-99 의 작은 정수, 프로그래밍 언어 · 공개 라이브러리의 이름과 문법도 문제가 아니다.\n"
+    "다음 중 하나라도 가려지지 않은 채 남아 있으면 block 이다: 특정 회사 · 제품 · 공정 · 장비 · 고객 · 사람 · 사내 시스템을\n"
+    "알아볼 수 있는 이름 (식별자 · 주석 · 문자열 안 포함), 실제 사양 · 측정 · 실적으로 보이는 수치, 경로 · 주소 · 호스트 ·\n"
+    "메일 · 식별 번호, 키 · 비밀번호 · 토큰 같은 비밀, 로그 · 오류 원문.\n"
+    "답은 JSON 한 줄만: {\"verdict\": \"pass\" 또는 \"block\", \"reason\": \"name|number|path|code|other|none\"}\n"
+    "[글]\n"
+    "%s\n"
+    "[/글]"
+)
+PROMPTS = {"report": PROMPT, "bundle": PROMPT_BUNDLE}
 # 펼친 글이 프롬프트의 틀을 닫거나 새로 여는 꼴 — 보내지 않고 막는다
 _FRAME_RE = re.compile(r"\[\s*/?\s*글\s*\]")
 _THINK_RE = re.compile(r"<think>.*?</think>", re.S | re.I)
@@ -182,12 +198,12 @@ def parse_answer(content):
     return (v, r)
 
 
-def _ask(s, text, timeout, box):
+def _ask(s, text, timeout, box, prompt=PROMPT):
     """한 번 묻는다 → box["out"] = (verdict, reason). 예외는 막는 까닭 번호로."""
     try:
         body = json.dumps({"model": s["model"], "stream": False, "temperature": s["temperature"],
                            "max_tokens": s["max_tokens"],
-                           "messages": [{"role": "user", "content": PROMPT % text}]},
+                           "messages": [{"role": "user", "content": prompt % text}]},
                           ensure_ascii=False).encode("utf-8")
         headers = {"Content-Type": "application/json"}
         headers.update(s["headers"])
@@ -220,15 +236,20 @@ def _is_timeout(e):
     return False
 
 
-def judge(text, llm, timeout=None):
+def judge(text, llm, timeout=None, max_bytes=MAX_TEXT_BYTES, kind="report"):
     """펼친 글 text 를 사내 LLM 에 묻는다 → {"check": "D7", "verdict", "reason"}. 예외를 내지 않는다.
 
     timeout 은 시험용 (초) — 설정 timeout_sec 과 60초 중 작은 것보다 짧게만 줄일 수 있다.
+    max_bytes 는 묻는 글의 상한 (기본 펼친 글 8 KiB) — 가린 묶음의 조각만 MAX_CHUNK_BYTES 까지 늘린다 (그보다 크게는 못 늘린다).
+    kind 는 프롬프트 — "report" (부록 A · 펼친 글) · "bundle" (부록 A2 · 가린 파일 묶음의 조각). 모르는 값은 block.
     """
     try:
+        if kind not in PROMPTS:
+            return _block("other")
         if not isinstance(text, str) or not text.strip():
             return _block("other")
-        if len(text.encode("utf-8")) > MAX_TEXT_BYTES or _FRAME_RE.search(text):
+        limit_bytes = min(int(max_bytes), MAX_CHUNK_BYTES)
+        if len(text.encode("utf-8")) > limit_bytes or _FRAME_RE.search(text):
             return _block("other")
         try:
             s = _settings(llm)
@@ -240,7 +261,7 @@ def judge(text, llm, timeout=None):
         if timeout is not None:
             limit = min(limit, float(timeout))
         box = {}
-        t = threading.Thread(target=_ask, args=(s, text, limit, box), name="diode-d7")
+        t = threading.Thread(target=_ask, args=(s, text, limit, box, PROMPTS[kind]), name="diode-d7")
         t.daemon = True
         t.start()
         t.join(limit + 0.5)          # 전체 시간도 묶는다 (조금씩 흘려 보내는 답)
@@ -264,10 +285,10 @@ def load_llm(home):
     return cfg.get("llm")
 
 
-def judge_home(home, text, timeout=None):
+def judge_home(home, text, timeout=None, max_bytes=MAX_TEXT_BYTES, kind="report"):
     """데이터 폴더의 설정으로 판정한다. 설정을 못 읽으면 block (config)."""
     try:
         llm = load_llm(home)
     except Exception:
         return _block("config")
-    return judge(text, llm, timeout=timeout)
+    return judge(text, llm, timeout=timeout, max_bytes=max_bytes, kind=kind)

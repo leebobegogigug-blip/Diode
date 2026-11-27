@@ -15,7 +15,7 @@
 <p align="center"><sub>
 CLAUDE CODE PLUGIN · REPO 하나 = PLUGIN 하나 = MARKETPLACE 하나<br>
 Python 3.8+ · standard library only<br>
-테스트 1186 · WINDOWS + UBUNTU CI
+테스트 1231 · WINDOWS + UBUNTU CI
 </sub></p>
 
 ## Diode 는 무엇인가

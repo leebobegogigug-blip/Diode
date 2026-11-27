@@ -163,5 +163,78 @@ class RoomTest(unittest.TestCase):
             self.t.get("J-0007")
 
 
+class BundleTest(unittest.TestCase):
+    """put_bundle (SP-20) - outbox/<job>/ 에 한 번에 · 덮어쓰지 않음 · 틀리면 아무것도 남기지 않는다."""
+
+    FILES = [{"name": "F01.md", "type": "doc", "text": "PH_K7Q2 의 글\n"},
+             {"name": "F02.py", "type": "code", "text": "def PH_M3X9():\n    return 1\n"}]
+    MANIFEST = "# MANIFEST J-0007\n"
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="diode-transport-")
+        self.room = os.path.join(self.tmp, "room")
+        os.makedirs(self.room)
+        make_room(self.room)
+        self.t = transport.RoomTransport(self.room)
+        self.box = os.path.join(self.room, "outbox")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_writes_exact_bytes_in_one_folder(self):
+        self.t.put_bundle("J-0007", self.MANIFEST, self.FILES)
+        self.assertEqual(os.listdir(self.box), ["J-0007"])          # 임시 폴더가 남지 않는다
+        d = os.path.join(self.box, "J-0007")
+        self.assertEqual(sorted(os.listdir(d)), ["F01.md", "F02.py", "MANIFEST.md"])
+        home = os.path.join(self.tmp, "home")
+        for name, text in [(f["name"], f["text"]) for f in self.FILES] + [("MANIFEST.md", self.MANIFEST)]:
+            with open(os.path.join(d, name), "rb") as f:
+                raw = f.read()
+            self.assertEqual(raw, text.encode("utf-8"))
+            audit.record(home, "J-0007", "out", "bundle", "room", "sent", text=text)
+            self.assertIn(hashlib.sha256(raw).hexdigest(), audit.confirmed_hashes(home))
+
+    def test_never_overwrites(self):
+        self.t.put_bundle("J-0007", self.MANIFEST, self.FILES)
+        with self.assertRaises(transport.TransportError):
+            self.t.put_bundle("J-0007", "다른 글\n", [{"name": "F01.md", "type": "doc", "text": "다른 글\n"}])
+        with open(os.path.join(self.box, "J-0007", "F01.md"), "rb") as f:
+            self.assertEqual(f.read(), self.FILES[0]["text"].encode("utf-8"))
+        os.makedirs(os.path.join(self.box, "J-0008"))                    # 빈 폴더라도
+        with open(os.path.join(self.box, "J-0009"), "w") as f:            # 같은 이름의 파일
+            f.write("x")
+        for job in ("J-0008", "J-0009"):
+            with self.assertRaises(transport.TransportError):
+                self.t.put_bundle(job, self.MANIFEST, self.FILES)
+        self.assertEqual(os.listdir(os.path.join(self.box, "J-0008")), [])
+        self.assertEqual(sorted(os.listdir(self.box)), ["J-0007", "J-0008", "J-0009"])
+
+    def test_bad_input_leaves_nothing(self):
+        big = "가" * (transport.MAX_BUNDLE_FILE_BYTES // 3 + 1)
+        bad = [("J-7", self.MANIFEST, self.FILES), ("J-0007", "", self.FILES), ("J-0007", self.MANIFEST, []),
+               ("J-0007", self.MANIFEST, [{"name": "../F01.md", "type": "doc", "text": "x"}]),
+               ("J-0007", self.MANIFEST, [{"name": "MANIFEST.md", "type": "doc", "text": "x"}]),
+               ("J-0007", self.MANIFEST, [{"name": "F01.md", "type": "doc", "text": "x"},
+                                          {"name": "f01.MD", "type": "doc", "text": "y"}]),
+               ("J-0007", self.MANIFEST, [{"name": "F01.md", "type": "raw", "text": "x"}]),
+               ("J-0007", self.MANIFEST, [{"name": "F01.md", "type": "doc", "text": ""}]),
+               ("J-0007", self.MANIFEST, [{"name": "F01.md", "type": "doc", "text": big}]),
+               ("J-0007", self.MANIFEST, [{"name": "F%02d.md" % i, "type": "doc", "text": "x"} for i in range(1, 22)]),
+               ("J-0007", self.MANIFEST, [{"name": "F01.md", "type": "doc", "text": "x", "path": "a"}])]
+        for args in bad:
+            with self.assertRaises(transport.TransportError):
+                self.t.put_bundle(*args)
+        self.assertEqual(os.listdir(self.box), [])
+        with self.assertRaises(transport.TransportError):
+            transport.ClipboardTransport().put_bundle("J-0007", self.MANIFEST, self.FILES)
+
+    def test_changed_room_refused(self):
+        with open(os.path.join(self.room, ".claude", "settings.json"), "a", encoding="utf-8") as f:
+            f.write(" ")
+        with self.assertRaises(transport.TransportError):
+            self.t.put_bundle("J-0007", self.MANIFEST, self.FILES)
+        self.assertEqual(os.listdir(self.box), [])
+
+
 if __name__ == "__main__":
     unittest.main()

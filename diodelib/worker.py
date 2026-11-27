@@ -14,6 +14,9 @@ opencode 를 어떻게 설치했든 (명령줄 · 서버) 같은 자리에서 �
   돌고, 결과는 일꾼이 `diode.py propose` 로만 낸다. 허브는 기다리지 않는다.
 - 첨부는 방 `work\\` 의 파일 이름만 받아 안쪽 작업 폴더로 복사한다 (이름은 한 칸 · 덮어쓰지 않음). 바깥으로 부르는 코드
   (U3) 가 든 첨부는 확정 창 전에 허브가 막으므로 (hub.check_attachments) 여기서는 복사만 한다.
+- 열린 작업 묶음 (SP-20) 이 있을 때 허브는 첨부를 이름 대신 `(되돌린 상대 경로, 되돌린 글)` 짝으로 넘긴다. 그 글은 금고로 토큰을
+  진짜 값으로 바꾼 것이라 안쪽 작업 폴더의 `restored\\<상대 경로>` 에만 쓴다 (폴더를 만들고 · 덮어쓰지 않고 `-2` · `-3` ·
+  `..` · 절대 경로 · 드라이브 · 빈 칸 · 작업 폴더 밖을 가리키는 링크는 거절 · unseal.write_new). 되돌린 글은 어디에도 찍지 않는다 (AL-14).
 - `check()` 는 실행 파일이 PATH 에서 찾아지는지만 본다 (띄워 보지 않는다).
 - **Windows 의 `.cmd` · `.bat` 껍데기 (npm 으로 깐 opencode 가 보통 그렇다)**: 이것을 부르면 `cmd.exe` 가 인자를 다시 해석한다 —
   프롬프트 (Claude 가 쓴 글) 의 `&` · `|` · `^` · `%` 가 명령이 된다 (명령 주입). 그래서 껍데기면 `{prompt}` 를 인자로 주는 설정을
@@ -22,18 +25,42 @@ opencode 를 어떻게 설치했든 (명령줄 · 서버) 같은 자리에서 �
 """
 
 import os
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
 import threading
 
+from . import unseal
+
 MAX_ARGS = 32
 MAX_ARG_LEN = 4096
+RESTORED_DIR = "restored"           # 되돌린 첨부를 쓰는 작업 폴더 안의 자리 (SP-20)
+MAX_RESTORED_PATH = 1024            # 되돌린 상대 경로의 글자 수 (금고의 원래 경로 상한과 같다)
 
 
 class WorkerConfigError(Exception):
     pass
+
+
+_DRIVE_RE = re.compile(r"^[A-Za-z]:")
+_WINDOWS_DEVICES = frozenset(["con", "prn", "aux", "nul"] + ["com%d" % i for i in range(1, 10)]
+                             + ["lpt%d" % i for i in range(1, 10)])
+
+
+def restored_parts(rel):
+    """되돌린 상대 경로 → 조각 목록. 경로 탈출이면 ValueError: 빈 글 · NUL · 줄바꿈 · 절대 경로 · 드라이브 (D:) · 콜론 ·
+    빈 조각 · . · .. · 끝이 점 · 빈칸인 조각 (Windows 가 지워 다른 이름이 된다) · Windows 장치 이름 (CON · NUL …).
+    / 와 \\ 를 모두 나눈다."""
+    if not isinstance(rel, str) or not rel or len(rel) > MAX_RESTORED_PATH or "\x00" in rel or ":" in rel \
+            or any(ch in rel for ch in "\r\n") or _DRIVE_RE.match(rel) or rel[0] in "/\\":
+        raise ValueError("되돌린 경로")
+    parts = re.split(r"[/\\]", rel)
+    for p in parts:
+        if p in ("", ".", "..") or p.endswith(".") or p.endswith(" ") or p.split(".")[0].lower() in _WINDOWS_DEVICES:
+            raise ValueError("되돌린 경로")
+    return parts
 
 
 _CMD_META = set('&|<>^%!"()')
@@ -123,13 +150,44 @@ class CommandWorker(object):
                 k += 1
             shutil.copyfile(s, target)
 
+    def _write_restored(self, dest, files):
+        """되돌린 첨부 [(상대 경로, 글)] 를 <작업 폴더>/restored/<상대 경로> 에 새로 쓴다 (덮어쓰지 않음). 틀리면 ValueError.
+
+        경로를 모두 먼저 본 뒤에 쓴다 (하나라도 틀리면 아무것도 쓰지 않는다)."""
+        base = os.path.join(dest, RESTORED_DIR)
+        plan = []
+        for item in files:
+            if not isinstance(item, (tuple, list)) or len(item) != 2 or not isinstance(item[1], str):
+                raise ValueError("되돌린 첨부")
+            plan.append((restored_parts(item[0]), item[1]))
+        root = os.path.realpath(dest)
+        for parts, text in plan:
+            folder = os.path.join(base, *parts[:-1])
+            os.makedirs(folder, exist_ok=True)
+            real = os.path.realpath(folder)
+            if os.path.commonpath([root, real]) != root:
+                raise ValueError("작업 폴더 밖")          # 미리 있던 링크 · 정션이 밖을 가리킴
+            target = os.path.join(folder, parts[-1])
+            if os.path.islink(target):
+                raise ValueError("링크")
+            unseal.write_new(target, text)
+
     def send(self, job, text, attachments):
-        """지시를 일꾼에게 넣는다 → 띄웠으면 True. 일꾼의 출력은 읽지 않는다."""
+        """지시를 일꾼에게 넣는다 → 띄웠으면 True. 일꾼의 출력은 읽지 않는다.
+
+        attachments 는 방 work 의 파일 이름 (복사) 또는 되돌린 첨부 (상대 경로, 글) 짝 (restored/ 에 씀) 의 목록 — 섞지 않는다."""
         try:
             dest = self._work_dir(job)
             if self.problem(dest) is not None:
                 return False
-            self._copy_attachments(job, attachments or [], dest)
+            items = list(attachments or [])
+            restored = [a for a in items if not isinstance(a, str)]
+            if restored and len(restored) != len(items):
+                return False
+            if restored:
+                self._write_restored(dest, restored)
+            else:
+                self._copy_attachments(job, items, dest)
             argv = [x.replace("{cwd}", dest).replace("{prompt}", text) for x in self.command]
             exe = _resolve(self.command[0], self._which)
             argv[0] = exe if exe else argv[0]                # PATH 에서 찾은 전체 경로 (Windows 의 .cmd 는 이름만으로 안 뜬다)
