@@ -4,7 +4,8 @@
 결정적 순수 함수만 둔다. 허브 · 금고 파일 · 확정 창과 잇는 일은 부르는 쪽이 한다.
 - parse_marks(text)                          ⟦값⟧ · ⟦n:값⟧ · ⟦p:값⟧ · ⟦i:값⟧ 을 읽는다. 틀린 꼴은 BundleError("E-04")
 - mask_text(text, vault, words)              표시 → 금고 토큰, 그다음 표시 밖의 사전 단어 · 금고 값을 자동으로 한 번 더 가림
-- residual_hits(masked, policy, vault, n)    잔여 검사 R1–R6 (SP-05 의 hits 꼴 · 자리는 "F02:L14")
+- residual_hits(masked, policy, vault, n, file_type=None)    잔여 검사 R1–R6 (SP-05 의 hits 꼴 · 자리는 "F02:L14")
+- code_zones(lines)                          code 형의 문자열 · 주석 구역 (R3 · R4 가 쓴다 · 아래 "code 형 파일만의 규칙")
 - build_bundle(manifest, workdir, vault, policy, words, job)    묶음 하나: 꼴 검사 → 가림 → R1–R6 · note 의 D1–D6
 - restore_text(text, vault) · restore_name(name, vault)           금고로 되돌리기 (안쪽 전용)
 - return_checks(text, vault, policy)         Claude 가 돌려준 글의 U1 · U2 · U3
@@ -18,9 +19,40 @@
   경로 · 원래 파일 이름은 쓰지 않는다 (AL-11). 가린 글 (files[].text) 은 확정 창에만 보인다 (D8).
 - 같은 입력 · 같은 금고 상태 → 같은 출력. 금고에 묻는 차례도 정해져 있다 (파일 차례 → 표시 차례 → 후보 차례 → 글 차례).
 - restore_text · restore_name 이 돌려주는 글에는 진짜 값이 있다. 안쪽 작업 폴더에만 쓴다 (AL-14).
+
+code 형 파일만의 R3 · R4 규칙 (사용자 결정 · 2026-11-27 "코드 파일의 오탐만 줄이기")
+- 까닭: doc 과 같은 R3 · R4 를 이 저장소의 Python 코드에 돌리면 줄의 3.4% 씩 걸렸다. 거의 다 진짜 경로 · 값이 아니라
+  이스케이프 ("\\n" · r"\\d" - 역슬래시 하나 규칙) · 점 찍기 (logging.info · self.test_x - 호스트 꼴) · 이름 속 숫자
+  (sha256 · utf8) · 자르기 · 사전 (a[10:20] · {1:30} - 시각 꼴) 이었다. 새는 길은 그대로 막고 헛걸림만 줄인다.
+  doc · table · file_type 없음 (None) 은 예전 그대로다.
+- 구역: 결정적인 줄 단위 어휘 분석 (code_zones). 언어를 맞히지 않고 규칙을 모두 건다 - 따옴표 ' " ` 쌍 (역슬래시
+  이스케이프 · 줄 끝 역슬래시면 다음 줄로 이어짐) · 따옴표 밖의 줄 주석 # // -- · 줄을 넘는 블록 \"\"\" ''' /* */ .
+  ` 도 줄을 넘는다 (JS 템플릿 글 · Go 날 글 - 넘기지 않으면 그 안의 줄이 구역 밖이 되어 샌다).
+  닫히지 않은 ' " 는 그 줄 끝까지 구역이다. 모를 때는 구역 쪽으로 (더 센다).
+- R3 (code): 역슬래시 하나 (이스케이프) 는 세지 않는다. 드라이브 경로 (D:\\ · D:/ - 뒤에 이름 글자가 와야 하고
+  "if x:\\n" 처럼 \\n \\t \\r 다음이 이름 글자가 아니면 이스케이프로 본다) · UNC (\\\\이름\\ · 이스케이프한
+  \\\\\\\\이름) · 이스케이프한 역슬래시로 이은 뿌리 경로 (\\\\data\\\\ - POSIX /data/ 와 짝) · 그 밖의 D3 꼴 (POSIX 절대
+  경로 · URL · IP v4 v6 · 메일 · MAC · localhost · ~/ · %NAME% · $NAME · 사용자 정규식) 은 어디서든 센다 - 다만
+  구역 밖에서 10진 숫자와 :: 뿐인 IPv6 꼴 (a[::2] · a[1::2] · x[::-1] - 자르기) 은 뺀다.
+  호스트 꼴 (점으로 이은 이름 · KNOWN_TLDS) 만 구역 (문자열 · 주석) 안에서 센다.
+- R4 (code): 이름 [A-Za-z_][A-Za-z0-9_]* 에 붙은 숫자는 숫자가 아니다 (sha256 · utf8 · x86_64 · "\\u2028").
+  숫자를 뜻하는 이스케이프 ("\\u0033" · "\\x35") 는 먼저 그 숫자로 읽는다 (이스케이프로 감춘 숫자가 새지 않게).
+  16진 리터럴은 자릿수 3 이상이면 (0xFFF) · 밑줄로 이은 수 (1_000) 는 한 수로 센다. 날짜 · 시각 꼴은 구역 안에서만 -
+  구역 밖의 a[10:20] · {1:30} 은 자르기 · 사전이다. 세 자리 이상 정수 · 소수 (100 · 1.0 · 1e5 · 350L) 는 어디서든 센다
+  (a[100:200] 의 100 · 구역 밖 2026-11-26 의 2026 도).
+- 남는 위험 (숨기지 않는다):
+  · 식별자로 쓴 호스트 이름 · 따옴표 없는 설정 글 (YAML · INI · .env 의 host = db01.example.corp) 은 구역 밖이라
+    R3 가 세지 않는다 - 그런 파일은 doc 으로 보내야 한다. 이름 속 숫자 (모델 이름 A350 · temp_350) 도 세지 않는다.
+  · 문자열 구역 판단이 틀리는 언어 - 따옴표가 다른 뜻인 언어 (Rust 의 'a · VB 주석 ') · 역슬래시가 이스케이프가 아닌
+    글 (C# @"…" · SQL '…') · 정규식 글 (/…/) · 여러 줄 규칙이 다른 언어 (Lua [[ ]] · heredoc · 줄을 넘는 ' " 글) 에서는
+    구역이 어긋날 수 있다. 넓게 어긋나면 헛걸림이 늘고, 좁게 어긋나면 그 자리의 호스트 꼴 · 날짜 · 시각이 샌다.
+  · 역슬래시 하나로 쓴 뿌리 경로 · 상대 경로 (r"\\data\\a.csv" · data\\a.csv) 는 정규식 이스케이프 (r"\\bdef\\s") 와
+    가릴 수 없어 세지 않는다 (POSIX 의 상대 경로 data/a.csv 도 R3 는 세지 않는다).
+  이 자리는 D7 (사내 LLM) 과 D8 (사람) 이 문이다.
 """
 
 import hashlib
+import ipaddress
 import os
 import re
 import stat
@@ -577,7 +609,205 @@ def token_problems(line, tokens):
     return unknown + find_broken_tokens(line) + line.count(MARK_OPEN) + line.count(MARK_CLOSE)
 
 
-def _residual(masked, policy, index, file_no, hits):
+# ---------------------------------------------------------------- code 형의 구역 · R3 · R4 (모듈 위 주석)
+
+CODE_TYPE = "code"
+# code 형 규칙 (구역 분석 · R3 · R4 완화) 을 거는 확장자 - 허용 목록 (사용자 결정 2026-11-27 의 보강).
+# 이 밖의 파일은 type 이 code 여도 doc 규칙으로 본다: 설정 글 (yaml · ini · toml · .env · json · xml · properties) 은
+# 따옴표 없는 호스트 · 경로 (host = db01.example.corp) 가 흔하고, 셸 (sh · ps1 · bat) 은 명령 인자 (ssh 호스트) 와
+# heredoc 이 구역 밖이 된다 - 구역이 좁게 어긋나면 새므로 code 규칙을 걸지 않는다 (넓은 쪽 · 헛걸림 쪽으로).
+CODE_RULE_EXTS = frozenset([
+    "py", "pyi", "js", "mjs", "cjs", "ts", "tsx", "jsx", "java", "kt", "kts", "scala", "groovy",
+    "c", "h", "cc", "cpp", "cxx", "hpp", "hh", "hxx", "cs", "go", "rs", "swift", "php", "rb", "dart", "sql"])
+
+
+def check_type(file_type, name=None):
+    """잔여 검사가 쓸 규칙의 형 - code 인데 이름의 확장자가 CODE_RULE_EXTS 밖이면 doc (이름이 없으면 그대로)."""
+    if file_type == CODE_TYPE and name is not None:
+        ext = name.rsplit(".", 1)[1].lower() if isinstance(name, str) and "." in name else ""
+        if ext not in CODE_RULE_EXTS:
+            return "doc"
+    return file_type
+CODE_HEX_MIN_DIGITS = 3         # R4 (code) - 16진 리터럴 (0x…) 은 16진 자릿수가 이만큼 이상이면 숫자로 센다
+_LINE_COMMENTS = frozenset(["#", "//", "--"])                  # 따옴표 밖에서 줄 끝까지 주석
+_ZONE_CLOSE = {'"""': '"""', "'''": "'''", "/*": "*/", "`": "`", '"': '"', "'": "'"}
+_ONE_LINE_QUOTES = frozenset(['"', "'"])                       # 닫히지 않으면 그 줄 끝에서 닫는다 (줄 끝 역슬래시면 이어짐)
+# 따옴표 밖에서 먼저 나온 것이 이긴다. 같은 자리면 긴 것 먼저 (\"\"\" 가 " 보다 · /* 가 / 보다).
+_ZONE_OPEN_RE = re.compile(r'"""|\'\'\'|/\*|//|--|#|`|"|\'')
+_ZONE_INNER_RE = dict((c, re.compile(r"\\|" + re.escape(c))) for c in ('"""', "'''", "`", '"', "'"))
+
+
+def code_zones(lines):
+    """code 형: 줄마다 문자열 · 주석 구역 [(시작, 끝)] (줄 안의 자리 · 여는 · 닫는 글자 포함 · 차례대로).
+
+    결정적이고 언어를 맞히지 않는다 - 규칙을 모두 건다. 따옴표 밖에서: \"\"\" ''' /* ` 는 닫힐 때까지 줄을 넘고,
+    ' " 는 그 줄 안에서 닫히지 않으면 줄 끝까지 (줄 끝의 역슬래시면 다음 줄로 이어짐), # // -- 는 줄 끝까지.
+    글 안에서는 역슬래시가 다음 글자를 감춘다 (/* */ 안에서는 아니다). 줄 끝의 \\r 은 글자로 보지 않는다.
+    """
+    out = []
+    close = None            # 열린 구역의 닫는 글자 - None 이면 구역 밖
+    for line in lines:
+        s = line[:-1] if line.endswith("\r") else line
+        n = len(s)
+        zones = []
+        start = 0           # 앞 줄에서 이어진 구역은 줄 머리부터
+        cont = False
+        i = 0
+        while i < n:
+            if close is None:
+                m = _ZONE_OPEN_RE.search(s, i)
+                if m is None:
+                    break
+                if m.group(0) in _LINE_COMMENTS:
+                    zones.append((m.start(), len(line)))
+                    i = n
+                    break
+                close = _ZONE_CLOSE[m.group(0)]
+                start, i = m.start(), m.end()
+                continue
+            if close == "*/":
+                j = s.find(close, i)
+                if j < 0:
+                    break
+                i = j + len(close)
+            else:
+                m = _ZONE_INNER_RE[close].search(s, i)
+                if m is None:
+                    break
+                if m.group(0) == "\\":
+                    cont = m.end() >= n             # 줄 끝의 역슬래시 - 글이 다음 줄로 이어진다
+                    i = m.end() + 1
+                    continue
+                i = m.end()
+            zones.append((start, i))
+            close = None
+        if close is not None:
+            zones.append((start, len(line)))
+            if close in _ONE_LINE_QUOTES and not cont:
+                close = None
+        out.append(zones)
+    return out
+
+
+def _zone_pieces(line, zones):
+    """줄 -> [(조각, 구역 안인가)] (차례대로 · 이어 붙이면 줄)."""
+    out = []
+    pos = 0
+    for a, b in zones:
+        if a > pos:
+            out.append((line[pos:a], False))
+        out.append((line[a:b], True))
+        pos = b
+    if pos < len(line):
+        out.append((line[pos:], False))
+    return out
+
+
+def _d3_text(s):
+    """scan.pattern_hits 가 검사 전에 하는 접기 (NFKC · 경로 글자의 닮은 꼴)."""
+    return nfkc(s).translate(scan._PATH_FOLD)
+
+
+_D3_ONE_BACKSLASH = "\\\\"      # scan._D3_PATTERNS 의 "역슬래시 하나라도" 규칙의 정규식 글 - code 형은 아래 규칙으로 바꾼다
+_CODE_D3_ANYWHERE = tuple(rx for rx in scan._D3_PATTERNS if rx.pattern != _D3_ONE_BACKSLASH)
+_CODE_BACKSLASH_PATHS = (
+    # 드라이브 D:\ · D:\\ (D:/ 는 D3 의 규칙 그대로). 뒤에 이름 글자 · 따옴표 · 빈칸 · 끝이 와야 한다 - 정규식 r"\w:\d" ·
+    # [a-f:\-] 와 코드 글 "if x:\n" (\n \t \r 다음이 이름 글자가 아님) 은 이스케이프다. D:\new 는 경로로 센다.
+    re.compile(r"(?<![A-Za-z\\])[A-Za-z]:\\+(?=[\w$~.]|[\"'\s]|\Z)(?![ntr](?![\w$~.\-]))"),
+    re.compile(r"(?<![\\\w])\\\\[\w$][\w.$\-]*\\(?!\\)"),       # UNC \\이름\ ("\\n\\t" 처럼 뒤도 둘이면 이스케이프)
+    re.compile(r"(?<![\\\w])\\{4,}[\w$]"),                     # 이스케이프한 UNC "\\\\이름"
+    re.compile(r"(?<![\\\w])\\\\[\w$][\w.$\-]+\\\\"),           # 이스케이프한 역슬래시로 이은 뿌리 경로 "\\data\\" (/data/ 와 짝)
+)
+
+
+_V6_SLICE_RE = re.compile(r"\A[0-9]*::[0-9]*\Z")      # 구역 밖의 a[::2] · a[1::2] · x[::-1] - 자르기 (주소가 아니다)
+
+
+def _count_ipv6_code(text, outside):
+    """scan._count_ipv6 과 같다. 다만 구역 밖에서는 10진 숫자와 :: 뿐인 꼴 (자르기) 을 세지 않는다."""
+    n = 0
+    for m in scan._V6_CAND.finditer(text):
+        cand = m.group(0).strip(".")
+        if cand.count(":") < 2 or (outside and _V6_SLICE_RE.match(cand)):
+            continue
+        try:
+            ipaddress.IPv6Address(cand)
+        except ValueError:
+            continue
+        n += 1
+    return n
+
+
+def code_pattern_hits(line, zones, policy):
+    """R3 (code 형): 경로 · URL · IP · 메일 꼴은 어디서든, 호스트 꼴은 구역 (문자열 · 주석) 안에서만 센 개수.
+
+    zones 는 code_zones 가 낸 그 줄의 몫. 역슬래시 하나 (이스케이프) 는 세지 않는다 (모듈 위 주석). IPv6 는 조각마다
+    (주소는 따옴표 · 주석 글자를 넘지 않는다) - 구역 밖의 자르기 꼴 (a[::2]) 만 뺀다.
+    """
+    text = _d3_text(remove_tokens(line, " "))
+    n = 0
+    for rx in _CODE_D3_ANYWHERE + _CODE_BACKSLASH_PATHS:
+        n += sum(1 for _ in rx.finditer(text))
+    for rx in policy.compiled_patterns:
+        n += sum(1 for _ in rx.finditer(text))
+    for piece, inside in _zone_pieces(line, zones):
+        t = _d3_text(remove_tokens(piece, " "))
+        n += _count_ipv6_code(t, not inside)
+        if inside:
+            n += scan._count_hosts(t, policy.lib_allow_lower)
+    return n
+
+
+_DIGIT_ESCAPE_RE = re.compile(r"\\(?:x([0-9A-Fa-f]{2})|u([0-9A-Fa-f]{4})|U([0-9A-Fa-f]{8})|([0-7]{1,3}))")
+_HEX_LITERAL_RE = re.compile(r"(?<![A-Za-z0-9_])0[xX]([0-9A-Fa-f_]+)")
+_UNDERSCORE_NUM_RE = re.compile(r"(?<![A-Za-z0-9_])[0-9]+(?:_[0-9]+)+")
+_IDENT_RE = re.compile(r"(?<![A-Za-z0-9_])[A-Za-z_][A-Za-z0-9_]*")
+_R4_NUM_RE = re.compile(          # _R4_RE 에서 날짜 · 시각을 뺀 것 (code 형의 구역 밖)
+    r"(?P<dec>[0-9]*\.[0-9]+(?:[eE][+-]?[0-9]+)?|[0-9]+[eE][+-]?[0-9]+)"
+    r"|(?P<int>[0-9]+)")
+
+
+def _digit_escape(m):
+    """숫자 하나를 뜻하는 이스케이프 (\\x33 · \\u0663 · \\063) -> 그 ASCII 숫자. 아니면 그대로."""
+    hexa = m.group(1) or m.group(2) or m.group(3)
+    cp = int(hexa, 16) if hexa else int(m.group(4), 8)
+    if cp > 0x10FFFF or 0xD800 <= cp <= 0xDFFF:
+        return m.group(0)
+    d = _ascii_digits(nfkc(chr(cp)))
+    return d if d and all("0" <= c <= "9" for c in d) else m.group(0)
+
+
+def _count_numbers(rx, s):
+    n = 0
+    for m in rx.finditer(s):
+        run = m.group("int")
+        if run is not None and len(run) <= _FREE_INT_DIGITS and int(run) <= PAYLOAD_FREE_NUMBER_MAX:
+            continue
+        n += 1
+    return n
+
+
+def code_number_hits(line, zones):
+    """R4 (code 형): 이름에 붙은 숫자는 빼고, 날짜 · 시각 꼴은 구역 (문자열 · 주석) 안에서만 센 개수.
+
+    조각마다: 토큰 지움 → NFKC → 숫자를 뜻하는 이스케이프를 숫자로 → 16진 리터럴 (자릿수 CODE_HEX_MIN_DIGITS 이상이면
+    하나) → 밑줄로 이은 수를 한 수로 → 이름 [A-Za-z_][A-Za-z0-9_]* 을 지움 → 유니코드 숫자를 ASCII 로 →
+    구역 안은 _R4_RE (날짜 · 시각 · 소수 · 정수) · 구역 밖은 _R4_NUM_RE (소수 · 정수). 두 자리 이하 정수는 세지 않는다.
+    """
+    n = 0
+    for piece, inside in _zone_pieces(line, zones):
+        s = _DIGIT_ESCAPE_RE.sub(_digit_escape, nfkc(remove_tokens(piece, " ")))
+        for m in _HEX_LITERAL_RE.finditer(s):
+            if len(m.group(1).replace("_", "")) >= CODE_HEX_MIN_DIGITS:
+                n += 1
+        s = _HEX_LITERAL_RE.sub(" ", s)
+        s = _UNDERSCORE_NUM_RE.sub(lambda m: m.group(0).replace("_", ""), s)
+        s = _ascii_digits(_IDENT_RE.sub(" ", s))
+        n += _count_numbers(_R4_RE if inside else _R4_NUM_RE, s)
+    return n
+
+
+def _residual(masked, policy, index, file_no, hits, file_type=None):
     tag = "F%02d" % file_no
     lines = masked.split("\n")
 
@@ -588,12 +818,19 @@ def _residual(masked, policy, index, file_no, hits):
     norms = _norms(lines)
     add("R1", dict((ln, len(ks)) for ln, ks in _dict_line_hits(norms, policy).items()))
     add("R2", index.line_hits(lines, norms))
-    for check, fn in (("R3", lambda ln: scan.pattern_hits(remove_tokens(ln, " "), policy)),
-                      ("R4", number_hits),
-                      ("R5", lambda ln: secret_blob_hits(ln, policy)),
-                      ("R6", lambda ln: token_problems(ln, index.tokens))):
+    if file_type == CODE_TYPE:
+        zones = code_zones(lines)
+        r3 = lambda no, ln: code_pattern_hits(ln, zones[no - 1], policy)     # noqa: E731
+        r4 = lambda no, ln: code_number_hits(ln, zones[no - 1])              # noqa: E731
+    else:
+        r3 = lambda no, ln: scan.pattern_hits(remove_tokens(ln, " "), policy)    # noqa: E731
+        r4 = lambda no, ln: number_hits(ln)                                  # noqa: E731
+    for check, fn in (("R3", r3),
+                      ("R4", r4),
+                      ("R5", lambda no, ln: secret_blob_hits(ln, policy)),
+                      ("R6", lambda no, ln: token_problems(ln, index.tokens))):
         for no, line in enumerate(lines, 1):
-            hits.add(check, "%s:L%d" % (tag, no), fn(line))
+            hits.add(check, "%s:L%d" % (tag, no), fn(no, line))
 
 
 def _ordered(hits):
@@ -603,18 +840,23 @@ def _ordered(hits):
     return sorted(res, key=lambda h: order.index(h["check"]) if h["check"] in order else len(order))
 
 
-def residual_hits(masked, policy, vault, file_no):
+def residual_hits(masked, policy, vault, file_no, file_type=None, name=None):
     """가린 글 하나의 잔여 검사 R1-R6 -> SP-05 꼴의 hits 목록 [{"check": "R4", "count": 2, "where": ["F02:L14"]}].
 
-    file_no 는 나가는 이름의 번호 (F02.py -> 2).
+    file_no 는 나가는 이름의 번호 (F02.py -> 2). file_type 은 FILE_TYPES 의 하나 또는 None (= doc 과 같다) -
+    "code" 면 R3 · R4 가 code 형의 규칙 (모듈 위 주석 · code_zones) 을 쓴다. 그 밖의 값은 BundleError("E-20").
+    name (나가는 이름 F02.py) 을 주면 check_type 으로 확장자를 본다 - CODE_RULE_EXTS 밖이면 code 여도 doc 규칙.
+    허브는 꼭 name 을 준다 (대기열 파일의 type 을 믿지 않는다).
 
     R1 사전 (D2 정규화 · 변형) · R2 금고 값 (2글자 이상) · R3 D3 꼴 (줄마다 · 상대 경로는 세지 않는다 · 토큰은 지우고) ·
     R4 숫자 · R5 비밀 덩어리 · R6 토큰 (금고에 없음 · 깨진 꼴 · 남은 표시 기호). 줄 번호는 1부터. 값 · 단어는 넣지 않는다.
     """
     if not isinstance(policy, scan.Policy) or not isinstance(masked, str):
         raise BundleError("E-20", [], "input")
+    if file_type is not None and file_type not in FILE_TYPES:
+        raise BundleError("E-20", [], "input")
     hits = scan._Hits()
-    _residual(masked, policy, _VaultIndex(vault), int(file_no), hits)
+    _residual(masked, policy, _VaultIndex(vault), int(file_no), hits, check_type(file_type, name))
     return _ordered(hits)
 
 
@@ -771,6 +1013,7 @@ def build_bundle(manifest, workdir, vault, policy, words, job=None):
     files  manifest 차례 그대로 [{"name": "F01.md", "type", "bytes", "lines", "text", "sha256"}] - ok 가 아니면
            text · sha256 은 None (걸린 값이 남은 글을 돌려주지 않는다). bytes · lines · sha256 은 가린 글 (UTF-8) 의 것.
     hits   SP-05 꼴 · R1-R6 (자리 "F03:L14" - 나가는 이름의 번호와 줄) + note 의 D1-D6 (자리 "note"). 비면 ok.
+           파일마다 manifest 의 type 을 residual_hits 의 file_type 으로 쓴다 (code 면 R3 · R4 가 code 형 규칙).
     stats  {"files", "bytes", "marked", "auto", "tokens"} - 개수만 (tokens 는 묶음 전체의 서로 다른 토큰 수).
     note   손질한 note 한 줄 (MANIFEST.md 에 쓸 글 · 검사한 글과 같다) - ok 가 아니면 None.
 
@@ -872,7 +1115,7 @@ def _build(manifest, workdir, vault, policy, words, job):
     hits = scan._Hits()
     index = _VaultIndex(vault)
     for f, masked in zip(out_files, masked_texts):
-        _residual(masked, policy, index, int(f["name"][1:f["name"].index(".")]), hits)
+        _residual(masked, policy, index, int(f["name"][1:f["name"].index(".")]), hits, check_type(f["type"], f["name"]))
     note_text = _note_hits(note, policy, vault, hits)
     res = _ordered(hits)
     ok = not res

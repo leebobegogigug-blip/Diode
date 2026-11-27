@@ -372,6 +372,143 @@ class Residual(unittest.TestCase):
             residual_hits("a", None, self.v, 1)
 
 
+# ---------------------------------------------------------------- code 형의 R3 · R4 (헛걸림만 줄이고 새는 길은 그대로)
+
+# doc 규칙이면 걸리는데 code 형에서는 통과해야 하는 줄 - 이스케이프 · 점 찍기 · 이름 속 숫자 · 자르기
+CODE_FALSE_HITS = ('print("a\\nb")', 're.compile(r"\\d+")', "logging.info(x)", "self.test_x = 1",
+                   "h = hashlib.sha256()", "s = a[0:10]", "b = a[10:20]")
+CODE_MORE_PASS = ("os.path.join(a, b)", 'enc = "utf8"', 'arch = "x86_64"', "x = int64(3)", "h2 = 1", "d = {1:30}",
+                  's = "\\t\\r\\n"', 'r"\\w:\\d"', 'r"[0-9a-f:\\-]"', "r = x[::-1]", "y = x[1::2]", "v = 0x1F",
+                  'esc = "\\u2028\\x1b"', 'w = "\\\\n\\\\t"', 'src = "if x:\\n    return y\\n"', "# sha256 · utf8 로 잰다")
+# code 형에서도 걸려야 하는 줄 -> 검사 번호
+CODE_STILL_HIT = (
+    ('open("D:\\\\data\\\\a.csv")', "R3"), ('p = r"D:\\data\\a.csv"', "R3"), ('p = "D:/data/a.csv"', "R3"),
+    ('p = "/home/user/x"', "R3"), ("p = /home/user/x", "R3"), ('url = "http://example.com"', "R3"),
+    ("url = http://example.com", "R3"), ('host = "db01.example.corp"', "R3"), ("# 서버는 db01.example.corp", "R3"),
+    ('q = "x"  // db01.example.corp', "R3"), ("q = 1 -- db01.example.corp", "R3"), ("/* db01.example.corp */ x", "R3"),
+    ('u = "\\\\\\\\srv01\\\\share"', "R3"), ('u = r"\\\\srv01\\share"', "R3"), ('r = "\\\\proj\\\\a.csv"', "R3"),
+    ('ip = "fe80::1"', "R3"), ("ip = fe80::1", "R3"), ('lo = "::1"', "R3"), ('m = "a@example.com"', "R3"),
+    ("m = a@example.com", "R3"), ('ip = "203.0.113.5"', "R3"),
+    ("x = 350", "R4"), ("y = 1.0", "R4"), ('t = "14:30"', "R4"), ('d = "2026-11-26"', "R4"), ("a[100:200]", "R4"),
+    ("0xFFF", "R4"), ("v = 0x350", "R4"), ("n = 1_000", "R4"), ("e = 1e5", "R4"), ("n = 350L", "R4"),
+    ("f = 3.5f", "R4"), ("t = 350ms", "R4"), ('v = "v1.2.3"', "R4"), ("# 14:30 에 시작", "R4"),
+    ('s = "\\u0033\\u0035\\u0030"', "R4"), ('s = "\\x33\\x35\\x30"', "R4"), ('s = "\\63\\65\\60"', "R4"))
+
+
+class CodeType(unittest.TestCase):
+    def setUp(self):
+        self.v = FakeVault()
+        self.p = policy()
+
+    def test_code_rules_only_for_listed_extensions(self):
+        """설정 글 · 셸은 type 이 code 여도 doc 규칙 - 따옴표 없는 호스트 · 명령 인자가 구역 밖이라 새지 않게 (2026-11-27 보강)."""
+        from diodelib.bundle import check_type, CODE_RULE_EXTS
+        line = "logging.info(x)"            # code 규칙이면 통과 · doc 규칙이면 호스트 꼴로 걸린다
+        self.assertEqual(residual_hits(line, self.p, self.v, 1, file_type="code", name="F01.py"), [])
+        for name in ("F01.yaml", "F02.ini", "F03.env", "F04.toml", "F05.sh", "F06.ps1", "F07.json", "F08.txt", "F09.PY0"):
+            self.assertEqual(check_type("code", name), "doc", name)
+            self.assertIn("R3", checks_of(residual_hits(line, self.p, self.v, 1, file_type="code", name=name)), name)
+        cfg = "host = db01.example.corp"   # 따옴표 없는 설정 줄 - yaml 로 보내면 걸린다
+        self.assertIn("R3", checks_of(residual_hits(cfg, self.p, self.v, 1, file_type="code", name="F01.yaml")))
+        self.assertEqual(check_type("code", "F01.PY"), "code")             # 확장자는 대소문자 무시
+        self.assertEqual(check_type("doc", "F01.py"), "doc")
+        self.assertEqual(check_type("code"), "code")                       # 이름이 없으면 그대로
+        self.assertTrue({"py", "ts", "java", "go", "sql"} <= CODE_RULE_EXTS)
+        self.assertFalse({"sh", "yaml", "yml", "ini", "env", "json", "toml", "ps1", "bat"} & CODE_RULE_EXTS)
+
+    def hits(self, text, file_type="code", file_no=1):
+        return residual_hits(text, self.p, self.v, file_no, file_type=file_type)
+
+    def test_false_hits_pass_in_code_only(self):
+        for text in CODE_FALSE_HITS:
+            self.assertEqual(self.hits(text), [], text)
+            self.assertTrue(set(checks_of(self.hits(text, "doc"))) & {"R3", "R4"}, text)     # doc 이면 지금처럼 걸린다
+        for text in CODE_MORE_PASS:
+            self.assertEqual(self.hits(text), [], text)
+        self.assertEqual(self.hits("\n".join(CODE_FALSE_HITS + CODE_MORE_PASS) + "\n" + PY_CODE), [])
+
+    def test_leaks_still_blocked_in_code(self):
+        for text, check in CODE_STILL_HIT:
+            self.assertIn(check, checks_of(self.hits(text)), text)
+
+    def test_multiline_zones_carry_hosts_and_times(self):
+        text = ('def f():\n    """설명\n    db01.example.corp 는 14:30 에\n    """\n    logging.info(x)\n'
+                "/*\n * db01.example.corp\n */\nself.test_x = a[10:20]\n"
+                "q = `\ndb01.example.corp\n`\n"
+                's = "앞 \\\ndb01.example.corp"\n'
+                "z = db01.example.corp\n")            # 마지막 줄: 따옴표 없는 이름은 구역 밖 (남는 위험 - 모듈 위 주석)
+        self.assertEqual(self.hits(text, file_no=3), [{"check": "R3", "count": 4, "where": ["F03:L3", "F03:L7", "F03:L11",
+                                                                                            "F03:L14"]},
+                                                      {"check": "R4", "count": 1, "where": ["F03:L3"]}])
+
+    def test_unclosed_quote_ends_at_line_end(self):
+        text = "x = 'it\nlogging.info(y)\n"            # 닫히지 않은 ' 는 그 줄 끝까지 - 다음 줄은 구역 밖
+        self.assertEqual(self.hits(text), [])
+        self.assertEqual(checks_of(self.hits("x = 'db01.example.corp\n")), ["R3"])
+
+    def test_date_time_only_in_zones_numbers_everywhere(self):
+        for text in ("b = a[10:20]", "s = a[1:30:2]", "d = {1:30}", "x = 1-2-3"):
+            self.assertEqual(self.hits(text), [], text)
+        for text in ('t = "10:20"', "# 10:20", "/* 1-2-3 */", 'd = "11/26"' + " # 2026-11-26"):
+            self.assertIn("R4", checks_of(self.hits(text)), text)
+        self.assertEqual(self.hits("d = 2026-11-26"), [{"check": "R4", "count": 1, "where": ["F01:L1"]}])    # 2026 만
+        self.assertEqual(self.hits('d = "2026-11-26"'), [{"check": "R4", "count": 1, "where": ["F01:L1"]}])  # 날짜 하나
+        self.assertEqual(self.hits("a[100:200]"), [{"check": "R4", "count": 2, "where": ["F01:L1"]}])
+
+    def test_identifier_digits_and_hex(self):
+        for text in ("h = hashlib.sha256()", '"sha256"', "# utf8 로", "x86_64", "int64", "h2", "F01", "v = 0x1F",
+                     "c = 0xff", "PH_K7Q2"):
+            self.assertNotIn("R4", checks_of(self.hits(text)), text)
+        for text in ("0xFFF", "0x350", "0xFF_FF", "0X1A2", '"0xABC"'):
+            self.assertIn("R4", checks_of(self.hits(text)), text)
+
+    def test_backslash_rules(self):
+        for text in ('"a\\nb"', '"\\\\"', 'r"\\d+\\.\\d+"', 'r"\\bdef\\s+"', 'b"\\x00\\x01"', '"\\r\\n"', '"\\\\r\\\\n"',
+                     'src = "except E as e:\\n"'):
+            self.assertNotIn("R3", checks_of(self.hits(text)), text)
+            self.assertIn("R3", checks_of(self.hits(text, "doc")), text)
+        for text in ('"D:\\\\"', '"C:\\\\Users\\\\me"', '"D:\\temp"', "# D:\\new\\x", 'p = "D:\\데이터"'):
+            self.assertIn("R3", checks_of(self.hits(text)), text)
+
+    def test_other_checks_unchanged_in_code(self):
+        self.v.token_for("calcYield", "ident")
+        t = self.v.token_for("모래시계공정", "word")
+        for text, check in (('x = "KITWORDALPHA"', "R1"), ("y = calc_yield(1)", "R2"),
+                            ('key = "%s"' % _secret_b64(), "R5"), ("z = PH_ZZZZ", "R6"), ("z = " + O, "R6")):
+            self.assertIn(check, checks_of(self.hits(text)), text)
+        self.assertEqual(self.hits("%s = load(%s)" % (t, t)), [])
+
+    def test_doc_table_and_none_unchanged(self):
+        corpus = "\n".join(CODE_FALSE_HITS + CODE_MORE_PASS + tuple(t for t, _c in CODE_STILL_HIT)) + "\n" + PY_CODE
+        base = residual_hits(corpus, self.p, self.v, 1)
+        self.assertEqual(self.hits(corpus, "doc"), base)
+        self.assertEqual(self.hits(corpus, "table"), base)
+        self.assertEqual(self.hits(corpus, None), base)
+        self.assertNotEqual(self.hits(corpus), base)
+        lines = corpus.split("\n")              # 예전 규칙 그대로: 줄마다 scan.pattern_hits · number_hits
+        r3 = dict(("F01:L%d" % n, scan.pattern_hits(scan.remove_tokens(ln, " "), self.p)) for n, ln in enumerate(lines, 1))
+        r4 = dict(("F01:L%d" % n, bundle.number_hits(ln)) for n, ln in enumerate(lines, 1))
+        for h in base:
+            want = r3 if h["check"] == "R3" else r4 if h["check"] == "R4" else None
+            if want is not None:
+                self.assertEqual(h["where"], [w for w in sorted(want, key=lambda w: int(w[5:])) if want[w]])
+                self.assertEqual(h["count"], sum(want.values()))
+
+    def test_bad_file_type(self):
+        for bad in ("image", "Code", 1, ""):
+            with self.assertRaises(BundleError) as cm:
+                residual_hits("a", self.p, self.v, 1, file_type=bad)
+            self.assertEqual(cm.exception.code, "E-20")
+
+    def test_zones_lexer(self):
+        lines = ['x = "a#b" # c', 'a = """doc', "db01.example.corp", 'end""" + "x"', "/* c", "in */ y // z",
+                 's = "abc\\', "cont", "q = 'it\\'s' -- sql", 'u = "open', "next", "t = `a", "b`", "w = 1\r"]
+        got = [[ln[a:b] for a, b in zs] for ln, zs in zip(lines, bundle.code_zones(lines))]
+        self.assertEqual(got, [['"a#b"', "# c"], ['"""doc'], ["db01.example.corp"], ['end"""', '"x"'], ["/* c"],
+                               ["in */", "// z"], ['"abc\\'], ["cont"], ["'it\\'s'", "-- sql"], ['"open'], [], ["`a"],
+                               ["b`"], []])
+
+
 # ---------------------------------------------------------------- 묶음
 
 class Build(unittest.TestCase):
@@ -543,6 +680,19 @@ class Build(unittest.TestCase):
         self.assertIsNone(res["files"][0]["sha256"])
         self.assertIsNone(res["note"])
         self.assertEqual(res["stats"]["auto"], 1)
+
+    def test_file_type_reaches_residual_checks(self):
+        body = 'logging.info("a\\nb")\nh = hashlib.sha256()\ns = a[0:10]\n'
+        a = self.write("src/a.py", body)
+        b = self.write("docs/b.md", body)
+        c = self.write("src/c.py", body + 'host = "db01.example.corp"\n')
+        res = self.build(self.manifest([{"path": a, "type": "code"}, {"path": b, "type": "doc"},
+                                        {"path": c, "type": "code"}]))
+        self.assertFalse(res["ok"])
+        self.assertEqual(res["hits"], [{"check": "R3", "count": 3, "where": ["F02:L1", "F03:L4"]},
+                                       {"check": "R4", "count": 2, "where": ["F02:L2", "F02:L3"]}])
+        res = self.build(self.manifest([{"path": a, "type": "code"}]))
+        self.assertTrue(res["ok"], res["hits"])
 
     def test_note_checks(self):
         a = self.write("a.md", "가")
