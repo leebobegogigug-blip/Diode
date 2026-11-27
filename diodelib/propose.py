@@ -144,7 +144,7 @@ def _propose_bundle(home, home_is_default, manifest, workdir):
             return 2, _line({"queued": False, "error": "E-04", "where": [str(w) for w in e.where][:50]})
         return 2, _err(e.code)
     if not res.get("ok"):
-        return 2, _line({"queued": False, "hits": res.get("hits", [])})
+        return 2, _line({"queued": False, "hits": _manifest_where(res.get("hits", []), res.get("files", []))})
     empty = ["files[%d]" % i for i, f in enumerate(res["files"]) if not f["text"]]
     if empty:
         return 2, _line({"queued": False, "error": "E-04", "where": empty})     # 빈 파일은 확정 창이 보일 수 없다
@@ -156,6 +156,30 @@ def _propose_bundle(home, home_is_default, manifest, workdir):
         return 2, _err("E-04")
     _enqueue(home, draft, job or BUNDLE_QUEUE_PREFIX)
     return 0, _line({"queued": True, "job": job} if job else {"queued": True, "bundle": True})
+
+
+def _manifest_where(hits, files):
+    """잔여 검사의 자리 "F03:L14" (금고가 매긴 나가는 이름의 번호) 를 bundle.json 차례 "files[2]:L14" 로 바꾼다.
+
+    나가는 이름은 작업 묶음 안에서 고정이라 첫 묶음이 아니면 bundle.json 의 차례와 다르다 - 고칠 파일을 일꾼이 바로 찾게.
+    이 출력은 안쪽 (일꾼) 에만 간다. 허브 · 감사 기록은 나가는 이름 그대로 쓴다. 모르는 자리는 그대로 둔다.
+    """
+    index = {}
+    for i, f in enumerate(files):
+        name = f.get("name") if isinstance(f, dict) else None
+        if isinstance(name, str) and name.startswith("F") and "." in name:
+            index["F%02d" % int(name[1:name.index(".")])] = "files[%d]" % i
+    out = []
+    for h in hits:
+        h = dict(h)
+        if isinstance(h.get("where"), list):
+            where = []
+            for w in h["where"]:
+                head, sep, rest = str(w).partition(":")
+                where.append(index[head] + sep + rest if head in index else w)
+            h["where"] = where
+        out.append(h)
+    return out
 
 
 def _strings(obj):

@@ -178,8 +178,20 @@ class ProposeBundle(Base):
         code, res = self.run_propose(self.manifest())
         self.assertEqual(code, 2)
         self.assertFalse(res["queued"])
-        self.assertIn({"check": "R4", "count": 1, "where": ["F02:L1"]}, res["hits"])
+        self.assertIn({"check": "R4", "count": 1, "where": ["files[1]:L1"]}, res["hits"])   # bundle.json 차례로 (일꾼이 찾게)
         self.assertEqual(self.queue(), [])
+
+    def test_hit_places_follow_bundle_json_order_even_when_names_differ(self):
+        """나가는 이름은 묶음 안에서 고정 - 차례를 바꾼 두 번째 묶음에서도 걸린 자리는 bundle.json 의 차례로 온다."""
+        self.vault.open_project(self.home, False)
+        self.assertEqual(self.run_propose(self.manifest())[0], 0)      # F01 = 코드 · F02 = kitnotes.md 로 매겨진다
+        with open(os.path.join(self.work, "kitnotes.md"), "w", encoding="utf-8", newline="\n") as f:
+            f.write("값 8642 는 표시하지 않았다\n")
+        man = self.manifest()
+        man["files"] = list(reversed(man["files"]))                    # 이번에는 kitnotes.md 가 files[0]
+        code, res = self.run_propose(man)
+        self.assertEqual(code, 2)
+        self.assertIn({"check": "R4", "count": 1, "where": ["files[0]:L1"]}, res["hits"])
 
     def test_bad_marks_and_shapes_are_e04_with_places_only(self):
         self.vault.open_project(self.home, False)

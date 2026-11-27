@@ -404,4 +404,4 @@ python "D:\claude\diode\diode.py" setup --check
 | `python "D:\claude\diode\diode.py" scan` | 표준 입력(글을 흘려 넣는 길)으로 들어온 글을 검사합니다. `0` 이면 통과, `2` 면 막음이고, 사전이 없을 때도 `2` 입니다 |
 | `python "D:\claude\diode\diode.py" --status --json` | 현재 상태를 JSON 한 줄로 보여 줍니다 (읽기 전용). `/diode:status` 가 점검 결과와 함께 보여 줍니다 |
 
-이 표에 없는 명령 (`mcp` · `hook` · `propose` · `confirm` · `lib` …) 은 설치할 때 부르지 않는다. 전체 목록은 [docs/MANUAL.md](docs/MANUAL.md#명령) 에 있다.
+이 표에 없는 명령 (`mcp` · `hook` · `propose` · `confirm` · `lib` · `project` …) 은 설치할 때 부르지 않는다. 전체 목록은 [docs/MANUAL.md](docs/MANUAL.md#명령) 에 있다. 설치가 끝난 뒤 파일을 가려서 Claude 에게 보내려면 같은 문서의 [작업 묶음 절](docs/MANUAL.md#파일을-가려서-claude-에게-보내기--작업-묶음-9판) 을 보세요.
