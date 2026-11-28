@@ -59,11 +59,12 @@ class Base(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
-    def call(self, event, data, project, home=None):
+    def call(self, event, data, project, home=None, env_extra=None):
         data = dict(data)
         data.setdefault("cwd", project)
-        code, out, err = hook.run(event, json.dumps(data).encode("utf-8"), home=home or self.home,
-                                  env={"CLAUDE_PROJECT_DIR": project, "CLAUDE_CONFIG_DIR": self.userdir})
+        env = {"CLAUDE_PROJECT_DIR": project, "CLAUDE_CONFIG_DIR": self.userdir}
+        env.update(env_extra or {})
+        code, out, err = hook.run(event, json.dumps(data).encode("utf-8"), home=home or self.home, env=env)
         for text in (out, err):
             self.assertNotIn(WORD, text.upper())
             self.assertNotIn("kitraw", text)
@@ -421,6 +422,214 @@ class DataFolderGuard(Base):
     def test_before_setup_too(self):
         empty = os.path.join(self.tmp, "empty")
         self.assertDenied(self.tool("Read", {"file_path": os.path.join(empty, "dictionary.json")}, self.other, home=empty))
+
+
+class SwitchGuard(Base):
+    """Claude 가 도구로 다음 세션의 Diode 를 끄지 못한다 — Claude Code 설정 파일 쓰기 · claude plugin 끄기 · Diode 없는
+    claude 띄우기 (SP-11 · L-28 · AL-12). 사람이 끄는 것은 관리형 설정이 맡는다. 합성 자리만 (이 PC 의 설정은 건드리지 않는다)."""
+
+    # 프로젝트 설정에 이 글을 쓰면 막는다 - 마지막 둘: 낱말 diode (대소문자 무시) · JSON 이스케이프로 감춘 꼴
+    OFF_TEXTS = ('{"enabledPlugins": {"diode@diode": false}}', '{"disableAllHooks": true}',
+                 '{"permissions": {"deny": ["Read(./Diode-notes/**)"]}}',
+                 '{"\\u0065nabledPlugins": {"\\u0064iode@\\u0064iode": false}}')
+    # 요청받은 여섯 꼴 (Bash 다섯 · PowerShell 하나)
+    SPEC_SHELL = (("Bash", "claude plugin disable diode@diode"), ("Bash", "claude plugin uninstall x"),
+                  ("Bash", "echo '{\"disableAllHooks\":true}' > .claude/settings.local.json"),
+                  ("Bash", "sed -i 's/true/false/' .claude/settings.json"),
+                  ("Bash", "claude --settings '{\"model\": \"x\"}' -p hi"),
+                  ("PowerShell", "Set-Content .claude\\settings.local.json '{}'"))
+    MORE_SHELL = (
+        "claude plugins remove diode", "claude plugin marketplace remove diode", "claude plugin marketplace rm diode",
+        "claude plugin disable --scope user diode@diode", "/usr/local/bin/claude plugin disable diode",
+        "npx @anthropic-ai/claude-code plugin uninstall diode@diode", 'cl"aude" plugin disable diode',
+        "cl\\aude plugin disable x", "cd /tmp && claude plugin uninstall diode@diode",
+        # Diode 없는 claude 를 띄우는 꼴 (2.1.318 의 --help 에 있는 것)
+        "claude --setting-sources project -p hi", "claude --bare -p hi", "claude --safe-mode", "claude --restricted -p hi",
+        "claude -p hi --settings=./s.json", "CLAUDE_CODE_SIMPLE=1 claude -p hi", "CLAUDE_CONFIG_DIR=/tmp/empty claude -p hi",
+        # 설정 낱말 - 읽기라도 막는다 (헛걸림은 사람이 보면 된다)
+        "python3 -c \"import json; d={}; d['enabledPlugins']={}; print(d)\"", "grep -r disableAllHooks .",
+        # 설정 자리 + 쓰기 꼴
+        "echo {} > ~/.claude/settings.json", "cp /tmp/s.json ~/.claude/settings.json", "rm -rf ~/.claude/plugins",
+        "mv x.json .claude/settings.local.json", "cat a.json | tee .claude/settings.json",
+        "jq '.x=1' .claude/settings.json > t && mv t .claude/settings.json", "echo {} >> ~/.claude.json",
+        "cp x.json /etc/claude-code/managed-settings.json", "cd .claude && echo {} > settings.local.json",
+        "python3 -c \"open('/home/x/.claude/settings.json','w').write('{}')\"",
+        "sed --in-place 's/a/b/' .claude/settings.json", "cp x.json $CLAUDE_CONFIG_DIR/settings.json",
+        "cp x.json \"${CLAUDE_CONFIG_DIR}/plugins/known_marketplaces.json\"")
+    MORE_PS = ("Out-File -FilePath .claude\\settings.json", "Add-Content -Path $env:USERPROFILE\\.claude\\settings.json -Value x",
+               "Remove-Item .claude\\settings.local.json", "New-Item -Path .claude\\settings.local.json -Force",
+               "del .claude\\settings.json", "& claude.exe plugin disable diode@diode",
+               "'{}' | Set-Content \"$env:USERPROFILE\\.claude\\settings.json\"", "$env:CLAUDE_CONFIG_DIR = 'C:\\x'; claude")
+    SHELL_OK = ("cat .claude/settings.json", "cat .claude/settings.json 2>/dev/null", "ls -la ~/.claude/plugins",
+                "jq . ~/.claude/settings.json", "claude plugin list", "claude plugin install diode@diode",
+                "claude plugin enable diode@diode", "claude plugin details diode", "claude plugin validate .",
+                "claude -p hi", "claude --version", "claude mcp list", "python manage.py runserver --settings=mysite.settings",
+                "vagrant plugin uninstall foo", "asdf plugin remove nodejs", "grep -r x . > out.txt", "echo hello",
+                "cat D:/claude/room/notes.md", "ls ~/.claude", "cat ~/.claude/CLAUDE.md", "git status")
+
+    def setUp(self):
+        super(SwitchGuard, self).setUp()
+        self.userhome = os.path.join(self.tmp, "userhome")                # 훅이 보는 홈 (.claude · .claude.json 이 있는 곳)
+        os.makedirs(self.userhome)
+
+    def st(self, name, ti, project=None, home=None, cwd=None):
+        data = {"tool_name": name, "tool_input": ti}
+        if cwd:
+            data["cwd"] = cwd
+        return self.call("tool", data, project or self.other, home=home,
+                         env_extra={"HOME": self.userhome, "USERPROFILE": self.userhome})
+
+    def assertSwitch(self, res, what=""):
+        code, out, _ = res
+        self.assertEqual(code, 0, what)
+        self.assertTrue(out, "지나감: %s" % (what,))
+        hso = json.loads(out)["hookSpecificOutput"]
+        self.assertEqual(hso["permissionDecision"], "deny", what)
+        self.assertEqual(hso["permissionDecisionReason"], hook.MSG["switch"], what)
+
+    def put(self, path, text):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(text)
+        return path
+
+    def test_project_settings_with_switch_words_are_denied(self):
+        for project in (self.other, self.room):
+            for rel in (os.path.join(".claude", "settings.json"), os.path.join(".claude", "settings.local.json")):
+                p = os.path.join(self.other, rel)
+                for text in self.OFF_TEXTS:
+                    self.assertSwitch(self.st("Write", {"file_path": p, "content": text}, project), (project, rel, text))
+        # 어느 폴더든 · 상대 경로 · 이름의 대소문자 · NotebookEdit
+        deep = os.path.join(self.other, "a", "b", ".claude", "settings.local.json")
+        self.assertSwitch(self.st("Write", {"file_path": deep, "content": self.OFF_TEXTS[0]}))
+        self.assertSwitch(self.st("Write", {"file_path": ".claude/settings.local.json", "content": self.OFF_TEXTS[1]}))
+        self.assertSwitch(self.st("Write", {"file_path": os.path.join(self.other, ".Claude", "Settings.Local.JSON"),
+                                            "content": self.OFF_TEXTS[0]}))
+        self.assertSwitch(self.st("NotebookEdit", {"notebook_path": deep, "new_source": self.OFF_TEXTS[1]}))
+
+    def test_ordinary_project_settings_pass(self):
+        p = os.path.join(self.other, ".claude", "settings.json")
+        perms = '{"permissions": {"allow": ["Bash(ls:*)"], "deny": ["WebFetch"]}}'
+        self.assertAllowed(self.st("Write", {"file_path": p, "content": perms}))           # 새 파일 · 권한 규칙만
+        self.put(p, perms)
+        self.assertAllowed(self.st("Write", {"file_path": p, "content": '{"permissions": {}}'}))   # 덮을 파일에도 낱말 없음
+        self.assertAllowed(self.st("Edit", {"file_path": p, "old_string": '"WebFetch"',
+                                            "new_string": '"WebFetch", "Bash(rm:*)"'}))
+        self.assertAllowed(self.st("Read", {"file_path": p}))
+        self.assertAllowed(self.st("Write", {"file_path": os.path.join(self.other, ".claude", "notes.md"), "content": "diode"}))
+
+    def test_edit_that_touches_the_switch_is_denied(self):
+        p = self.put(os.path.join(self.other, ".claude", "settings.json"),
+                     '{"enabledPlugins": {"diode@diode": true}, "permissions": {"allow": []}}')
+        self.assertSwitch(self.st("Edit", {"file_path": p, "old_string": '"diode@diode": true', "new_string": ""}))
+        self.assertSwitch(self.st("Edit", {"file_path": p, "old_string": '"allow": []',
+                                           "new_string": '"allow": [], "disableAllHooks": true'}))
+        self.assertSwitch(self.st("MultiEdit", {"file_path": p, "edits": [
+            {"old_string": '"allow": []', "new_string": '"allow": ["Read"]'},
+            {"old_string": '{"diode@diode": true}', "new_string": "{}"}]}))
+        # 권한 규칙만 고치는 Edit 는 통과 (enabledPlugins 가 든 파일이라도 - 헛걸림을 줄이려고)
+        self.assertAllowed(self.st("Edit", {"file_path": p, "old_string": '"allow": []', "new_string": '"allow": ["Read"]'}))
+
+    def test_write_that_drops_the_switch_is_denied(self):
+        p = self.put(os.path.join(self.other, ".claude", "settings.local.json"), '{"enabledPlugins": {"diode@diode": true}}')
+        self.assertSwitch(self.st("Write", {"file_path": p, "content": '{"permissions": {}}'}))
+        # 덮을 파일을 못 읽으면 막는다: 폴더 · 너무 큼
+        d = os.path.join(self.other, "x", ".claude", "settings.json")
+        os.makedirs(d)
+        self.assertSwitch(self.st("Write", {"file_path": d, "content": "{}"}))
+        q = self.put(os.path.join(self.other, "y", ".claude", "settings.json"), '{"permissions": {}}')
+        saved = hook.SWITCH_READ_MAX
+        hook.SWITCH_READ_MAX = 5
+        try:
+            self.assertSwitch(self.st("Write", {"file_path": q, "content": "{}"}))
+        finally:
+            hook.SWITCH_READ_MAX = saved
+        self.assertAllowed(self.st("Write", {"file_path": q, "content": "{}"}))
+        # UTF-16 으로 저장된 옛 파일도 풀어서 본다
+        r = os.path.join(self.other, "z", ".claude", "settings.json")
+        os.makedirs(os.path.dirname(r))
+        with open(r, "wb") as f:
+            f.write(b"\xff\xfe" + '{"disableAllHooks": false}'.encode("utf-16-le"))
+        self.assertSwitch(self.st("Write", {"file_path": r, "content": "{}"}))
+
+    def test_user_scope_settings_and_plugins_regardless_of_content(self):
+        for d in (self.userdir, os.path.join(self.userhome, ".claude")):           # CLAUDE_CONFIG_DIR · 홈의 .claude
+            for rel in ("settings.json", "settings.local.json", os.path.join("plugins", "known_marketplaces.json"),
+                        os.path.join("plugins", "installed_plugins.json"),
+                        os.path.join("plugins", "cache", "diode", "diode", "0.0.0", "hooks", "hooks.json")):
+                p = os.path.join(d, rel)
+                for name, ti in (("Write", {"file_path": p, "content": "{}"}),
+                                 ("Edit", {"file_path": p, "old_string": "a", "new_string": "b"}),
+                                 ("MultiEdit", {"file_path": p, "edits": [{"old_string": "a", "new_string": "b"}]})):
+                    for project in (self.other, self.room):
+                        self.assertSwitch(self.st(name, ti, project), (name, rel))
+        self.assertAllowed(self.st("Read", {"file_path": os.path.join(self.userdir, "settings.json")}))
+        self.assertAllowed(self.st("Write", {"file_path": os.path.join(self.userdir, "notes", "a.md"), "content": "x"}))
+
+    def test_state_file_and_managed_settings_anywhere(self):
+        for p in (os.path.join(self.userhome, ".claude.json"), os.path.join(self.userdir, ".claude.json"),
+                  os.path.join(self.tmp, "etc", "claude-code", "managed-settings.json"),
+                  os.path.join(self.tmp, "etc", "claude-code", "managed-mcp.json"),
+                  os.path.join(self.tmp, "etc", "claude-code", "managed-settings.d", "10-x.json"),
+                  os.path.join(self.other, "Managed-Settings.json")):
+            for project in (self.other, self.room):
+                self.assertSwitch(self.st("Write", {"file_path": p, "content": "{}"}, project), p)
+                self.assertSwitch(self.st("Edit", {"file_path": p, "old_string": "a", "new_string": "b"}, project), p)
+
+    def test_before_setup_and_with_broken_settings(self):
+        empty = os.path.join(self.tmp, "empty")
+        broken = os.path.join(self.tmp, "broken")
+        os.makedirs(broken)
+        with open(os.path.join(broken, "dictionary.json"), "w") as f:
+            f.write("{")
+        for home in (empty, broken):
+            for project in (self.other, self.room):
+                self.assertSwitch(self.st("Write", {"file_path": os.path.join(self.userdir, "settings.json"), "content": "{}"},
+                                          project, home=home))
+                self.assertSwitch(self.st("Write", {"file_path": os.path.join(self.other, ".claude", "settings.local.json"),
+                                                    "content": self.OFF_TEXTS[0]}, project, home=home))
+                self.assertSwitch(self.st("Bash", {"command": "claude plugin disable diode@diode"}, project, home=home))
+
+    def test_shell_forms_are_denied(self):
+        for project in (self.other, self.room):
+            for name, cmd in self.SPEC_SHELL:
+                self.assertSwitch(self.st(name, {"command": cmd}, project), cmd)
+        for cmd in self.MORE_SHELL:
+            self.assertSwitch(self.st("Bash", {"command": cmd}), cmd)
+        for cmd in self.MORE_PS:
+            self.assertSwitch(self.st("PowerShell", {"command": cmd}), cmd)
+
+    def test_shell_reads_and_ordinary_commands_pass(self):
+        for cmd in self.SHELL_OK:
+            self.assertAllowed(self.st("Bash", {"command": cmd}))
+        self.assertAllowed(self.st("PowerShell", {"command": "Get-Content .claude\\settings.json"}))
+
+    def test_shell_path_resolved_from_the_user_folder(self):
+        # 사용자 폴더 안에서 연 셸의 상대 경로 (낱말 · 자리 이름 없이) - 경로를 풀어 본다
+        self.put(os.path.join(self.userdir, "settings.json"), "{}")
+        self.assertSwitch(self.st("Bash", {"command": "rm settings.json"}, cwd=self.userdir))
+        self.assertSwitch(self.st("Bash", {"command": "cp x.json ./plugins/installed_plugins.json"}, cwd=self.userdir))
+        self.assertAllowed(self.st("Bash", {"command": "cat settings.json"}, cwd=self.userdir))
+
+    def test_hub_tools_untouched(self):
+        self.assertAllowed(self.st("mcp__plugin_diode_hub__status", {"command": "claude plugin disable diode@diode"}))
+
+    @unittest.skipIf(os.name == "nt", "심볼릭 링크는 Windows 에서 권한이 필요하다")
+    def test_symlinked_project_settings_that_point_at_user_settings(self):
+        target = self.put(os.path.join(self.userdir, "settings.json"), '{"permissions": {}}')
+        link = os.path.join(self.other, ".claude", "settings.local.json")
+        os.makedirs(os.path.dirname(link))
+        os.symlink(target, link)
+        self.assertSwitch(self.st("Write", {"file_path": link, "content": '{"permissions": {}}'}))
+        self.assertSwitch(self.st("Edit", {"file_path": link, "old_string": "{}", "new_string": "[]"}))
+
+    @unittest.skipUnless(os.name == "nt", "Git Bash 꼴 (/c/Users/..) 은 Windows 에서만 드라이브 경로로 푼다")
+    def test_git_bash_form_of_the_user_folder(self):
+        p = os.path.join(self.userdir, "settings.json")
+        drive, rest = os.path.splitdrive(p)
+        posix = "/%s%s" % (drive[0].lower(), rest.replace("\\", "/"))
+        self.assertSwitch(self.st("Write", {"file_path": posix, "content": "{}"}))
+        self.assertSwitch(self.st("Bash", {"command": "cp x.json %s" % posix}))
 
 
 class FileMentions(Base):

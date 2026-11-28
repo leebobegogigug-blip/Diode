@@ -347,6 +347,7 @@ Diode 설치 완료
 | `DIODE V<Vth: 원자료 폴더에서 Claude 를 열었습니다 · 방에서 여세요` | 원자료 폴더 내부나 원자료 폴더를 포함하는 상위 폴더에서 Claude Code를 열었습니다. `D:\claude\room`에서 다시 엽니다 |
 | `DIODE V<Vth: 방은 수동 권한 모드로 쓰세요 (auto 막음)` | 방에서는 auto 권한 모드(자동 승인 모드)를 쓸 수 없습니다. 기본 권한 모드로 다시 엽니다 |
 | `DIODE V<Vth 막힘 · D2 x<개수> @안내파일 - CLAUDE.md · AGENTS.md 에 사내 단어가 있어 Claude 가 읽어 갑니다 - 지우거나 옮기세요 (/diode:status)` | 위의 `안내 파일` 행과 같습니다 |
+| `DIODE V<Vth: Diode 를 끄거나 Claude Code 설정을 바꾸는 일은 Claude 가 하지 않습니다 - 사람이 직접 하세요 (AL-12)` | Claude가 Claude Code 설정 파일(사용자 설정 · `plugins/` · `.claude.json` · 관리형 설정 · Diode를 끄는 내용의 프로젝트 설정)을 수정하거나, `claude plugin disable` · `claude plugin uninstall` · `claude --settings` 같은 명령을 실행하려 해서 hook이 막았습니다. 정상 동작입니다. 꼭 필요한 수정이면 사용자가 직접 합니다(제거 절의 1 · 2단계도 같습니다) |
 | `hook ... failed; blocking because onFailure is block` (Claude Code 버전에 따라 문구가 다를 수 있음) | hook이 실행되지 못했습니다. 대부분 `python` 명령을 찾지 못하는 경우입니다 → 1단계 확인 |
 
 ## 업데이트
@@ -374,6 +375,8 @@ python "D:\claude\diode\diode.py" setup --check
 ## 제거
 
 원래 상태로 되돌리는 순서입니다. 제거하면 이 PC에서 Diode hook의 보호가 사라진다는 점을 사용자에게 먼저 안내합니다.
+
+Diode가 켜진 Claude Code 세션 안에서는 hook이 1 · 2단계 명령을 막습니다(`DIODE V<Vth: Diode 를 끄거나 Claude Code 설정을 바꾸는 일은 Claude 가 하지 않습니다 - 사람이 직접 하세요 (AL-12)`). Claude가 스스로 Diode를 끄지 못하게 하려는 장치입니다. 따라서 에이전트는 1 · 2단계 명령을 사용자에게 보여 주고, 사용자가 Claude Code 밖의 터미널에서 직접 실행하도록 안내합니다. 확인 명령(`claude plugin list` · `claude plugin marketplace list`)은 에이전트가 실행해도 됩니다.
 
 0. (7단계를 설정했다면) **[질문]** "내부 에이전트(opencode) 연결을 되돌릴까요?" → opencode 설정에서 `diode-worker` 항목만 삭제합니다. 7-2에서 만든 백업(`<설정 파일 이름>.diode-backup`)이 있더라도 이후 사용자가 다른 설정을 바꿨을 수 있으므로 통째로 덮어쓰지 않습니다. 백업 파일은 사용자 확인 후 삭제합니다. Diode 측 `04 일꾼 명령`은 데이터 폴더를 지울 거면 따로 비울 필요가 없고, 데이터 폴더를 남길 거면 사용자가 정책 창에서 칸을 비우고 [저장]을 누릅니다(비운 칸은 설정에서 지워집니다).
 1. 플러그인을 제거합니다: `claude plugin uninstall diode@diode` → `Successfully uninstalled plugin: diode (scope: user)`.

@@ -27,7 +27,7 @@ Diode 는 한 번 설치하면 따로 부르지 않아도 됩니다. 설치는 �
 |---|---|---|
 | 세션을 열 때 | 훅 `SessionStart` | 연 폴더가 방인지 · 원자료 폴더인지 · 그 밖인지 보고, 설정이 없거나 깨졌으면 알립니다 |
 | 프롬프트를 보낼 때마다 | 훅 `UserPromptSubmit` | 사전 단어 · 경로 꼴 · `@파일` · 안내 파일 (`CLAUDE.md` 등) 을 보고, 걸리면 Claude 로 보내지 않습니다 |
-| 도구를 쓸 때마다 | 훅 `PreToolUse` | 원자료 폴더 · 데이터 폴더를 건드리는 도구, 사내 단어가 든 파일 읽기, 안쪽 도구 (opencode) 직접 호출을 막습니다 |
+| 도구를 쓸 때마다 | 훅 `PreToolUse` | 원자료 폴더 · 데이터 폴더를 건드리는 도구, 사내 단어가 든 파일 읽기, 안쪽 도구 (opencode) 직접 호출, Claude가 Diode를 끄려는 설정 수정 · 명령(`claude plugin disable` 등)을 막습니다 |
 | 세션을 여는 동안 · 일을 넘기거나 보고를 받을 때 | MCP 허브 | 세션과 함께 저절로 뜨고, Claude 가 일을 넘기거나 (`dispatch`) 보고를 받을 때 (`inbox`) 맡습니다. 확정 창도 여기서 뜹니다 |
 | 방에서 일하는 동안 | 상태줄 (statusLine) | `DIODE  room ok …` 한 줄로 방 상태와 이번 달 사용량을 보여 줍니다 |
 
@@ -41,6 +41,7 @@ Diode 는 한 번 설치하면 따로 부르지 않아도 됩니다. 설치는 �
 
 - **처음 설정 전**: 사전 · 원자료 폴더 목록이 없으면 방 밖 세션의 말은 그대로 지나갑니다 (세션을 열 때 알림만 뜹니다). `/diode:setup` 을 마쳐야 지킵니다.
 - **플러그인을 끄거나 지우면**: 훅 · 허브가 모두 없습니다 (L-28). `/plugin` 화면에서 끄거나 `claude plugin uninstall` 을 하면 그 순간부터 보호가 없습니다.
+- **프로젝트 설정 한 줄로도 꺼집니다**: 작업 폴더의 `.claude/settings.json`이나 `.claude/settings.local.json`에 `"enabledPlugins": {"diode@diode": false}` 또는 `"disableAllHooks": true` 한 줄만 있어도, 그 폴더에서 연 세션에는 Diode가 없습니다. `claude --settings`로 열어도 마찬가지입니다. Claude가 도구로 이렇게 수정하려 하면 hook이 막지만, 사람이 직접 수정하는 것은 막지 못합니다. 이것은 회사의 관리형 설정만 막을 수 있습니다.
 - **Claude Code 밖**: 웹 Claude (브라우저) 에 붙여 넣는 것 · 다른 프로그램 · 다른 PC 는 막지 못합니다.
 - **회사 전체에 강제로 켜 두기**: Claude Code 의 관리형 설정 (managed settings — 회사 IT 가 모든 PC 에 거는 설정) 으로 이 플러그인을 켜 둔 채 사용자가 끄지 못하게 할 수 있는지는 사내에서 확인할 일입니다 **[미확인]** ([사내 질문지](../kit/inhouse-questions.md) Q12–Q16 · [보안 한 장](../kit/security-brief.md) 질문 7). 그렇게 하기 전까지는 "사람이 끄지 않는다" 에 기댑니다.
 
@@ -241,6 +242,7 @@ Terminal–1 같은 다른 도구가 부르는 읽기 전용 상태 명령 (`--s
   - **DPAPI 는 계정 단위입니다.** 같은 Windows 계정으로 도는 프로그램은 금고를 풀 수 있습니다 (같은 PC · 같은 계정에는 단단한 벽이 없습니다). 금고 파일 (`%LOCALAPPDATA%\diode\vault\`) 이 동기화 · 백업 · 원격 수집 대상인지 [사내 질문지](../kit/inhouse-questions.md) Q10 으로 확인하세요. `project close` 는 금고를 지우지만, 디스크에 남은 옛 바이트까지 없앤다고 보장하지는 못합니다.
   - **작업 묶음은 Windows 에서만 열립니다.** 그 밖의 OS 의 기본 자리에서는 `E-20` 입니다 (평문 금고를 디스크에 쓰지 않습니다 · W-05).
 - **플러그인 소스는 세션 안에서 고치지 못합니다** (쓰기 도구 deny). 직접 개발할 때는 이 플러그인을 끄고 여세요.
+- **Diode를 끄는 일은 Claude가 하지 못합니다.** Claude Code 설정 파일(사용자 범위의 `settings.json` · `plugins/` · `.claude.json` · 관리형 설정)을 쓰는 도구와, `claude plugin disable` · `claude plugin uninstall` · `claude --settings` 같은 셸 명령은 hook이 막습니다([명세 › SP-11](SPEC.md#sp-11-훅)). 작업 폴더의 `.claude/settings.json`은 Diode를 끄는 낱말(`enabledPlugins` · `disableAllHooks` · `diode`)이 들어갈 때만 막습니다. 그래서 그 파일에 이미 `enabledPlugins`가 있으면 Claude가 `Write`로 파일 전체를 다시 쓰는 일도 막힙니다(오탐). 이때는 `Edit`로 필요한 부분만 수정하거나 사람이 직접 수정하세요. 설정 파일을 언급하면서 `echo` · `>`를 쓰는 셸 명령도 읽기만 하더라도 막힙니다. 반대로 셸은 벽이 아니라서, 돌려 쓴 명령은 지나갈 수 있습니다.
 - **슬래시 명령은 `--report` 로 종료 코드를 늘 0 으로 둡니다.** Claude Code 는 `!` 명령이 0 이 아니면 명령을 실패로 보고 Claude 에게 넘기지 않습니다.
 - **훅은 `DIODE_HOME` 을 받지 않습니다.** 늘 기본 데이터 폴더를 봅니다 — 환경 변수로 다른 사전 · 설정을 물리지 못하게.
 - **S-09 를 따르지 않습니다.** 나가는 검사 D7 (사내 LLM 판정) 은 works 의 [SPEC-llm](https://github.com/leebobegogigug-blip/Works/blob/13e56a0a5801da56dc18523363cd219ebf6d2e21/docs/SPEC-llm.md) 의 `llm` 설정 키를 따르지만, 환경 변수 덮어쓰기 (`<접두어>_BASE_URL` 등) 는 받지 않습니다. 사내 LLM 이 환경 변수로 판정 모델을 바꿔 D7 을 무력화할 수 있어서 AL-12 와 부딪히기 때문입니다 ([규칙 › S-09](../RULES.md#규약)).

@@ -122,7 +122,7 @@
 | L-25 | `dispatch` 의 응답 · 오류에 안쪽 글이 섞여 Claude 에게 돌아간다 | 응답은 고정 꼴 (AL-14) · 오류는 번호와 고정 문구만 · 테스트 |
 | L-26 | Claude 가 주 작업 자리라 사람이 사내 이야기를 Claude 에게 직접 치는 일이 는다 | 안전벨트 `UserPromptSubmit` · 확정 창의 **말 봉인** 칸 (사내 말로 쓰면 봉인 글로 바꿔 복사) |
 | L-27 | 다이오드 MCP 서버가 Claude 에게 넓은 문이 된다 | 도구 넷 · 입력 · 출력 꼴 고정 · 크기 상한 · 계약 테스트 · 방 프로필이 `mcp__diode__*` 만 허락 |
-| L-28 | 플러그인을 끄거나 지운 Claude CLI — 훅 · 방 규칙 · 허브가 모두 없다 | 회사 관리형 설정 (R25) · `/diode:status` 가 꺼짐을 알림 · 교육 |
+| L-28 | 플러그인을 끄거나 지운 Claude CLI — 훅 · 방 규칙 · 허브가 모두 없다. 프로젝트 설정 한 줄 (`enabledPlugins` false · `disableAllHooks`) · 명령줄 `--settings` 로도 꺼진다 [실험 2026-11-28 · `kit/run_global.py`] | 회사 관리형 설정 (R25) · `/diode:status` 가 꺼짐을 알림 · 교육 · Claude가 도구로 끄는 길(설정 파일 쓰기 · `claude plugin disable` · `--settings`)은 hook이 막음(SP-11 · R32 · R33) · 사람 · 프로젝트 설정 · 명령줄로 끄는 길은 관리형 설정이 막음 |
 | L-29 | 사용자 범위 `~/.claude/CLAUDE.md` 가 모든 세션 (방 포함) 에 실린다 [실험 S15] | 방 설정 `claudeMdExcludes` 로 뺀다 [실험 S14] · 방 밖 세션을 위해 `/diode:setup` 이 그 파일을 사전으로 검사한다 |
 | L-30 | 훅이 고장 나면 훅 명령 글이 Claude 에게 간다 — 명령을 절대 경로로 적으면 사용자 이름이 든 경로가 실린다 [실험 S09′] | 훅 · 허브의 Python 명령은 이름만 (`python`) 적는다 · `/diode:setup` 이 그 이름으로 3.8 이상을 찾는지 본다 |
 | L-31 | 대화형 auto 권한 모드에서 요청에 `safeguards.classifier_context` — HOME 경로 · 권한 규칙 내용 · 신뢰한 폴더 · git 상태 [실험 T01] | 방 설정 `permissions.defaultMode: "default"` 로 그 칸이 사라진다 [실험 T02] · 세션 중 auto 로 바꾸면 훅이 막는다 (훅 입력의 `permission_mode`) · 권한 규칙에 원자료 폴더 이름을 쓰지 않는다 (원자료 폴더 목록은 Diode 설정에만) |

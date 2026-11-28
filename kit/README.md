@@ -15,7 +15,7 @@
 | `statusline_keys.py` | statusLine (화면 아래 상태줄) 입력 JSON 의 **칸 이름만** 찍는 도구 (값은 찍지 않는다 · 질문지 H4) |
 | `run_install.py` | **처음부터 끝까지** — 마켓플레이스로 설치 → 정책 입력 → `/diode:setup` 이 방을 만듦 → 방 안 세션이 훅 · 허브 아래에서 도는지 확인 (I1–I6 · 임시 HOME · 가짜 서버) |
 | `run_global.py` | **전역 확인** — 마켓플레이스로 설치한 diode 를 사람 · 프로젝트가 흔히 끄는 길 (G2 프로젝트 settings.json · G3 settings.local.json · G4 disableAllHooks · G5 명령줄 --settings · G6 사용자 설정) 로 꺼 보고 사전 단어가 그래도 막히는지 본다 (임시 HOME · 가짜 서버). 관리형 설정이 없으면 `결과: 확인 필요` (2026-11-28 · 2.1.318 · G2–G6 모두 꺼짐) · IT 가 관리형 설정을 건 뒤에는 `--expect locked` |
-| `run_hooks.py` | 진짜 훅 (저장소의 `hooks/hooks.json` · `diode.py hook`) 으로 KIT-2 를 다시 시험한다 R01–R31 (T12 · T19 — 훅 · 허브 · 슬래시 명령 · 데이터 폴더 보호 · 가린 묶음의 outbox 읽기 · inbox) |
+| `run_hooks.py` | 진짜 훅 (저장소의 `hooks/hooks.json` · `diode.py hook`) 으로 KIT-2 를 다시 시험한다 R01–R33 (T12 · T19 — 훅 · 허브 · 슬래시 명령 · 데이터 폴더 보호 · 가린 묶음의 outbox 읽기 · inbox · Claude 가 Diode 를 끄는 길 막기) |
 | `bundle_corpus.py` | **가린 묶음 코퍼스** (SP-20) — 합성 묶음 (good 38 · leaky 103 · known-miss 21) 을 결정적으로 만들어 진짜 금고 (임시 데이터 폴더) · 정책으로 `bundle.build_bundle` 에 돌린다. good 은 통과 · 왕복 일치, leaky 는 막힘 (범주마다 잡은 검사), known-miss 는 지나간 수만 센다. 출력은 개수 · 비율 · 범주뿐 (`--self-test` 는 `tests/test_corpus_gate.py` 가 부른다 · 결과는 `results-linux.md`) |
 | `run_tui.py` | 대화형 (TUI) 세션을 한 번 돌린다 — 의사 터미널 (리눅스 · macOS) · statusLine 입력 칸 · `safeguards` 칸 |
 | `fake_anthropic.py` | 가짜 Anthropic Messages API 서버 (127.0.0.1 · 받은 요청을 파일로 덤프 · 키는 남기지 않는다) |

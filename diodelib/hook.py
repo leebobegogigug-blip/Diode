@@ -53,6 +53,7 @@ MSG = {
     "guide": "DIODE V<Vth 막힘 · D2 x%d @안내파일 - CLAUDE.md · AGENTS.md 에 사내 단어가 있어 Claude 가 읽어 갑니다 - 지우거나 옮기세요 (/diode:status)",
     "read_big": "DIODE V<Vth: 파일이 너무 커서 검사하지 못해 읽지 않는다 - 줄이거나 원자료 폴더 목록에 넣으세요",
     "plugin": "DIODE V<Vth: 플러그인 소스는 Claude 가 고치지 않는다 (AL-12)",
+    "switch": "DIODE V<Vth: Diode 를 끄거나 Claude Code 설정을 바꾸는 일은 Claude 가 하지 않습니다 - 사람이 직접 하세요 (AL-12)",
     "read_binary": "DIODE V<Vth: 이진 파일은 사전 검사를 할 수 없어 읽지 않는다 (이미지 · PDF 는 제외 - 알려진 한계)",
     "mention_raw": "DIODE V<Vth 막힘 · @파일 - 원자료 폴더 안의 파일을 끌어오려 합니다 (안전벨트)",
     "mention_data": "DIODE V<Vth 막힘 · @파일 - 데이터 폴더의 파일은 끌어오지 않는다 (AL-12)",
@@ -72,8 +73,9 @@ class Settings(object):
     """훅이 쓰는 설정. state: "unset" (데이터 폴더에 사전 · 설정이 없음) · "ok" · "broken"."""
 
     def __init__(self, state, policy=None, raw_dirs=(), web_search=True, home=None, inner_tools=INNER_TOOLS_DEFAULT,
-                 user_dir=None):
+                 user_dir=None, user_home=None):
         self.user_dir = user_dir
+        self.user_home = user_home
         self.state = state
         self.policy = policy
         self.raw_dirs = tuple(raw_dirs)
@@ -117,12 +119,17 @@ MAX_GUIDES = 64
 GUIDE_MAX_BYTES = 1024 * 1024
 
 
+def user_home(env):
+    """사용자의 홈 폴더 (Claude Code 가 .claude · .claude.json 을 두는 곳): USERPROFILE → HOME → ~."""
+    return env.get("USERPROFILE") or env.get("HOME") or os.path.expanduser("~")
+
+
 def user_claude_dir(env):
     """Claude Code 의 사용자 폴더: CLAUDE_CONFIG_DIR → 없으면 홈 아래 .claude."""
     d = env.get("CLAUDE_CONFIG_DIR")
     if d:
         return d
-    return os.path.join(env.get("USERPROFILE") or env.get("HOME") or os.path.expanduser("~"), ".claude")
+    return os.path.join(user_home(env), ".claude")
 
 
 def guide_files(project_dir, user_dir):
@@ -540,6 +547,167 @@ def _guard_data(tool, ti, cwd, settings):
     return None
 
 
+# ---------------------------------------------------------------- Diode 끄기 막기 (L-28 · AL-12)
+#
+# 사용자 범위로 설치한 diode@diode 는 프로젝트 .claude/settings(.local).json 의 한 줄 ("enabledPlugins": {"diode@diode": false}
+# 또는 "disableAllHooks": true) 이나 명령줄 --settings 만으로 그 세션에서 통째로 꺼진다 [실험 2026-11-28 · Claude Code 2.1.318].
+# 사람이 그렇게 하는 것은 관리형 설정만 막는다. 여기서는 Claude 가 (프롬프트 주입 등으로) 도구를 써서 그 길을 여는 것을 막는다.
+
+SWITCH_SETTINGS_NAMES = ("settings.json", "settings.local.json")       # <폴더>/.claude/ 아래 · 사용자 범위 폴더 바로 아래
+SWITCH_STATE_NAME = ".claude.json"                                      # Claude Code 의 사용자 상태 파일 (홈 · CLAUDE_CONFIG_DIR)
+SWITCH_MANAGED_NAMES = ("managed-settings.json", "managed-mcp.json", "managed-settings.d")   # 관리형 설정 - 어디에 있든
+SWITCH_PLUGINS_DIR = "plugins"                                          # 사용자 범위의 설치 기록 · 마켓플레이스 · 캐시
+# 프로젝트 설정 파일에 쓰는 글에 이 낱말이 있으면 막는다 (대소문자 무시 · JSON \uXXXX 를 푼 꼴도)
+SWITCH_WORDS = ("disableallhooks", "enabledplugins", "diode", "claude_code_simple", "claude_code_safe_mode")
+SWITCH_READ_MAX = 1024 * 1024           # Write 가 덮을 기존 설정 파일을 읽어 보는 한도 - 넘으면 막는다 (막는 쪽)
+_SWITCH_PATH_KEYS = ("file_path", "path", "notebook_path")
+
+# 셸 (Bash · PowerShell) - 셸은 벽이 아니다. 흔한 꼴만 본다 (변수 · 명령 치환 · 스크립트 파일로 돌려 말하면 지나간다).
+_SWITCH_SHELL_WORDS = ("disableallhooks", "enabledplugins", "claude_code_simple", "claude_code_safe_mode")
+_CLAUDE_CONFIG_SET = re.compile(r"claude_config_dir\s*=")             # 다른 사용자 폴더로 띄운 claude 에는 Diode 가 없다
+_CLAUDE_CLI = r"(?<![\w.-])claude(?:-code)?(?:\.exe|\.cmd|\.ps1)?(?![\w.\\/-])"   # .claude 폴더 · claude\ 폴더는 아니다
+_CLAUDE_OFF = re.compile(
+    _CLAUDE_CLI + r"[^\n;&|]*?(?<![\w-])plugins?(?![\w-])[^\n;&|]*?(?<![\w-])(?:disable|uninstall|remove|rm)(?![\w-])"
+    r"|" + _CLAUDE_CLI + r"[^\n;&|]*?(?<![\w-])--(?:settings|setting-sources|bare|safe-mode|restricted)(?![\w-])")
+_SWITCH_MENTION = re.compile(
+    r"\.claude[/\\]+(?:settings|plugins)|\.claude\.json|managed-settings|managed-mcp|known_marketplaces|installed_plugins"
+    r"|\.claude(?![\w.-]).*settings(?:\.local)?\.json|claude_config_dir[}\"')]*[/\\]+(?:settings|plugins)")
+_CMD_START = r"(?<![^\s;&|(/\\])"                                       # 명령 낱말의 앞 (줄 처음 · 빈칸 · 구분자 · 경로의 끝)
+_CMD_END = r"(?=[\s;&|)]|$)"
+_SHELL_WRITE = re.compile(
+    _CMD_START + r"(?:tee|cp|mv|rm|del|erase|echo|copy|move|ren|rename|ln|touch|truncate|sponge|unlink|xcopy|robocopy"
+    r"|set-content|out-file|add-content|remove-item|new-item|copy-item|move-item|rename-item|clear-content"
+    r"|sc|ac|ni|ri|rd|rmdir)" + _CMD_END +
+    r"|(?<![\w-])sed(?![\w-])[^\n;&|]*?\s(?:-[a-z]*i|--in-place)"
+    r"|(?<![\w-])perl(?![\w-])[^\n;&|]*?\s-[a-z]*i"
+    r"|\.write\s*\(|write_?text|writefile|json\.dump|os\.(?:remove|rename|replace)|shutil\.|rmsync|renamesync|copyfile"
+    r"|>")
+# 읽기에도 흔히 붙는 되돌림 (2>&1 · >/dev/null · > $null · 2>nul) 은 쓰기 꼴로 세지 않는다
+_HARMLESS_REDIR = re.compile(r"\d*>&\d|&?\d*>>?\s*(?:/dev/null|\$null|nul)(?![\w./\\-])|[<>=-]=|=>|->")
+
+
+def _user_scopes(settings):
+    """사용자 범위 폴더 후보: CLAUDE_CONFIG_DIR (있으면) · 홈의 .claude (CLAUDE_CONFIG_DIR 없이 여는 다음 세션의 것)."""
+    out = []
+    for d in (settings.user_dir, os.path.join(settings.user_home, ".claude") if settings.user_home else None):
+        if d and d not in out:
+            out.append(d)
+    return out
+
+
+def _name_parts(path):
+    return [x.lower() for x in re.split(r"[\\/]+", path) if x]
+
+
+def switch_target(path, settings):
+    """경로가 Claude Code 설정 파일인가 → "user" (내용과 상관없이 막는다) · "project" (쓰는 글을 본다) · None.
+
+    글자 그대로의 경로와 진짜 경로 (심볼릭 링크를 푼 것) 를 둘 다 본다. 파일 이름은 대소문자를 가리지 않는다 (막는 쪽).
+    """
+    forms = (os.path.abspath(path), norm(path))
+    for f in forms:
+        parts = _name_parts(f)
+        if any(x in SWITCH_MANAGED_NAMES for x in parts) or (parts and parts[-1] == SWITCH_STATE_NAME):
+            return "user"
+    for d in _user_scopes(settings):
+        if inside(path, os.path.join(d, SWITCH_PLUGINS_DIR)):
+            return "user"
+        if any(norm(path) == norm(os.path.join(d, n)) for n in SWITCH_SETTINGS_NAMES):
+            return "user"
+    for f in forms:
+        parts = _name_parts(f)
+        if len(parts) >= 2 and parts[-2] == ".claude" and parts[-1] in SWITCH_SETTINGS_NAMES:
+            return "project"
+    return None
+
+
+def _switch_texts(ti):
+    """쓰기 도구가 쓰려는 글: 경로 칸 밖의 모든 문자열 (Write 의 content · Edit 의 old_string · new_string ·
+    MultiEdit 의 edits 전부 · NotebookEdit 의 new_source · 모르는 새 칸도)."""
+    out = []
+
+    def walk(v, key):
+        if isinstance(v, str):
+            if key not in _SWITCH_PATH_KEYS:
+                out.append(v)
+        elif isinstance(v, dict):
+            for k, x in v.items():
+                walk(x, k)
+        elif isinstance(v, list):
+            for x in v:
+                walk(x, key)
+    walk(ti, None)
+    return out
+
+
+def _has_switch_word(text):
+    for t in (text, _unescape(text)):
+        low = t.lower()
+        if any(w in low for w in SWITCH_WORDS):
+            return True
+    return False
+
+
+def _old_has_switch_word(path):
+    """Write 가 통째로 덮을 기존 파일에 그 낱말이 있었나 (있었다면 새 글에서 빠진다). 읽지 못하면 참 (막는 쪽)."""
+    try:
+        if not os.path.lexists(path):
+            return False
+        if not os.path.isfile(path) or os.path.getsize(path) > SWITCH_READ_MAX:
+            return True
+        with open(path, "rb") as f:
+            raw = f.read()
+    except (OSError, ValueError):
+        return True
+    variants = _text_variants(raw)
+    if variants is None:
+        return True
+    return any(_has_switch_word(t) for t in variants)
+
+
+def _shell_switches_off(cmd, cwd, settings):
+    """셸 명령이 Diode 를 끄는 꼴인가 (흔한 꼴만 - 셸은 벽이 아니다).
+
+    - 설정 낱말 (disableAllHooks · enabledPlugins · CLAUDE_CODE_SIMPLE · CLAUDE_CODE_SAFE_MODE) · CLAUDE_CONFIG_DIR= 이 있다
+    - claude 의 plugin disable|uninstall|remove · plugin marketplace remove|rm (이름과 상관없이) ·
+      --settings · --setting-sources · --bare · --safe-mode · --restricted (Diode 없는 claude 를 띄운다)
+    - 설정 자리 (.claude/settings · .claude/plugins · .claude.json · managed-settings …) 를 말하면서 쓰기 꼴이 있다
+    따옴표 · 역따옴표 · 역슬래시로 쪼갠 꼴 (cl"aude") 도 본다.
+    """
+    low = cmd.lower()
+    variants = (low, re.sub(r"[\"'`]", "", low), re.sub(r"[\"'`\\]", "", low))
+    for v in variants:
+        if any(w in v for w in _SWITCH_SHELL_WORDS) or _CLAUDE_CONFIG_SET.search(v) or _CLAUDE_OFF.search(v):
+            return True
+    mention = any(_SWITCH_MENTION.search(v) for v in variants) \
+        or any(switch_target(p, settings) for p in _shell_paths(cmd, cwd))
+    return bool(mention) and any(_SHELL_WRITE.search(_HARMLESS_REDIR.sub(" ", v)) for v in variants)
+
+
+def _guard_switch(tool, ti, cwd, settings):
+    """Claude 가 도구로 다음 세션의 Diode 를 끄지 못하게 (L-28 · AL-12) — 모든 모드 · 설정 전에도 · 데이터 폴더 보호보다 먼저.
+
+    파일 쓰기 도구: 사용자 범위 설정 · plugins/ · .claude.json · 관리형 설정은 내용과 상관없이 막는다.
+    어느 폴더든 .claude/settings(.local).json 은 쓰려는 글에 SWITCH_WORDS 가 있으면 막고, Write 는 덮을 기존 파일에
+    그 낱말이 있어도 막는다 (통째로 다시 쓰면 빠지므로). 그 밖 (권한 규칙 고치기 등) 은 통과 - 헛걸림을 줄이려고.
+    """
+    if tool in WRITE_TOOLS:
+        for p in _tool_paths(tool, ti, cwd) or []:
+            where = switch_target(p, settings)
+            if where == "user":
+                return _deny(MSG["switch"])
+            if where == "project":
+                if any(_has_switch_word(t) for t in _switch_texts(ti)):
+                    return _deny(MSG["switch"])
+                if tool == "Write" and _old_has_switch_word(p):
+                    return _deny(MSG["switch"])
+    elif tool in ("Bash", "PowerShell"):
+        cmd = ti.get("command")
+        if isinstance(cmd, str) and _shell_switches_off(cmd, cwd, settings):
+            return _deny(MSG["switch"])
+    return None
+
+
 def on_tool(data, settings, project_dir):
     mode, st = mode_of(project_dir, settings)
     if mode == "raw":
@@ -555,7 +723,7 @@ def on_tool(data, settings, project_dir):
         return _deny(MSG["inner"])
 
     if not tool.startswith(DIODE_MCP_PREFIX):
-        g = _guard_data(tool, ti, cwd, settings)
+        g = _guard_switch(tool, ti, cwd, settings) or _guard_data(tool, ti, cwd, settings)
         if g is not None:
             return g
 
@@ -655,6 +823,7 @@ def run(event, stdin_bytes, home=None, env=None):
         project_dir = env.get("CLAUDE_PROJECT_DIR") or data.get("cwd") or os.getcwd()
         settings = load_settings(home or default_data_dir())
         settings.user_dir = user_claude_dir(env)
+        settings.user_home = user_home(env)
         return EVENTS[event](data, settings, project_dir)
     except Exception:
         if event == "tool":

@@ -523,7 +523,7 @@ class TestDocs(unittest.TestCase):
         for sentence in setup_mod.REFUSE_TEXT.values():                      # 방 거절 여섯
             self.assertIn(sentence, text)
         self.assertEqual(sorted(setup_mod.REFUSE_TEXT), ["git", "guide", "nonempty", "path", "plugin", "raw"])
-        for key in ("unset", "e20", "changed", "raw_prompt", "auto"):
+        for key in ("unset", "e20", "changed", "raw_prompt", "auto", "switch"):
             self.assertIn(hook_mod.MSG[key], text, key)
         self.assertIn(hook_mod.MSG["guide"].replace("%d", "<개수>"), text)
         for phrase in ("사전이 비어 있음 — 보내기를 막습니다", "원자료 폴더 목록이 비어 있음 — 보내기를 막습니다",

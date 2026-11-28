@@ -72,11 +72,16 @@ jobs:
       - name: 처음부터 끝까지 (설치 → 설정 → 방 → 훅 · 허브) I1–I6
         shell: bash
         run: python kit/run_install.py --claude "$CLAUDE_BIN"
-      - name: 훅 시나리오 R01–R31 (진짜 CLI · 가짜 서버)
+      - name: 훅 시나리오 R01–R33 (진짜 CLI · 가짜 서버)
         if: always()
         shell: bash
         timeout-minutes: 30
         run: python kit/run_hooks.py --claude "$CLAUDE_BIN"
+      - name: 전역 확인 G1–G7 (관리형 설정 없음 — 끄는 길이 그대로인지 기록)
+        if: always()
+        shell: bash
+        timeout-minutes: 20
+        run: python kit/run_global.py --claude "$CLAUDE_BIN" --expect open
       - name: 바이트 시험 S01… (진짜 CLI · 가짜 서버)
         if: always()
         shell: bash
