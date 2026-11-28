@@ -2,7 +2,7 @@
 
 마켓플레이스로 설치한 diode 를 (임시 HOME · 이 PC 의 내 설정은 건드리지 않는다) 사람이 흔히 끄는 길로 꺼 보고,
 그래도 사전 단어가 막히는지 본다. 관리형 설정 (managed settings — IT 가 PC 전체에 거는 설정) 은 임시 HOME 과 상관없이
-이 PC 의 모든 Claude Code 에 걸리므로, IT 가 Diode 를 강제로 켜 두었다면 여기서 G2–G6 이 모두 "막힘" 이어야 한다.
+이 PC 의 모든 Claude Code 에 걸리므로, IT 가 Diode 를 강제로 켜 두었다면 여기서 G2–G7 이 모두 "막힘" 이어야 한다.
 
   G1 대조: 보통 폴더 · 사전 단어 → 막힘이어야 한다 (설치 · 설정이 맞다는 뜻)
   G2 그 폴더의 .claude/settings.json 에 "enabledPlugins": {"diode@diode": false}
@@ -10,6 +10,7 @@
   G4 그 폴더의 .claude/settings.json 에 "disableAllHooks": true
   G5 명령줄 --settings 로 enabledPlugins false
   G6 사용자 설정 (~/.claude/settings.json) 에 enabledPlugins false
+  G7 사람이 claude plugin uninstall diode@diode 로 지움 (마지막에 한다)
 
 2026-11-28 · Claude Code 2.1.318 · 리눅스 · 관리형 설정 없음: G1 막힘 · G2–G6 꺼짐 (그대로 나감). 즉 사용자 범위 설치만으로는
 "늘 켜짐" 이 아니다 — 끄는 길을 막는 것은 관리형 설정뿐이다 (Claude 가 도구로 끄는 길은 훅이 따로 막는다 · R32 · R33).
@@ -17,7 +18,7 @@
 쓰는 법:  python run_global.py [--claude claude] [--expect report|open|locked]
   report (기본): 모두 막히면 결과: OK (0) · 꺼지는 길이 하나라도 있으면 결과: 확인 필요 (3) — 사내 점검표가 이것을 쓴다
   locked: 모두 막혀야 OK (1 실패) — IT 가 관리형 설정을 건 뒤
-  open:   G1 은 막히고 G2–G6 은 꺼져야 OK — 관리형 설정이 없는 CI 에서 "한계가 그대로인가" 를 기록한다 (R15 처럼)
+  open:   G1 은 막히고 G2–G7 은 꺼져야 OK — 관리형 설정이 없는 CI 에서 "한계가 그대로인가" 를 기록한다 (R15 처럼)
 출력은 판정 · 개수뿐이다 (사전 단어 · 경로 · 키 없음). 모델 요청은 127.0.0.1 의 가짜 서버로만 간다.
 Python 3.8 이상 · 의존 없음.
 """
@@ -106,6 +107,11 @@ def main(argv=None):
             else:
                 with open(path, "w", encoding="utf-8") as f:
                     f.write(old)
+
+        # G7 - 사람이 지운다 (관리형 설정이 있으면 다음 세션에 다시 깔리거나 지우기가 막혀야 한다)
+        e.cli("plugin", "uninstall", "diode@diode")
+        _code, n, _out, body = e.ask("이건 %s 야" % word, project(e, "g7"))
+        rows.append(("G7", "사람이 claude plugin uninstall diode@diode 로 지움", n == 0 and word not in body))
     finally:
         if not a.keep:
             shutil.rmtree(e.work, ignore_errors=True)
@@ -123,7 +129,7 @@ def main(argv=None):
         return 0 if not opened else 1
     if a.expect == "open":
         ok = len(opened) == len(rows) - 1
-        print("결과: OK (한계 그대로 — 관리형 설정 없이는 G2–G6 으로 꺼진다)" if ok
+        print("결과: OK (한계 그대로 — 관리형 설정 없이는 G2–G7 로 꺼진다)" if ok
               else "결과: 점검 실패 (막힌 길이 생겼다 — Claude Code 가 바뀌었는지 보고 문서를 고친다)")
         return 0 if ok else 1
     if opened:
