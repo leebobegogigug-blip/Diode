@@ -281,8 +281,9 @@ class TestPluginFiles(unittest.TestCase):
         self.assertLess(len(front["description"]), 400)                  # 모든 세션에 실리는 글이라 짧게
         body = m.group(2)
         self.assertLess(len(body.splitlines()), 80)
-        for needle in ("mcp__plugin_diode_hub__dispatch", "inbox", "ToolSearch", "E-01", "E-20", "벽이 아니다"):
+        for needle in ("mcp__plugin_diode_hub__dispatch", "inbox", "ToolSearch", "E-01", "E-20"):
             self.assertIn(needle, body)
+        self.assertRegex(body, r"벽이 아[니닙]")       # 안내문은 벽이 아니다 (AL-09) - 말끝은 docs/STYLE.md 를 따른다
         # 안내문은 벽이 아니다 (AL-09) — 사내 이름 · 실제 경로 · 주소를 담지 않는다
         for bad in ("http", "D:\\", "/home/", "opencode"):
             self.assertNotIn(bad, body)
