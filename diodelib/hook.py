@@ -483,7 +483,7 @@ def _path_forms(path):
     return forms
 
 
-_DATA_NAMES = re.compile(r"diode[/\\]+(?:dictionary|config|audit|queue|work|usage|tmp|libnames|jobs)", re.I)
+_DATA_NAMES = re.compile(r"diode[/\\]+(?:dictionary|config|audit|queue|work|usage|tmp|libnames|jobs|vault)", re.I)
 
 
 _SHELL_TOK = re.compile(r"""[^\s;&|<>()"'`]+""")

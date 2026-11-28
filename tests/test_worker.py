@@ -112,6 +112,56 @@ class Send(unittest.TestCase):
         self.assertTrue(wait_for(os.path.join(fixed, "J-0006.got")))
 
 
+class Restored(unittest.TestCase):
+    """되돌린 첨부 (SP-20) - <작업 폴더>/restored/<상대 경로> · 폴더 만들기 · 덮어쓰지 않음 · 경로 탈출 거절."""
+
+    def setUp(self):
+        self.tmp = os.path.realpath(tempfile.mkdtemp(prefix="diode-worker-"))
+        self.home = os.path.join(self.tmp, "data")
+        self.room = os.path.join(self.tmp, "room")
+        make_room(self.room)
+        self.w = worker.CommandWorker([sys.executable, "-c", "pass", "{prompt}"], self.home, self.room)
+        self.base = os.path.join(self.home, "work", "J-0007", worker.RESTORED_DIR)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def read(self, *parts):
+        with open(os.path.join(self.base, *parts), encoding="utf-8") as f:
+            return f.read()
+
+    def test_written_under_restored_without_overwriting(self):
+        files = [("kitsrcq/deep/kitcalc_mod.py", "x = 731337\n"), ("kitnotes.md", "둘째\n")]
+        self.assertTrue(self.w.send("J-0007", "지시", files))
+        self.assertEqual(self.read("kitsrcq", "deep", "kitcalc_mod.py"), "x = 731337\n")
+        self.assertEqual(self.read("kitnotes.md"), "둘째\n")
+        self.assertTrue(self.w.send("J-0007", "지시", [("kitsrcq/deep/kitcalc_mod.py", "x = 2\n")]))
+        self.assertEqual(self.read("kitsrcq", "deep", "kitcalc_mod.py"), "x = 731337\n")     # 덮어쓰지 않는다
+        self.assertEqual(self.read("kitsrcq", "deep", "kitcalc_mod-2.py"), "x = 2\n")
+        self.assertTrue(self.w.send("J-0007", "지시", [("kitsrcq\\win_style.py", "y\n")]))  # 역슬래시도 나눈다
+        self.assertEqual(self.read("kitsrcq", "win_style.py"), "y\n")
+
+    def test_escaping_paths_are_refused_and_nothing_is_written(self):
+        for bad in ("../x.py", "a/../../x.py", "/abs/x.py", "\\\\srv\\x.py", "C:/x.py", "D:x.py", "a//b.py", "a/./b.py",
+                    "", "a/b.", "a/b ", "con.txt", "kit/NUL", "a\x00b", "a\nb", None, 3):
+            self.assertFalse(self.w.send("J-0007", "지시", [("ok.md", "글\n"), (bad, "글\n")]), bad)
+        self.assertFalse(os.path.exists(self.base))
+        self.assertFalse(self.w.send("J-0007", "지시", ["a.html", ("ok.md", "글\n")]))   # 이름과 짝을 섞지 않는다
+        self.assertFalse(self.w.send("J-0007", "지시", [("ok.md", b"bytes")]))
+        self.assertFalse(os.path.exists(self.base))
+
+    @unittest.skipIf(os.name == "nt", "심볼릭 링크는 Windows 에서 권한이 필요하다")
+    def test_links_out_of_the_work_folder_are_refused(self):
+        outside = os.path.join(self.tmp, "outside")
+        os.makedirs(outside)
+        os.makedirs(self.base)
+        os.symlink(outside, os.path.join(self.base, "kitlink"))
+        self.assertFalse(self.w.send("J-0007", "지시", [("kitlink/x.py", "글\n")]))
+        os.symlink(os.path.join(outside, "t.py"), os.path.join(self.base, "t.py"))
+        self.assertFalse(self.w.send("J-0007", "지시", [("t.py", "글\n")]))
+        self.assertEqual(os.listdir(outside), [])
+
+
 class WindowsShims(unittest.TestCase):
     """Windows 의 .cmd 껍데기: cmd.exe 가 인자를 다시 해석한다 — 프롬프트를 인자로 주면 명령 주입 (BatBadBut 류)."""
 

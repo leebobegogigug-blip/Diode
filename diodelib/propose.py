@@ -19,6 +19,17 @@
   - 가명 표는 derive 프로세스와 함께 사라졌다 - 이 초안의 토큰은 "일방향 토큰" 이다 (기록에 적힌 토큰 수 안의 정확한 꼴이면 D6 통과 ·
     되돌리기 (U1) 에서는 모르는 토큰).
 오류는 고정 코드뿐이다 (E-04 꼴 · 맞는 derive 기록 없음 · E-30 꺼짐 · 터미널 아님 · E-20). 열 이름 · 값 · 경로 없음.
+
+가린 파일 묶음 (SP-20) - `python diode.py propose bundle.json` (kind bundle · 일꾼 opencode 가 낸다):
+  - 가리기는 여기서 한다 (안쪽 프로세스): 열린 작업 묶음의 금고를 잠가 열고 (vault.Vault.locked) bundle.build_bundle 로
+    표시 → 금고 토큰 · 자동 가림 · R1–R6 · note 의 D1–D6. 작업 폴더는 bundle.json 이 있는 폴더다.
+  - 걸리면 {"queued": false, "hits": [...]} (파일 · 줄 번호만) · 열린 묶음 없음 {"queued": false, "error": "E-33"} ·
+    꼴 {"queued": false, "error": "E-04", "where": [자리]} (자리는 칸 이름 · 파일 차례 · 줄 번호뿐) · 그 밖 E-20 (금고의 번호 그대로) - 모두 종료 2.
+  - 통과하면 가린 바이트만 대기열에 둔다 (원본 · 원래 이름 · 경로는 없다):
+    {"format": 1, "kind": "bundle", "project": "P-0001", "job": "J-0007" | null, "note", "files": [{"name", "type", "text"}],
+     "stats": {...}} → queue\\bundle-<시각>.json (job 이 있으면 J-0007-<시각>.json) · {"queued": true, "job": "J-0007"} 또는
+    {"queued": true, "bundle": true} · 종료 0. 묶음만 4 MiB (MAX_BUNDLE_QUEUE_BYTES) 까지.
+  - 금고가 멈춰 있으면 (U2 · project resume 전) 묶음을 받지 않는다 (E-20 · 허브도 막는다).
 """
 
 import json
@@ -28,11 +39,13 @@ import sys
 import tempfile
 import time
 
-from . import audit, derive, scan
-from .room import default_data_dir
+from . import audit, bundle, derive, scan
+from .room import default_data_dir, norm
 from .seal import PseudonymTable, seal
 
 MAX_BYTES = 64 * 1024
+MAX_BUNDLE_QUEUE_BYTES = 4 * 1024 * 1024    # 대기열 파일의 상한 - 가린 묶음만 (SP-20 · 허브가 읽는 상한과 같다)
+BUNDLE_QUEUE_PREFIX = "bundle"              # job 이 없는 묶음의 대기열 이름 (hub.BUNDLE_QUEUE_PREFIX 와 같다)
 JOB_RE = re.compile(r"^J-[0-9]{4}\Z")
 
 
@@ -53,6 +66,7 @@ def main_propose(path, home=None):
     """(종료 코드, 표준 출력 한 줄). 0 넣음 · 2 걸림 · 꼴 오류 (E-04) · 사전 · 설정 오류 (E-20) · 3 파생 표본 꺼짐 (E-30)."""
     try:
         home = home or default_data_dir()
+        home_is_default = norm(home) == norm(default_data_dir())
         if not isinstance(path, str) or not os.path.isfile(path):
             return 2, _err("E-04")
         if os.path.getsize(path) > MAX_BYTES:
@@ -61,6 +75,8 @@ def main_propose(path, home=None):
             draft = scan.parse_brief(f.read())
         if isinstance(draft, dict) and draft.get("kind") in derive.SAMPLE_KINDS:
             return _propose_derived(home, draft)
+        if isinstance(draft, dict) and draft.get("kind") == bundle.BUNDLE_KIND:
+            return _propose_bundle(home, home_is_default, draft, os.path.dirname(os.path.abspath(path)))
         if not isinstance(draft, dict) or draft.get("kind") != "report" \
                 or not isinstance(draft.get("job"), str) or not JOB_RE.match(draft["job"]):
             return 2, _err("E-04")
@@ -105,6 +121,67 @@ def _propose_derived(home, draft):
         return 2, _err(e.code)
 
 
+def _propose_bundle(home, home_is_default, manifest, workdir):
+    """가린 묶음을 금고로 가리고 검사한 뒤 가린 바이트만 대기열에 둔다 (SP-20). 순서: 사전 · 설정 → [금고 잠금] 가리기 · R1–R6 →
+    (잠금을 나가며 금고 저장) → 대기열. 대기열에는 원본 · 원래 이름 · 경로가 없다."""
+    from . import config
+    from .vault import Vault, VaultError
+    try:
+        policy = scan.policy_from_home(home)
+        words = config.read_words(home)         # 자동 가림의 후보 (사전 단어 그대로 · 안쪽 전용)
+    except Exception:
+        return 2, _err("E-20")
+    try:
+        with Vault.locked(home, home_is_default) as v:
+            if v.halted:
+                return 2, _err("E-20")              # 멈춘 묶음 (U2) - 사람이 project resume 할 때까지
+            res = bundle.build_bundle(manifest, workdir, v, policy, words, job=None)
+            project = v.project
+    except VaultError as e:
+        return 2, _err(e.code)
+    except bundle.BundleError as e:
+        if e.code == "E-04":
+            return 2, _line({"queued": False, "error": "E-04", "where": [str(w) for w in e.where][:50]})
+        return 2, _err(e.code)
+    if not res.get("ok"):
+        return 2, _line({"queued": False, "hits": _manifest_where(res.get("hits", []), res.get("files", []))})
+    empty = ["files[%d]" % i for i, f in enumerate(res["files"]) if not f["text"]]
+    if empty:
+        return 2, _line({"queued": False, "error": "E-04", "where": empty})     # 빈 파일은 확정 창이 보일 수 없다
+    job = manifest.get("job")
+    draft = {"format": 1, "kind": bundle.BUNDLE_KIND, "project": project, "job": job, "note": res["note"],
+             "files": [{"name": f["name"], "type": f["type"], "text": f["text"]} for f in res["files"]],
+             "stats": dict(res["stats"])}
+    if len(json.dumps(draft, ensure_ascii=False).encode("utf-8")) > MAX_BUNDLE_QUEUE_BYTES:
+        return 2, _err("E-04")
+    _enqueue(home, draft, job or BUNDLE_QUEUE_PREFIX)
+    return 0, _line({"queued": True, "job": job} if job else {"queued": True, "bundle": True})
+
+
+def _manifest_where(hits, files):
+    """잔여 검사의 자리 "F03:L14" (금고가 매긴 나가는 이름의 번호) 를 bundle.json 차례 "files[2]:L14" 로 바꾼다.
+
+    나가는 이름은 작업 묶음 안에서 고정이라 첫 묶음이 아니면 bundle.json 의 차례와 다르다 - 고칠 파일을 일꾼이 바로 찾게.
+    이 출력은 안쪽 (일꾼) 에만 간다. 허브 · 감사 기록은 나가는 이름 그대로 쓴다. 모르는 자리는 그대로 둔다.
+    """
+    index = {}
+    for i, f in enumerate(files):
+        name = f.get("name") if isinstance(f, dict) else None
+        if isinstance(name, str) and name.startswith("F") and "." in name:
+            index["F%02d" % int(name[1:name.index(".")])] = "files[%d]" % i
+    out = []
+    for h in hits:
+        h = dict(h)
+        if isinstance(h.get("where"), list):
+            where = []
+            for w in h["where"]:
+                head, sep, rest = str(w).partition(":")
+                where.append(index[head] + sep + rest if head in index else w)
+            h["where"] = where
+        out.append(h)
+    return out
+
+
 def _strings(obj):
     if isinstance(obj, str):
         yield obj
@@ -118,8 +195,9 @@ def _strings(obj):
                 yield s
 
 
-def _enqueue(home, draft, job=None):
-    job = job or draft["job"]
+def _enqueue(home, draft, prefix=None):
+    """대기열에 원자적으로 둔다 (0600 · 임시 파일 → 링크) → queue\\<prefix>-<시각>.json. prefix 는 job (J-0007) 또는 bundle."""
+    prefix = prefix or draft["job"]
     d = os.path.join(home, "queue")
     os.makedirs(d, mode=0o700, exist_ok=True)
     stamp = "%d%06d" % (int(time.time()), os.getpid() % 1000000)
@@ -131,7 +209,7 @@ def _enqueue(home, draft, job=None):
             f.flush()
             os.fsync(f.fileno())
         for n in range(100):
-            name = os.path.join(d, "%s-%s%s.json" % (job, stamp, "" if n == 0 else "x%d" % n))
+            name = os.path.join(d, "%s-%s%s.json" % (prefix, stamp, "" if n == 0 else "x%d" % n))
             try:
                 os.link(tmp, name)
                 return name

@@ -410,9 +410,13 @@ class TestDocs(unittest.TestCase):
     def test_readme_promises(self):
         text = read("README.md")
         first = next(ln for ln in text.splitlines() if ln.strip())
-        self.assertIn("개발 중 (v0.0) — synthetic data 로만 시험했다. 사내 자체 검증을 마치기 전에는 real data 에 쓰지 않는다.", first)
-        self.assertIn("이름은 비유다 — hardware data diode 가 아니다.", text)
-        self.assertIn("UI 문법은 소형 hardware instrument (Teenage Engineering 류) 에서 영감을 받았으며, 해당 회사와는 관련이 없다.", text)
+        # 고지의 핵심 (W-12 · 문장은 사용자가 다듬을 수 있다 - 2026-11-27 main 에서 해요체로) - 첫 줄에 개발 중 · 합성 자료만 ·
+        # 사내 자체 검증 전에는 실데이터 금지, 그리고 이름이 비유일 뿐 하드웨어 다이오드가 아니라는 것, 영감 고지
+        for needle in ("개발 중 (v0.0)", "synthetic data", "사내 자체 검증", "real data"):
+            self.assertIn(needle, first)
+        self.assertRegex(first, r"real data\s*에\s*(쓰지 않는다|사용하지 마세요|쓰지 마세요)")
+        self.assertRegex(text, r"비유[^\n]*hardware data diode\s*가 아\S*니")
+        self.assertRegex(text, r"Teenage Engineering[^\n]*영감[^\n]*관련이 없")
         self.assertIn("Python 3.8+ · standard library only", text)
         self.assertRegex(text, r"테스트 \d+ · WINDOWS \+ UBUNTU CI")
         for target in ("docs/PLAN.md", "docs/SPEC.md", "docs/BLUEPRINT.md", "RULES.md"):
@@ -426,12 +430,12 @@ class TestDocs(unittest.TestCase):
         self.assertLess(os.path.getsize(os.path.join(ROOT, src)), 2 * 1024 * 1024)
         self.assertGreater(len(alt), 10)
         self.assertNotIn("http", src)                                       # 바깥 주소로 가져오지 않는다 (W-03)
-        self.assertIn("공식 그림이 아니다", text)                           # 제품 그림 고지
+        self.assertRegex(text, r"공식 (그림|이미지)\S*\s*아(니|닙)")          # 제품 그림 고지
 
     def test_w10_exception_names_the_one_banner(self):
         rules = read("RULES.md")
         self.assertEqual(rules.count("docs/img/diode-banner.png"), 1)        # 예외는 이 한 장뿐
-        self.assertIn("한 장에만 걸린다", rules)
+        self.assertRegex(rules, r"한 장에만 (걸린다|적용되는 예외)")
         self.assertTrue(os.path.isfile(os.path.join(ROOT, "docs", "img", "diode-banner.png")))
         self.assertEqual(sorted(os.listdir(os.path.join(ROOT, "docs", "img"))), ["diode-banner.png"])   # 예외가 슬그머니 늘지 않게
 
@@ -475,8 +479,9 @@ class TestDocs(unittest.TestCase):
         self.assertEqual(sorted(steps), list(range(0, 10)))
         positions = [m.start() for m in re.finditer(r"^## \d+\. ", text, flags=re.M)]
         self.assertEqual(positions, sorted(positions))
-        for n, word in {1: "파이썬", 2: "코드", 3: "플러그인", 4: "설정", 5: "방", 6: "점검", 9: "보고"}.items():
-            self.assertIn(word, steps[n][0], "%d단계 제목" % n)
+        for n, words in {1: ("파이썬", "Python"), 2: ("코드",), 3: ("플러그인",), 4: ("설정",), 5: ("방",), 6: ("점검",),
+                         9: ("보고",)}.items():
+            self.assertTrue(any(w in steps[n][0] for w in words), "%d단계 제목" % n)
         for n in (7, 8):
             self.assertIn("(선택)", steps[n][0], "%d단계는 선택이다" % n)
         for n in range(1, 9):

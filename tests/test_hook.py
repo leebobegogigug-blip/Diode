@@ -251,6 +251,27 @@ class ToolRoom(Base):
             f.write("덧붙인 글\n")
         self.assertDenied(self.tool("Read", {"file_path": p}, self.room))              # 확정 뒤에 바뀜
 
+    def test_outbox_bundle_folder_files_need_confirmed_hashes(self):
+        """가린 묶음 (SP-20) 의 outbox/<job>/ 파일도 확정 해시가 있어야 Read 된다 (AL-13 · 감사 기록 kind bundle)."""
+        from diodelib import audit
+        d = os.path.join(self.room, "outbox", "J-0008")
+        os.makedirs(d)
+        files = {"F01.md": "PH_K7Q2 의 글\n", "MANIFEST.md": "# MANIFEST J-0008\n"}
+        for name, text in files.items():
+            with open(os.path.join(d, name), "w", encoding="utf-8", newline="\n") as f:
+                f.write(text)
+        for name in files:
+            self.assertDenied(self.tool("Read", {"file_path": os.path.join(d, name)}, self.room))
+        audit.record(self.home, "J-0008", "out", "bundle", "room", "sent", text=files["F01.md"])
+        self.assertAllowed(self.tool("Read", {"file_path": os.path.join(d, "F01.md")}, self.room))
+        self.assertDenied(self.tool("Read", {"file_path": os.path.join(d, "MANIFEST.md")}, self.room))   # 확정 안 됨
+        self.assertDenied(self.tool("Read", {"file_path": d}, self.room))                                # 폴더 자체
+        self.assertDenied(self.tool("Grep", {"pattern": "x", "path": d}, self.room))
+        self.assertDenied(self.tool("Write", {"file_path": os.path.join(d, "F02.md"), "content": "x"}, self.room))
+        with open(os.path.join(d, "F01.md"), "a", encoding="utf-8") as f:
+            f.write("덧붙인 글\n")
+        self.assertDenied(self.tool("Read", {"file_path": os.path.join(d, "F01.md")}, self.room))       # 확정 뒤에 바뀜
+
     def test_room_needs_settings(self):
         empty = os.path.join(self.tmp, "empty")
         self.assertDenied(self.tool("Read", {"file_path": os.path.join(self.room, "work", "a.md")}, self.room,
@@ -367,6 +388,24 @@ class DataFolderGuard(Base):
         code, out, _ = self.call("tool", {"tool_name": "Bash", "tool_input": {"command": "cat dictionary.json"},
                                           "cwd": self.home}, self.other)
         self.assertDenied((code, out, ""))                                    # 데이터 폴더 안에서 연 셸
+
+    def test_vault_is_not_readable(self):
+        # 가명 금고 (SP-20) 는 데이터 폴더 안이다 - 파일 도구 · 셸 어느 쪽으로도 읽지 못한다 (진짜 값 · 원래 파일 이름)
+        v = os.path.join(self.home, "vault", "P-0001.vault")
+        write_json(v, {"x": 1})
+        for project in (self.other, self.room):
+            for name in ("Read", "Write", "Edit"):
+                self.assertDenied(self.tool(name, {"file_path": v, "content": "x"}, project))
+            self.assertDenied(self.tool("Grep", {"pattern": "PH_", "path": os.path.dirname(v)}, project))
+            self.assertDenied(self.tool("Glob", {"pattern": "*.vault", "path": os.path.dirname(v)}, project))
+        for cmd in ("cat %s" % v, "cat %s" % v.replace("/", "\\"), "type %s\\vault\\active" % self.home.replace("/", "\\"),
+                    "cat ~/.local/share/diode/vault/P-0001.vault", "type %LOCALAPPDATA%\\diode\\vault\\P-0001.vault",
+                    "cat diode/vault/P-0001.vault", "ls diode\\vault"):
+            self.assertDenied(self.tool("Bash", {"command": cmd}, self.other))
+        code, out, _ = self.call("tool", {"tool_name": "Bash", "tool_input": {"command": "cat P-0001.vault"},
+                                          "cwd": os.path.dirname(v)}, self.other)
+        self.assertDenied((code, out, ""))
+        self.assertAllowed(self.tool("Bash", {"command": 'python "/x/diode/diode.py" project status'}, self.other))
 
     def test_plugin_source_is_write_protected_but_readable(self):
         from diodelib.room import PLUGIN_ROOT

@@ -14,7 +14,8 @@
 | `reid_sim.py` · `results-reid.md` | **L2 파생 표본 재식별 위험 시뮬레이션** (T3b · 방어 평가) — 지어낸 표로 "보조 열을 아는 공격자가 파생 행을 몇 % 가려내나" 를 잰다 (`--quick` 은 CI 용). 숫자 · 쉬운 말 해석 · 제안 합격선 · 권고 표는 `results-reid.md` |
 | `statusline_keys.py` | statusLine (화면 아래 상태줄) 입력 JSON 의 **칸 이름만** 찍는 도구 (값은 찍지 않는다 · 질문지 H4) |
 | `run_install.py` | **처음부터 끝까지** — 마켓플레이스로 설치 → 정책 입력 → `/diode:setup` 이 방을 만듦 → 방 안 세션이 훅 · 허브 아래에서 도는지 확인 (I1–I6 · 임시 HOME · 가짜 서버) |
-| `run_hooks.py` | 진짜 훅 (저장소의 `hooks/hooks.json` · `diode.py hook`) 으로 KIT-2 를 다시 시험한다 R01–R23 (T12 · T19 — 훅 · 허브 · 슬래시 명령 · 데이터 폴더 보호) |
+| `run_hooks.py` | 진짜 훅 (저장소의 `hooks/hooks.json` · `diode.py hook`) 으로 KIT-2 를 다시 시험한다 R01–R31 (T12 · T19 — 훅 · 허브 · 슬래시 명령 · 데이터 폴더 보호 · 가린 묶음의 outbox 읽기 · inbox) |
+| `bundle_corpus.py` | **가린 묶음 코퍼스** (SP-20) — 합성 묶음 (good 38 · leaky 103 · known-miss 21) 을 결정적으로 만들어 진짜 금고 (임시 데이터 폴더) · 정책으로 `bundle.build_bundle` 에 돌린다. good 은 통과 · 왕복 일치, leaky 는 막힘 (범주마다 잡은 검사), known-miss 는 지나간 수만 센다. 출력은 개수 · 비율 · 범주뿐 (`--self-test` 는 `tests/test_corpus_gate.py` 가 부른다 · 결과는 `results-linux.md`) |
 | `run_tui.py` | 대화형 (TUI) 세션을 한 번 돌린다 — 의사 터미널 (리눅스 · macOS) · statusLine 입력 칸 · `safeguards` 칸 |
 | `fake_anthropic.py` | 가짜 Anthropic Messages API 서버 (127.0.0.1 · 받은 요청을 파일로 덤프 · 키는 남기지 않는다) |
 | `probe_plugin/` | 아주 작은 시험용 플러그인 — 허브 (`hub_min.py` · 표준 입출력 MCP) · 훅 (`hook_min.py` · 모드 셋) |

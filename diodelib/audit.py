@@ -12,6 +12,8 @@
   dispatch  넘기기 (안쪽으로) — text 에 되돌리기 전의 지시 (토큰 꼴)
   derive    파생 표본을 만든 기록 (derive_record) — 변환 종류별 열 수 · 행 수 · 토큰 수 · 표의 sha256 뿐 (값 · 열 이름 · 토큰 없음)
   out (plan · ui)  표가 든 파생 초안을 보낸 기록 — 보낸 글 그대로에 더해 sample (변환 종류별 열 수 · 열 수 · 행 수)
+  out (bundle)     가린 파일 묶음 (SP-20) — 나간 파일 하나 · MANIFEST.md 하나마다 한 건 (가린 바이트 그대로 · sha256).
+                   방의 훅은 이 해시의 파일만 Read 하게 한다 (AL-13). 원래 파일 이름 · 경로 · 금고는 받을 칸이 없다
 
 남기지 않는 것: 가명 표 · 원자료 · 사전 단어. 그것을 받을 인자 자체가 없다 (W-05).
 checks 는 SP-05 꼴의 칸 (검사 번호 · 개수 · 자리 · 판정 · 닫힌 까닭 번호) 만 받는다 (AL-11).
@@ -31,8 +33,8 @@ FORMAT = 1
 AUDIT_DIR = "audit"
 DIRECTIONS = ("out", "in", "dispatch")
 DECISIONS = ("sent", "discarded", "blocked", "timeout")
-# [제안] dispatch 의 kind 는 SP-14 에 없다 — "instruction" 으로 둔다
-KINDS = ("plan", "ui", "lib", "report", "instruction")
+# [제안] dispatch 의 kind 는 SP-14 에 없다 — "instruction" 으로 둔다 · bundle 은 가린 파일 묶음의 파일 하나 (SP-20)
+KINDS = ("plan", "ui", "lib", "report", "instruction", "bundle")
 # [제안] dispatch 의 transport 는 SP-14 에 없다 — 일꾼에 넣으므로 "worker"
 TRANSPORTS = ("clipboard", "room", "adapter", "worker")
 EFFORTS = ("", "auto", "low", "medium", "high", "xhigh", "max")
@@ -402,7 +404,7 @@ JOB_STATES = ("sent", "working", "reported", "rejected")
 def job_states(home, limit=20):
     """감사 기록에서 job 마다 마지막 상태 → [{"job", "state"}] (최근 limit 개 · 글 · 해시는 내주지 않는다).
 
-    dispatch · sent → working · out · report · sent → reported · out · report · discarded → rejected.
+    dispatch · sent → working · out · report (또는 가린 묶음 bundle) · sent → reported · discarded → rejected.
     그 밖의 기록은 상태를 바꾸지 않는다. [제안] expired (24시간) 는 허브가 정한다 — 여기서는 내지 않는다.
     """
     events = []
@@ -420,9 +422,9 @@ def job_states(home, limit=20):
         state = None
         if d == "dispatch" and dec == "sent":
             state = "working"
-        elif d == "out" and rec.get("kind") == "report" and dec == "sent":
+        elif d == "out" and rec.get("kind") in ("report", "bundle") and dec == "sent":
             state = "reported"
-        elif d == "out" and rec.get("kind") == "report" and dec == "discarded":
+        elif d == "out" and rec.get("kind") in ("report", "bundle") and dec == "discarded":
             state = "rejected"
         if state:
             events.append((at, fn, job, state))
