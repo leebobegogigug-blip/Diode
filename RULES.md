@@ -114,6 +114,7 @@ works의 검사기(`works_check.py`)는 이 저장소를 검사하지 않습니�
 - **예외 — README 대표 그림 한 장**(`docs/img/diode-banner.png`): 설명용 일러스트이므로 위 색상 규칙의 예외로 둡니다(사용자 결정 · 2026-11-06). 이 한 장에만 적용되는 예외이며, 승인 창 · 도표 · 새 그림은 규칙을 그대로 따릅니다. 그림을 교체할 때도 같은 위치를 쓰되 README의 "각 제품의 공식 그림이 아니다" 고지는 유지합니다.
 - 이 저장소의 문서는 색상 팔레트 값이나 원칙을 복사하지 않고 위 링크로만 참조합니다(고정 커밋 SHA 사용). 검사기는 색상을 판별하지 못하므로 리뷰 시 눈으로 확인합니다.
 - 모든 문서는 중학생이 읽어도 이해할 수 있게 씁니다: 존댓말 · 짧은 문장 · 일상적인 설명문([DESIGN.md › 06](https://github.com/leebobegogigug-blip/Works/blob/13e56a0a5801da56dc18523363cd219ebf6d2e21/docs/DESIGN.md#06-문서와-말투)). 어려운 용어는 처음 나올 때 풀어 씁니다. 규칙 문서(RULES · AGENTS · SPEC · PLAN · INHOUSE)도 동일하며, 단 의미 · 번호 · 숫자 · 명령어는 쉽게 쓰려고 임의로 바꾸지 않습니다(사용자 결정). 예외: README는 고지문까지 평서문으로 짧게 쓰고 기술 명사(raw data · hook · junction · sealed report 등)는 영어로, 일상 명사는 한국어로 씁니다(사용자 결정 · 2026-11-07).
+- 문체의 세부 기준(띄어쓰기 · 말끝 · 낱말 · 바꾸지 않는 것)은 [docs/STYLE.md](docs/STYLE.md)를 따릅니다(사용자 결정 · 2026-11-28).
 
 ### W-11 약속은 CI가 지킨다
 - `.github/workflows/diode.yml`이 모든 push와 PR에서 Windows + Ubuntu × 최소(3.8) · 최신(3.13) Python 조합으로 `python -m unittest discover -s tests`와 `tools/diode_check.py --strict`를 실행합니다.

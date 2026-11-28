@@ -8,7 +8,7 @@
 
 1. 읽는 순서: **AGENTS.md → [RULES.md](RULES.md) → [docs/SPEC.md](docs/SPEC.md) → [docs/PLAN.md](docs/PLAN.md)**. 계약(필드 · 판정 · 출력 형식 · 오류 코드)은 `SPEC.md`가 기준 문서이고, 설계 배경 · 불변식(AL) · 유출 경로(L) · 리스크(R)는 `PLAN.md`가 기준 문서입니다. `PLAN.md`는 분량이 길므로 작업과 관련된 절을 끝까지 읽으면 됩니다.
 2. README나 소개 문서를 쓸 때는 **[docs/BLUEPRINT.md](docs/BLUEPRINT.md)를 PN junction 비유의 공식 기준으로 삼습니다.** 해당 문서와 다른 비유를 새로 만들지 않습니다.
-3. 화면 · 문서 · 이미지를 다룰 때는 works의 [DESIGN.md](https://github.com/leebobegogigug-blip/Works/blob/13e56a0a5801da56dc18523363cd219ebf6d2e21/docs/DESIGN.md)도 함께 읽습니다.
+3. 화면 · 문서 · 이미지를 다룰 때는 works의 [DESIGN.md](https://github.com/leebobegogigug-blip/Works/blob/13e56a0a5801da56dc18523363cd219ebf6d2e21/docs/DESIGN.md)도 함께 읽습니다. 문서를 쓰거나 수정할 때는 [docs/STYLE.md](docs/STYLE.md)(문체 기준)를 먼저 읽습니다.
 4. 규칙과 충돌하는 요청을 받으면, 작업 전에 어느 조항과 부딪히는지 사용자에게 알리고 답을 기다립니다([works DEVELOP D-02](https://github.com/leebobegogigug-blip/Works/blob/13e56a0a5801da56dc18523363cd219ebf6d2e21/docs/DEVELOP.md#d-02-부딪히면-멈추고-말한다)). 검증 스크립트에 걸리지 않으려고 문자열을 잘게 쪼개거나 테스트를 느슨하게 고치는 우회는 하지 않습니다.
 
 ## 헌법 요약 — 기준 문서는 RULES.md
